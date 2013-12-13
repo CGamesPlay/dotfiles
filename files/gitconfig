@@ -10,6 +10,7 @@
   excludesfile = ~/.gitignore
   whitespace = trailing-space,space-before-tab
   pager = less
+	editor = vim
 
 ### colors are meant for a dark terminal
 [color]
@@ -75,3 +76,5 @@
   showDirtyState = false
 [rerere]
   enabled = 1
+[push]
+	default = simple

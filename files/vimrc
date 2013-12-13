@@ -9,6 +9,7 @@ filetype off
 " Load other plugins
 runtime bundle/pathogen/autoload/pathogen.vim
 call pathogen#infect()
+call pathogen#helptags()
 " Set up filetype
 syntax on
 filetype plugin indent on
@@ -51,6 +52,9 @@ set tabstop=4 expandtab shiftwidth=2 softtabstop=2
 
 " In general, 80col
 set textwidth=80
+
+" Ignore node_modules from file searches
+set wildignore=*/node_modules/*
 
 " }}}
 
@@ -270,8 +274,23 @@ augroup END " }}}
 augroup ft_javascript " {{{
   au!
 
+  " Add ES6 yield to highlight
+  au FileType javascript syn match javaScriptOperator /\<yield\>/
+
   " CommonJS modules omit the .js, so this allows gf to work
   au FileType javascript setlocal suffixesadd=.js
+  au FileType javascript iab <buffer> jsx <F2>/** @jsx React.DOM */<CR>
+    \var React = require('react-tools/build/modules/React');<CR>
+    \<CR>
+    \var <C-R>=expand('%:t:r')<CR> = React.createClass({<CR>
+    \  render: function() {<CR>
+    \    return (<CR>
+    \     <CR>
+    \    );<CR>
+    \  }<CR>
+    \});<CR>
+    \<CR>
+    \module.exports = <C-R>=expand('%:t:r')<CR>;<F2><Up><Up><Up><Up><Up>
 augroup END " }}}
 
 augroup ft_text " {{{
