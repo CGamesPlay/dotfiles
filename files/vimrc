@@ -8,6 +8,7 @@ set nocompatible
 filetype off
 " Load other plugins
 runtime bundle/pathogen/autoload/pathogen.vim
+runtime macros/matchit.vim
 call pathogen#infect()
 call pathogen#helptags()
 " Set up filetype
@@ -178,6 +179,9 @@ nnoremap <silent> k gk
 " Use %% in command mode to get the directory of the current file.
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
 
+" Command-R will save and then refresh the active Chrome window, why not
+nnoremap <D-r> :wa\|!osascript -e 'tell application "Google Chrome" to tell the active tab of its first window to reload'<CR><CR>
+
 " }}}
 
 " Shortcuts (maps) {{{
@@ -195,7 +199,7 @@ nmap <silent> <leader>/ :nohlsearch<CR>
 nmap <leader>s :FSHere<CR>
 
 " Ggrep (fugitive) current word
-map <leader>g :Ggrep '<C-r><C-w>'<CR>
+map <leader>g :Ggrep -w '<C-r><C-w>'<CR>
 
 " "Fold tag", useful for XML/HTML
 nnoremap <leader>ft Vatzf

@@ -13,8 +13,20 @@ Host office
   Hostname office.cgamesplay.com
   User cgames
 
-Host mc.cgamesplay.com
-  User ec2-user
-  IdentityFile ~/.ssh/keys/minecraftserver.pem
+Host ec2main
+  User ubuntu
+  Hostname ec2-23-23-81-142.compute-1.amazonaws.com
+
+Host ec2blog
+  User ubuntu
+  Hostname ec2-184-72-238-3.compute-1.amazonaws.com
+
+Host ec2mainold
+  User ubuntu
+  Hostname ec2-54-224-148-190.compute-1.amazonaws.com
+
+Host ec2corporationscraper
+  User ubuntu
+  Hostname ec2-54-221-233-63.compute-1.amazonaws.com
 
 # vim: ft=config
