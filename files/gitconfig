@@ -45,6 +45,7 @@
   st = status
   cp = cherry-pick
   graph = log --oneline --graph --decorate
+  track = branch --set-upstream-to
 
 [svn]
   followparent = true

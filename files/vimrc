@@ -264,6 +264,12 @@ augroup jump_to_last_pos " {{{
     \ endif
 augroup END " }}}
 
+augroup grep " {{{
+  au!
+  " Automatically open the grep window after performing a grep.
+  autocmd QuickFixCmdPost *grep* cwindow
+augroup END " }}}
+
 " }}}
 
 " File type-specific {{{
