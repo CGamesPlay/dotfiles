@@ -4,7 +4,7 @@ SOURCE = $(CURDIR)/files
 TARGET = $(HOME)
 
 # Files to link directly
-LINK_FILES := $(notdir $(shell find $(SOURCE) -maxdepth 1 -type f)) oh-my-zsh
+LINK_FILES := $(notdir $(shell find $(SOURCE) -maxdepth 1 -type f)) oh-my-zsh config/oh-my-fish
 # Link contents of these directories
 LINK_DIRS = vim ssh config/fish
 
