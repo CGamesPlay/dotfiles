@@ -1,9 +1,9 @@
 [submodule "files/vim/bundle/fugitive"]
 	path = files/vim/bundle/fugitive
-	url = git://github.com/tpope/vim-fugitive.git
+	url = https://github.com/tpope/vim-fugitive.git
 [submodule "files/vim/bundle/solarized"]
 	path = files/vim/bundle/solarized
-	url = git://github.com/altercation/vim-colors-solarized.git
+	url = https://github.com/altercation/vim-colors-solarized.git
 [submodule "files/vim/bundle/JavaScript-Indent"]
 	path = files/vim/bundle/JavaScript-Indent
 	url = https://github.com/vim-scripts/JavaScript-Indent.git
@@ -18,7 +18,7 @@
 	url = https://github.com/kchmck/vim-coffee-script.git
 [submodule "files/vim/bundle/vim-arcanist"]
 	path = files/vim/bundle/vim-arcanist
-	url = git://github.com/phleet/vim-arcanist.git
+	url = https://github.com/phleet/vim-arcanist.git
 [submodule "files/vim/bundle/ctrlp.vim"]
 	path = files/vim/bundle/ctrlp.vim
 	url = https://github.com/kien/ctrlp.vim.git
@@ -27,7 +27,7 @@
 	url = https://github.com/danro/rename.vim.git
 [submodule "files/vim/bundle/vim-less"]
 	path = files/vim/bundle/vim-less
-	url = git@github.com:groenewege/vim-less.git
+	url = https://github.com/groenewege/vim-less.git
 [submodule "files/vim/bundle/vim-fish"]
 	path = files/vim/bundle/vim-fish
 	url = https://github.com/dag/vim-fish.git
