@@ -16,6 +16,7 @@ LINK_DIRS_dest := $(LINK_DIRS_src:$(SOURCE)/%=$(TARGET)/.%)
 .PHONY: install uninstall
 
 install: $(LINK_FILES_dest) $(LINK_DIRS_dest)
+	mkdir -p ~/.vim/swaps/
 
 uninstall:
 	rm -i $(LINK_FILES_dest) $(LINK_DIRS_dest)
