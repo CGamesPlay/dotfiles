@@ -13,6 +13,7 @@ set fish_plugins rvm bundler
 . $fish_path/oh-my-fish.fish
 
 set -Ux EDITOR vim
+set -Ux LESS "-RS"
 set -U __fish_init_1_22_0 \x1d
 set -U __fish_init_1_50_0 \x1d
 set -U __prompt_initialized_2 \x1d
