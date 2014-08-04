@@ -1,29 +1,35 @@
 " Welcome to my vimrc!
 
-" Basic setup {{{
+" Vundle setup {{{
 
 " vim: foldmethod=marker
 
 set nocompatible
 filetype off
-" Load other plugins
-runtime bundle/pathogen/autoload/pathogen.vim
-runtime macros/matchit.vim
-call pathogen#infect()
-call pathogen#helptags()
-" Set up filetype
-syntax on
-filetype plugin indent on
+set runtimepath+=~/.vim/bundle/Vundle.vim
 
 " }}}
 
-" Plugin stuff {{{
+" Plugin configuration {{{
 
-" Necessary to fix up vim system() calls.
-set shell=/bin/sh
+call vundle#begin()
 
-" Read man pages with :Man
-runtime ftplugin/man.vim
+Plugin 'altercation/vim-colors-solarized'
+Plugin 'bpinto/oh-my-fish'
+Plugin 'dag/vim-fish'
+Plugin 'gmarik/Vundle.vim'
+Plugin 'groenewege/vim-less'
+Plugin 'kana/vim-textobj-user'
+Plugin 'kien/ctrlp.vim'
+Plugin 'nelstrom/vim-textobj-rubyblock'
+Plugin 'tpope/vim-fugitive'
+
+runtime macros/matchit.vim
+
+" End of Vundle config
+call vundle#end()
+syntax on
+filetype plugin indent on
 
 " }}}
 
@@ -33,6 +39,9 @@ runtime ftplugin/man.vim
 set nobackup
 " set directory to a local path, because swapping over sshfs is really slow.
 set directory=~/.vim/swaps//
+
+" Necessary to fix up vim system() calls.
+set shell=/bin/sh
 
 " This means a buffer will still be loaded even if it isn't displayed. Use :ls
 " and :bd to manage

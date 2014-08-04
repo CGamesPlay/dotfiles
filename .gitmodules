@@ -1,42 +1,6 @@
-[submodule "files/vim/bundle/fugitive"]
-	path = files/vim/bundle/fugitive
-	url = https://github.com/tpope/vim-fugitive.git
-[submodule "files/vim/bundle/solarized"]
-	path = files/vim/bundle/solarized
-	url = https://github.com/altercation/vim-colors-solarized.git
-[submodule "files/vim/bundle/JavaScript-Indent"]
-	path = files/vim/bundle/JavaScript-Indent
-	url = https://github.com/vim-scripts/JavaScript-Indent.git
-[submodule "files/vim/bundle/pathogen"]
-	path = files/vim/bundle/pathogen
-	url = https://github.com/tpope/vim-pathogen.git
-[submodule "files/oh-my-zsh"]
-	path = files/oh-my-zsh
-	url = https://github.com/robbyrussell/oh-my-zsh.git
-[submodule "files/vim/bundle/vim-coffee-script"]
-	path = files/vim/bundle/vim-coffee-script
-	url = https://github.com/kchmck/vim-coffee-script.git
-[submodule "files/vim/bundle/vim-arcanist"]
-	path = files/vim/bundle/vim-arcanist
-	url = https://github.com/phleet/vim-arcanist.git
-[submodule "files/vim/bundle/ctrlp.vim"]
-	path = files/vim/bundle/ctrlp.vim
-	url = https://github.com/kien/ctrlp.vim.git
-[submodule "files/vim/bundle/rename.vim"]
-	path = files/vim/bundle/rename.vim
-	url = https://github.com/danro/rename.vim.git
-[submodule "files/vim/bundle/vim-less"]
-	path = files/vim/bundle/vim-less
-	url = https://github.com/groenewege/vim-less.git
-[submodule "files/vim/bundle/vim-fish"]
-	path = files/vim/bundle/vim-fish
-	url = https://github.com/dag/vim-fish.git
-[submodule "files/vim/bundle/vim-textobj-rubyblock"]
-	path = files/vim/bundle/vim-textobj-rubyblock
-	url = https://github.com/nelstrom/vim-textobj-rubyblock
-[submodule "files/vim/bundle/vim-textobj-user"]
-	path = files/vim/bundle/vim-textobj-user
-	url = https://github.com/kana/vim-textobj-user
 [submodule "files/config/oh-my-fish"]
 	path = files/config/oh-my-fish
 	url = https://github.com/oh-my-fish/oh-my-fish
+[submodule "files/vim/bundle/Vundle.vim"]
+	path = files/vim/bundle/Vundle.vim
+	url = https://github.com/gmarik/Vundle.vim.git

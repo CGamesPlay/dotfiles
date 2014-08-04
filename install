@@ -4,22 +4,22 @@ SOURCE = $(CURDIR)/files
 TARGET = $(HOME)
 
 # Files to link directly
-LINK_FILES := $(notdir $(shell find $(SOURCE) -maxdepth 1 -type f)) oh-my-zsh config/oh-my-fish
+LINK_FILES := $(notdir $(shell find $(SOURCE) -maxdepth 1 -type f)) config/oh-my-fish
 # Link contents of these directories
-LINK_DIRS = vim ssh config/fish
+LINK_CONTENTS_OF = vim ssh config/fish
 
 # Assemble source and destination file lists
 LINK_FILES_dest := $(addprefix $(TARGET)/.,$(LINK_FILES))
-LINK_DIRS_src := $(wildcard $(addsuffix /*,$(addprefix $(SOURCE)/,$(LINK_DIRS))))
-LINK_DIRS_dest := $(LINK_DIRS_src:$(SOURCE)/%=$(TARGET)/.%)
+LINK_CONTENTS_OF_src := $(wildcard $(addsuffix /*,$(addprefix $(SOURCE)/,$(LINK_CONTENTS_OF))))
+LINK_CONTENTS_OF_dest := $(LINK_CONTENTS_OF_src:$(SOURCE)/%=$(TARGET)/.%)
 
 .PHONY: install uninstall
 
-install: $(LINK_FILES_dest) $(LINK_DIRS_dest)
+install: $(LINK_FILES_dest) $(LINK_CONTENTS_OF_dest)
 	mkdir -p ~/.vim/swaps/
 
 uninstall:
-	rm -i $(LINK_FILES_dest) $(LINK_DIRS_dest)
+	rm -i $(LINK_FILES_dest) $(LINK_CONTENTS_OF_dest)
 
 # Main rule
 $(TARGET)/.%: $(SOURCE)/%
