@@ -172,9 +172,12 @@ noremap <C-l> <C-w>l
 noremap <Up> <C-y>
 noremap <Down> <C-e>
 
-" jk should scroll by actual lines
+" jk should scroll by visible lines
 nnoremap <silent> j gj
 nnoremap <silent> k gk
+" and gj/gk should scroll by actual lines
+nnoremap <silent> gj j
+nnoremap <silent> gk k
 
 " Use %% in command mode to get the directory of the current file.
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
@@ -199,7 +202,7 @@ nmap <silent> <leader>/ :nohlsearch<CR>
 nmap <leader>s :FSHere<CR>
 
 " Ggrep (fugitive) current word
-map <leader>g :Ggrep -w '<C-r><C-w>'<CR>
+map <leader>g :Ggrep! -w '<C-r><C-w>'<CR>
 
 " "Fold tag", useful for XML/HTML
 nnoremap <leader>ft Vatzf

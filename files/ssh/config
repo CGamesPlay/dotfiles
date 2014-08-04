@@ -21,12 +21,8 @@ Host ec2blog
   User ubuntu
   Hostname ec2-184-72-238-3.compute-1.amazonaws.com
 
-Host ec2mainold
+Host ec2scraper
   User ubuntu
-  Hostname ec2-54-224-148-190.compute-1.amazonaws.com
-
-Host ec2corporationscraper
-  User ubuntu
-  Hostname ec2-54-221-233-63.compute-1.amazonaws.com
+  Hostname ec2-54-224-115-206.compute-1.amazonaws.com
 
 # vim: ft=config
