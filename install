@@ -6,7 +6,7 @@ TARGET = $(HOME)
 # Files to link directly
 LINK_FILES := $(notdir $(shell find $(SOURCE) -maxdepth 1 -type f)) config/oh-my-fish
 # Link contents of these directories
-LINK_CONTENTS_OF = vim ssh config/fish atom
+LINK_CONTENTS_OF = vim/bundle ssh config/fish atom
 
 # Assemble source and destination file lists
 LINK_FILES_dest := $(addprefix $(TARGET)/.,$(LINK_FILES))
@@ -17,6 +17,7 @@ LINK_CONTENTS_OF_dest := $(LINK_CONTENTS_OF_src:$(SOURCE)/%=$(TARGET)/.%)
 
 install: $(LINK_FILES_dest) $(LINK_CONTENTS_OF_dest)
 	mkdir -p ~/.vim/swaps/
+	vim -c VundleInstall -c qa
 	apm install --packages-file ~/.atom/installed-packages.txt
 
 uninstall:

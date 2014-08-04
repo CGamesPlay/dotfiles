@@ -15,7 +15,6 @@ set runtimepath+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 
 Plugin 'altercation/vim-colors-solarized'
-Plugin 'bpinto/oh-my-fish'
 Plugin 'dag/vim-fish'
 Plugin 'gmarik/Vundle.vim'
 Plugin 'groenewege/vim-less'
