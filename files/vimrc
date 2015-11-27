@@ -64,7 +64,7 @@ set tabstop=4 expandtab shiftwidth=2 softtabstop=2
 set textwidth=80
 
 " Ignore node_modules from file searches
-set wildignore=*/node_modules/*
+set wildignore=*/node_modules/*,*/tmp/*
 
 " }}}
 
@@ -72,7 +72,10 @@ set wildignore=*/node_modules/*
 
 if version >= 703
   " I like this, some people prefer set number
-  set relativenumber
+  " set relativenumber
+  " However, it can severly impact UI responsiveness due to excessive screen
+  " updates, so disabled for now.
+  set number
 end
 
 " I like to know what file I'm editing even when I'm only editing one.
@@ -91,6 +94,9 @@ end
 
 " Highlight tab literals and trailing spaces
 set list listchars=tab:\ \ ,trail:\ 
+
+" Don't update the screen while running macos
+set lazyredraw
 
 " }}}
 
@@ -334,6 +340,12 @@ augroup ft_python " {{{
   au!
 
   au FileType python setlocal sw=4 sts=4 ts=4
+augroup END " }}}
+
+augroup ft_ruby " {{{
+  au!
+
+  au FileType ruby setlocal foldmethod=marker
 augroup END " }}}
 
 " }}}

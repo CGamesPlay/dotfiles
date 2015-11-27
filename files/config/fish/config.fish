@@ -42,3 +42,5 @@ set -U fish_pager_color_completion normal
 set -U fish_pager_color_description 555\x1eyellow
 set -U fish_pager_color_prefix cyan
 set -U fish_pager_color_progress cyan
+
+source /Users/rpatterson/.iterm2_shell_integration.fish

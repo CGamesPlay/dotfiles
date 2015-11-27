@@ -91,3 +91,5 @@ zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 #zstyle ':completion:*' special-dirs ..
 
 # }}}
+
+export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting

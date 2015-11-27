@@ -46,6 +46,9 @@
   cp = cherry-pick
   graph = log --oneline --graph --decorate
   track = branch --set-upstream-to
+  # Safe remove all branches reachable from HEAD.  Good way to GC old branches after dcommit/rebase
+  gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | xargs -n1 git branch -d &> /dev/null || exit 0
+  push-pull = !git pull --rebase && git push
 
 [svn]
   followparent = true
