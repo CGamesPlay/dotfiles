@@ -1,0 +1,36 @@
+# Your keymap
+#
+# Atom keymaps work similarly to stylesheets. Just as stylesheets use selectors
+# to apply styles to elements, Atom keymaps use selectors to associate
+# keystrokes with events in specific contexts.
+#
+# You can create a new keybinding in this file by typing "key" and then hitting
+# tab.
+#
+# Here's an example taken from Atom's built-in keymap:
+#
+# '.editor':
+#   'enter': 'editor:newline'
+#
+# 'body':
+#   'ctrl-P': 'core:move-up'
+#   'ctrl-p': 'core:move-down'
+#
+
+'atom-text-editor.vim-mode.insert-mode':
+  'j k': 'vim-mode:activate-normal-mode'
+  'ctrl-p': 'autocomplete-plus:activate'
+
+'atom-text-editor.vim-mode.normal-mode':
+  'ctrl-l': 'window:focus-pane-on-right'
+  'ctrl-h': 'window:focus-pane-on-left'
+  'ctrl-o': 'last-cursor-position:previous'
+  'ctrl-i': 'last-cursor-position:next'
+
+'atom-text-editor.vim-mode:not(.insert-mode)':
+  ':': 'ex-mode:open'
+  ';': 'ex-mode:open'
+  'Q Q': 'hard-wrap:reflow-selection'
+
+'atom-text-editor.vim-mode.normal-mode[data-grammar~=gherkin]':
+  'ctrl-]': 'cucumber-step:jump-to-step'

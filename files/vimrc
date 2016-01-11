@@ -23,6 +23,9 @@ Plugin 'kana/vim-textobj-user'
 Plugin 'kien/ctrlp.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
+Plugin 'terryma/vim-multiple-cursors'
+" Crashes too much
+"Plugin 'valloric/YouCompleteMe'
 
 runtime macros/matchit.vim
 

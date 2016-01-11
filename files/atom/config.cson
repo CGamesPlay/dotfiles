@@ -1,0 +1,56 @@
+"*":
+  "exception-reporting":
+    userId: "bfdef760-8980-64a8-ddb4-f00d379af870"
+  "release-notes":
+    viewedVersion: "0.90.0"
+  welcome:
+    showOnStartup: false
+  metrics:
+    userId: "b776f2eef9aff1bca9b05caa510e830b85093658"
+  editor:
+    fontSize: 13
+    softWrap: true
+    showIndentGuide: true
+    fontFamily: "Anonymous Pro"
+    invisibles: {}
+    scrollPastEnd: true
+  core:
+    themes: [
+      "atom-light-ui"
+      "solarized-light-syntax"
+    ]
+    ignoredNames: [
+      ".git"
+      ".svn"
+      ".DS_Store"
+    ]
+    disabledPackages: [
+      "cucumber-runner"
+      "deprecation-cop"
+      "dev-live-reload"
+    ]
+    packagesWithKeymapsDisabled: [
+      "ex-mode"
+      "cucumber-step"
+      "hard-wrap"
+    ]
+    openEmptyEditorOnStart: false
+  "markdown-preview":
+    grammars: [
+      "source.gfm"
+      "source.litcoffee"
+      "text.plain"
+      "text.plain.null-grammar"
+    ]
+    useGitHubStyle: true
+  "cucumber-runner": {}
+  "vim-mode":
+    useSmartcaseForSearch: true
+  "tree-view":
+    hideVcsIgnoredFiles: true
+  "autocomplete-plus":
+    autoActivationDelay: 500
+    enableAutoActivation: false
+  "bracket-matcher":
+    autocompleteBrackets: false
+    autocompleteSmartQuotes: false
