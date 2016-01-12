@@ -34,3 +34,6 @@
 
 'atom-text-editor.vim-mode.normal-mode[data-grammar~=gherkin]':
   'ctrl-]': 'cucumber-step:jump-to-step'
+
+'.platform-darwin':
+  'ctrl-p': 'fuzzy-finder:toggle-file-finder'
