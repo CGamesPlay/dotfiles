@@ -1,40 +1,45 @@
 "*":
-  "exception-reporting":
-    userId: "bfdef760-8980-64a8-ddb4-f00d379af870"
-  "release-notes":
-    viewedVersion: "0.90.0"
-  welcome:
-    showOnStartup: false
-  metrics:
-    userId: "b776f2eef9aff1bca9b05caa510e830b85093658"
-  editor:
-    fontSize: 13
-    softWrap: true
-    showIndentGuide: true
-    fontFamily: "Anonymous Pro"
-    invisibles: {}
-    scrollPastEnd: true
+  "autocomplete-plus":
+    autoActivationDelay: 500
+    enableAutoActivation: false
+  "bracket-matcher":
+    autocompleteBrackets: false
+    autocompleteSmartQuotes: false
   core:
-    themes: [
-      "atom-light-ui"
-      "solarized-light-syntax"
+    disabledPackages: [
+      "cucumber-runner"
+      "deprecation-cop"
+      "dev-live-reload"
     ]
     ignoredNames: [
       ".git"
       ".svn"
       ".DS_Store"
     ]
-    disabledPackages: [
-      "cucumber-runner"
-      "deprecation-cop"
-      "dev-live-reload"
-    ]
+    openEmptyEditorOnStart: false
     packagesWithKeymapsDisabled: [
       "ex-mode"
       "cucumber-step"
       "hard-wrap"
     ]
-    openEmptyEditorOnStart: false
+    themes: [
+      "atom-light-ui"
+      "solarized-light-syntax"
+    ]
+  "cucumber-runner": {}
+  editor:
+    fontFamily: "Anonymous Pro"
+    fontSize: 13
+    invisibles: {}
+    lineHeight: 1
+    scrollPastEnd: true
+    showIndentGuide: true
+    softWrap: true
+  "exception-reporting":
+    userId: "bfdef760-8980-64a8-ddb4-f00d379af870"
+  "find-and-replace":
+    scrollToResultOnLiveSearch: true
+  "jupyter-notebook": {}
   "markdown-preview":
     grammars: [
       "source.gfm"
@@ -43,14 +48,12 @@
       "text.plain.null-grammar"
     ]
     useGitHubStyle: true
-  "cucumber-runner": {}
+  metrics:
+    userId: "b776f2eef9aff1bca9b05caa510e830b85093658"
+  "release-notes":
+    viewedVersion: "0.90.0"
+  "tree-view": {}
   "vim-mode":
     useSmartcaseForSearch: true
-  "tree-view":
-    hideVcsIgnoredFiles: true
-  "autocomplete-plus":
-    autoActivationDelay: 500
-    enableAutoActivation: false
-  "bracket-matcher":
-    autocompleteBrackets: false
-    autocompleteSmartQuotes: false
+  welcome:
+    showOnStartup: false

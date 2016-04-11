@@ -42,12 +42,14 @@ set nobackup
 " set directory to a local path, because swapping over sshfs is really slow.
 set directory=~/.vim/swaps//
 
-" Necessary to fix up vim system() calls.
+" Necessary to fix up vim system() calls since I use fish normally.
 set shell=/bin/sh
 
 " This means a buffer will still be loaded even if it isn't displayed. Use :ls
 " and :bd to manage
 set hidden
+" Automatically reload files when modified by other programs
+set autoread
 
 " smartcase is case-sensitive iff your search includes a capital letter
 set ignorecase smartcase incsearch hlsearch
@@ -170,6 +172,10 @@ noremap <S-Space> ,
 
 " Exit insert mode by typing jk. Trust me, you never need to type jk.
 inoremap jk <Esc>
+" jk can be used to exit from terminal mode just as well.
+if exists(':tnoremap')
+  tnoremap jk <C-\><C-n>
+endif
 
 " Love me some emacs-style shortcuts
 inoremap <C-a> <Esc>I
@@ -181,6 +187,9 @@ cnoremap <C-d> <Delete>
 
 " Window nav
 noremap <C-h> <C-w>h
+if !has("gui_macvim")
+  noremap <BS> <C-w>h " This is kludgy, since it means Backspace switches to the left window. But necessary for Neovim.
+end
 noremap <C-j> <C-w>j
 noremap <C-k> <C-w>k
 noremap <C-l> <C-w>l
@@ -200,7 +209,7 @@ nnoremap <silent> gk k
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
 
 " Command-R will save and then refresh the active Chrome window, why not
-nnoremap <D-r> :wa\|!osascript -e 'tell application "Google Chrome" to tell the active tab of its first window to reload'<CR><CR>
+nnoremap <D-r> :wa\|!osascript -e 'tell application "Google Chrome" to set URL of active tab of its first window to "javascript:void(typeof Jupyter \!== \"undefined\" ? Jupyter.notebook.execute_all_cells() : location.reload())"'<CR><CR>
 
 " }}}
 
