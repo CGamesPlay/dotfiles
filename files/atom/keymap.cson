@@ -17,23 +17,24 @@
 #   'ctrl-p': 'core:move-down'
 #
 
-'atom-text-editor.vim-mode.insert-mode':
-  'j k': 'vim-mode:activate-normal-mode'
+'atom-text-editor.vim-mode-plus.insert-mode':
+  'j k': 'vim-mode-plus:activate-normal-mode'
   'ctrl-p': 'autocomplete-plus:activate'
 
-'atom-text-editor.vim-mode.normal-mode':
+'atom-text-editor.vim-mode-plus.normal-mode':
   'ctrl-l': 'window:focus-pane-on-right'
   'ctrl-h': 'window:focus-pane-on-left'
   'ctrl-o': 'last-cursor-position:previous'
   'ctrl-i': 'last-cursor-position:next'
+  ', /': 'vim-mode-plus:clear-highlight-search'
 
-'atom-text-editor.vim-mode:not(.insert-mode)':
+'atom-text-editor.vim-mode-plus:not(.insert-mode)':
   ':': 'ex-mode:open'
   ';': 'ex-mode:open'
   'Q Q': 'hard-wrap:reflow-selection'
 
-'atom-text-editor.vim-mode.normal-mode[data-grammar~=gherkin]':
+'atom-text-editor.vim-mode-plus.normal-mode[data-grammar~=gherkin]':
   'ctrl-]': 'cucumber-step:jump-to-step'
 
-'.platform-darwin':
+'body':
   'ctrl-p': 'fuzzy-finder:toggle-file-finder'

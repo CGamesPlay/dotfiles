@@ -10,6 +10,8 @@
       "cucumber-runner"
       "deprecation-cop"
       "dev-live-reload"
+      "autosave"
+      "vim-mode"
     ]
     ignoredNames: [
       ".git"
@@ -54,8 +56,16 @@
     listDirectoriesAddedToProject: true
   "release-notes":
     viewedVersion: "0.90.0"
-  "tree-view": {}
+  "tree-view":
+    autoReveal: true
+    focusOnReveal: false
+    hideVcsIgnoredFiles: true
   "vim-mode":
     useSmartcaseForSearch: true
+  "vim-mode-plus":
+    highlightSearch: true
+    incrementalSearch: true
+    useSmartcaseForSearch: true
+    useSmartcaseForSearchCurrentWord: true
   welcome:
     showOnStartup: false

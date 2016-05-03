@@ -23,6 +23,8 @@ Plugin 'kien/ctrlp.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
 Plugin 'terryma/vim-multiple-cursors'
+Plugin 'pangloss/vim-javascript'
+Bundle 'mxw/vim-jsx'
 " Crashes too much
 "Plugin 'valloric/YouCompleteMe'
 
