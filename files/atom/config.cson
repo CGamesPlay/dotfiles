@@ -50,6 +50,8 @@
     useGitHubStyle: true
   metrics:
     userId: "b776f2eef9aff1bca9b05caa510e830b85093658"
+  "open-recent":
+    listDirectoriesAddedToProject: true
   "release-notes":
     viewedVersion: "0.90.0"
   "tree-view": {}

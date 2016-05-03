@@ -4,3 +4,4 @@ tags
 xcuserdata/
 *.xcodeproj/project.xcworkspace/
 .DS_Store
+.byebug_history
