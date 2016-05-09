@@ -17,6 +17,10 @@
 #   'ctrl-p': 'core:move-down'
 #
 
+'.platform-darwin atom-text-editor':
+  'cmd-r': 'unset!'
+  'cmd-r': 'custom:refresh-browser'
+
 'atom-text-editor.vim-mode-plus.insert-mode':
   'j k': 'vim-mode-plus:activate-normal-mode'
   'ctrl-p': 'autocomplete-plus:activate'
@@ -27,14 +31,24 @@
   'ctrl-o': 'last-cursor-position:previous'
   'ctrl-i': 'last-cursor-position:next'
   ', /': 'vim-mode-plus:clear-highlight-search'
+  'Q Q': 'hard-wrap:reflow-selection'
+
+'atom-text-editor.vim-mode-plus.visual-mode':
+  'Q': 'hard-wrap:reflow-selection'
 
 'atom-text-editor.vim-mode-plus:not(.insert-mode)':
   ':': 'ex-mode:open'
   ';': 'ex-mode:open'
-  'Q Q': 'hard-wrap:reflow-selection'
 
 'atom-text-editor.vim-mode-plus.normal-mode[data-grammar~=gherkin]':
   'ctrl-]': 'cucumber-step:jump-to-step'
 
 'body':
   'ctrl-p': 'fuzzy-finder:toggle-file-finder'
+
+  'ctrl-tab': 'unset!'
+  'ctrl-shift-tab': 'unset!'
+  'ctrl-tab ^ctrl': 'unset!'
+  'ctrl-shift-tab ^ctrl': 'unset!'
+  'ctrl-tab': 'pane:show-next-item'
+  'ctrl-shift-tab': 'pane:show-previous-item'

@@ -1,4 +1,9 @@
 function fish_prompt --description 'Write out the prompt'
+
+    if set -q HTERMINAL_ROOT
+      echo -n \f\r\$" "
+      return
+    end
 	
 	set -l last_status $status
 

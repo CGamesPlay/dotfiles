@@ -10,7 +10,6 @@
       "cucumber-runner"
       "deprecation-cop"
       "dev-live-reload"
-      "autosave"
       "vim-mode"
     ]
     ignoredNames: [
@@ -57,7 +56,6 @@
   "release-notes":
     viewedVersion: "0.90.0"
   "tree-view":
-    autoReveal: true
     focusOnReveal: false
     hideVcsIgnoredFiles: true
   "vim-mode":
