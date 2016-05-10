@@ -1,0 +1,2 @@
+#!/bin/sh
+exec apm list --installed --bare > files/atom/installed-packages.txt 

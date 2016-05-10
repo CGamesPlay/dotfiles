@@ -5,6 +5,11 @@ ex-mode@0.8.0
 hard-wrap@1.0.1
 language-fish-shell@1.0.2
 language-haml@0.23.14
+language-javascript-jsx@0.3.7
 last-cursor-position@0.9.0
+open-recent@5.0.0
 package-sync@1.0.0
 vim-mode@0.64.0
+vim-mode-plus@0.39.0
+
+
