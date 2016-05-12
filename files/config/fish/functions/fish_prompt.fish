@@ -1,7 +1,7 @@
 function fish_prompt --description 'Write out the prompt'
 
     if set -q HTERMINAL_ROOT
-      echo -n \f\r\$" "
+      echo -n \$" "
       return
     end
 	
