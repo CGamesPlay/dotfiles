@@ -36,6 +36,7 @@
   untracked = cyan
 
 [alias]
+  start = checkout @{u} -B
   br = branch -vv
   bg = bisect good
   bb = bisect bad
@@ -81,6 +82,10 @@
 [rerere]
   enabled = 1
 [push]
-	default = simple
+	default = upstream
 [branch]
 	autosetuprebase = always
+[filter "lfs"]
+	clean = git-lfs clean %f
+	smudge = git-lfs smudge %f
+	required = true
