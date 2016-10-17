@@ -24,7 +24,6 @@ Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
 Plugin 'terryma/vim-multiple-cursors'
 Plugin 'pangloss/vim-javascript'
-Plugin 'git-time-metric/gtm-vim-plugin'
 Bundle 'mxw/vim-jsx'
 " Crashes too much
 "Plugin 'valloric/YouCompleteMe'

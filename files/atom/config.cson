@@ -23,6 +23,7 @@
       "cucumber-step"
       "hard-wrap"
     ]
+    telemetryConsent: "limited"
     themes: [
       "atom-light-ui"
       "solarized-light-syntax"
