@@ -19,14 +19,13 @@ Plugin 'dag/vim-fish'
 Plugin 'gmarik/Vundle.vim'
 Plugin 'groenewege/vim-less'
 Plugin 'kana/vim-textobj-user'
-Plugin 'kien/ctrlp.vim'
+Plugin 'ctrlpvim/ctrlp.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
-Plugin 'terryma/vim-multiple-cursors'
-Plugin 'pangloss/vim-javascript'
+Plugin 'isRuslan/vim-es6'
+Plugin 'rizzatti/dash.vim'
 Bundle 'mxw/vim-jsx'
-" Crashes too much
-"Plugin 'valloric/YouCompleteMe'
+Bundle 'prettier/vim-prettier'
 
 runtime macros/matchit.vim
 
@@ -34,6 +33,13 @@ runtime macros/matchit.vim
 call vundle#end()
 syntax on
 filetype plugin indent on
+
+" Set up plugin defaults
+
+let g:prettier#config#single_quote = 'false'
+let g:prettier#config#bracket_spacing = 'true'
+let g:prettier#config#jsx_bracket_same_line = 'false'
+let g:prettier#autoformat = 0
 
 " }}}
 
@@ -247,6 +253,9 @@ nmap <leader>swj :botright   new<CR>
 nmap <leader>swk :topleft    new<CR>
 nmap <leader>swl :botright   vnew<CR>
 
+" Dash lookups
+nmap <silent> <leader>d <Plug>DashSearch
+
 " }}}
 
 " Custom commands {{{
@@ -317,24 +326,8 @@ augroup END " }}}
 
 augroup ft_javascript " {{{
   au!
-
-  " Add ES6 yield to highlight
-  au FileType javascript syn match javaScriptOperator /\<yield\>/
-
   " CommonJS modules omit the .js, so this allows gf to work
   au FileType javascript setlocal suffixesadd=.js
-  au FileType javascript iab <buffer> jsx <F2>/** @jsx React.DOM */<CR>
-    \var React = require('react-tools/build/modules/React');<CR>
-    \<CR>
-    \var <C-R>=expand('%:t:r')<CR> = React.createClass({<CR>
-    \  render: function() {<CR>
-    \    return (<CR>
-    \     <CR>
-    \    );<CR>
-    \  }<CR>
-    \});<CR>
-    \<CR>
-    \module.exports = <C-R>=expand('%:t:r')<CR>;<F2><Up><Up><Up><Up><Up>
 augroup END " }}}
 
 augroup ft_text " {{{
@@ -362,6 +355,17 @@ augroup ft_ruby " {{{
   au!
 
   au FileType ruby setlocal foldmethod=marker
+  if has("balloon_eval")
+    au FileType ruby setlocal balloonexpr=
+  end
 augroup END " }}}
+
+augroup prettier " {{{
+  au!
+
+  autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql Prettier
+augroup END
+
+" }}}
 
 " }}}

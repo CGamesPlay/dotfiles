@@ -10,7 +10,6 @@
       "cucumber-runner"
       "deprecation-cop"
       "dev-live-reload"
-      "vim-mode"
     ]
     ignoredNames: [
       ".git"
@@ -23,6 +22,7 @@
       "cucumber-step"
       "hard-wrap"
     ]
+    projectHome: "/Users/rpatterson/Projects"
     telemetryConsent: "limited"
     themes: [
       "atom-light-ui"
@@ -51,8 +51,15 @@
     useGitHubStyle: true
   metrics:
     userId: "b776f2eef9aff1bca9b05caa510e830b85093658"
+  "one-dark-ui":
+    hideDockButtons: true
+  "one-light-ui":
+    hideDockButtons: true
   "open-recent":
     listDirectoriesAddedToProject: true
+  "prettier-atom":
+    formatOnSaveOptions:
+      showInStatusBar: true
   "release-notes":
     viewedVersion: "0.90.0"
   "tree-view":
@@ -62,6 +69,7 @@
   "vim-mode-plus":
     highlightSearch: true
     incrementalSearch: true
+    useClipboardAsDefaultRegister: false
     useSmartcaseForSearch: true
     useSmartcaseForSearchCurrentWord: true
   welcome:

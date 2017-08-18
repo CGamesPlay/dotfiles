@@ -11,6 +11,7 @@
   whitespace = trailing-space,space-before-tab
   pager = less
 	editor = vim
+	mergeoptions = --no-edit
 
 ### colors are meant for a dark terminal
 [color]
