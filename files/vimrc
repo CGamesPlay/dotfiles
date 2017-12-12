@@ -12,6 +12,8 @@ set runtimepath+=~/.vim/bundle/Vundle.vim
 
 " Plugin configuration {{{
 
+set rtp+=/usr/local/opt/fzf
+
 call vundle#begin()
 
 Plugin 'altercation/vim-colors-solarized'
@@ -19,7 +21,7 @@ Plugin 'dag/vim-fish'
 Plugin 'gmarik/Vundle.vim'
 Plugin 'groenewege/vim-less'
 Plugin 'kana/vim-textobj-user'
-Plugin 'ctrlpvim/ctrlp.vim'
+Plugin 'junegunn/fzf.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
 Plugin 'isRuslan/vim-es6'
@@ -39,7 +41,22 @@ filetype plugin indent on
 let g:prettier#config#single_quote = 'false'
 let g:prettier#config#bracket_spacing = 'true'
 let g:prettier#config#jsx_bracket_same_line = 'false'
+let g:prettier#quickfix_enabled = 0
 let g:prettier#autoformat = 0
+let g:prettier#write_on_save = 1
+
+" Set up fzf to transfer results to location window
+
+function! s:fzf_to_qf(lines)
+  call setloclist(map(copy(a:lines), '{ "filename": v:val }'), 'r', { 'title': 'FZF results' })
+  lopen
+  ll
+endfunction
+
+let g:fzf_action = {
+  \ 'ctrl-q': function('s:fzf_to_qf') }
+
+let $FZF_DEFAULT_OPTS = '--bind ctrl-a:select-all'
 
 " }}}
 
@@ -235,13 +252,14 @@ nmap <silent> <leader>/ :nohlsearch<CR>
 " FSwitch
 nmap <leader>s :FSHere<CR>
 
-" Ggrep (fugitive) current word
-map <leader>g :Ggrep! -w '<C-r><C-w>'<CR>
-
 " "Fold tag", useful for XML/HTML
 nnoremap <leader>ft Vatzf
 
-nmap <C-B> :CtrlPBuffer<CR>
+" Search for current word with fugitive
+map <leader>g :Ggrep -w '<C-r><C-w>'<CR>
+
+nmap <C-B> :Buffers<CR>
+nmap <C-P> :GFiles -co --exclude-standard<CR>
 
 " Split the buffer or window left, right, up, or down
 nmap <leader>sh  :leftabove  vnew<CR>
@@ -363,7 +381,7 @@ augroup END " }}}
 augroup prettier " {{{
   au!
 
-  autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql Prettier
+  autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql if g:prettier#write_on_save | Prettier | endif
 augroup END
 
 " }}}

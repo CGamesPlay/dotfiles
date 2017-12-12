@@ -1,28 +1,54 @@
-ForwardAgent yes
-
 # Allow multiplexing of SSH connections
 # Choose the master connection manually (ss in bashrc does this)
 ControlMaster no
 ControlPath /tmp/ssh_mux_%h_%p_%r
 
-Host playground
-  Hostname playground.wooters.us
-  User cgames
+Host guest
+  Hostname simplyinsured-guest.local
 
-Host office
-  Hostname office.cgamesplay.com
-  User cgames
+Host ec2blog
+  User ubuntu
+  Hostname ec2-184-72-238-3.compute-1.amazonaws.com
+  ForwardAgent yes
+
+Host www.simplyinsured.com
+  User ubuntu
+  Hostname ec2-23-23-81-142.compute-1.amazonaws.com
 
 Host ec2main
   User ubuntu
   Hostname ec2-23-23-81-142.compute-1.amazonaws.com
 
-Host ec2blog
+Host api.simplyinsured.com
   User ubuntu
-  Hostname ec2-184-72-238-3.compute-1.amazonaws.com
 
-Host ec2scraper
+Host delayedjob.simplyinsured.com
   User ubuntu
-  Hostname ec2-54-224-115-206.compute-1.amazonaws.com
+  Hostname ec2-54-145-137-215.compute-1.amazonaws.com
+
+Host code.simplyinsured.com
+  User ubuntu
+  IdentityFile /Users/rpatterson/.ssh/id_phabricator.pem
+  ForwardAgent yes
+
+Host staging.simplyinsured.com
+  User ubuntu
+  ForwardAgent yes
+  Hostname ec2-174-129-137-52.compute-1.amazonaws.com
+
+Host scraper-master
+  User ubuntu
+  Hostname 54.89.33.98
+  ForwardAgent yes
+
+Host raspberrypi
+  User pi
+  Hostname raspberrypi.local
+  ForwardAgent yes
+
+Host pdfservice-hypervisor
+  Hostname e13-5.macminivault.com
+  User administrator
+  ForwardAgent yes
 
 # vim: ft=config

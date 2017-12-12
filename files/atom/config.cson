@@ -59,11 +59,15 @@
     listDirectoriesAddedToProject: true
   "prettier-atom":
     formatOnSaveOptions:
+      enabled: true
       showInStatusBar: true
+    prettierOptions:
+      trailingComma: "all"
   "release-notes":
     viewedVersion: "0.90.0"
   "tree-view":
     focusOnReveal: false
+    hideVcsIgnoredFiles: true
   "vim-mode":
     useSmartcaseForSearch: true
   "vim-mode-plus":
