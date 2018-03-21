@@ -16,18 +16,19 @@ set rtp+=/usr/local/opt/fzf
 
 call vundle#begin()
 
-Plugin 'altercation/vim-colors-solarized'
-Plugin 'dag/vim-fish'
 Plugin 'gmarik/Vundle.vim'
+Plugin 'altercation/vim-colors-solarized'
+Plugin 'pangloss/vim-javascript'
+Plugin 'mxw/vim-jsx'
+Plugin 'dag/vim-fish'
 Plugin 'groenewege/vim-less'
 Plugin 'kana/vim-textobj-user'
 Plugin 'junegunn/fzf.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'tpope/vim-fugitive'
-Plugin 'isRuslan/vim-es6'
 Plugin 'rizzatti/dash.vim'
-Bundle 'mxw/vim-jsx'
-Bundle 'prettier/vim-prettier'
+Plugin 'prettier/vim-prettier'
+Plugin 'w0rp/ale'
 
 runtime macros/matchit.vim
 
@@ -38,12 +39,16 @@ filetype plugin indent on
 
 " Set up plugin defaults
 
+let g:javascript_plugin_flow = 1
 let g:prettier#config#single_quote = 'false'
 let g:prettier#config#bracket_spacing = 'true'
 let g:prettier#config#jsx_bracket_same_line = 'false'
 let g:prettier#quickfix_enabled = 0
 let g:prettier#autoformat = 0
 let g:prettier#write_on_save = 1
+let g:ale_sign_column_always = 1
+let g:ale_lint_on_text_changed = 'never'
+let g:ale_open_list = 1
 
 " Set up fzf to transfer results to location window
 
@@ -95,6 +100,11 @@ set textwidth=80
 " Ignore node_modules from file searches
 set wildignore=*/node_modules/*,*/tmp/*
 
+" Remove comment characters at the start of lines when using J
+if v:version > 703 || v:version == 703 && has('patch541')
+  set formatoptions+=j
+endif
+
 " }}}
 
 " Core display settings {{{
@@ -132,7 +142,8 @@ set lazyredraw
 " Pretty display settings (colors, GUI) {{{
 
 " Main color settings
-set guifont=Anonymous_Pro:h13
+set guifont=Consolas:h14,Anonymous_Pro:h14
+set linespace=2
 set background=light
 colors solarized
 
@@ -256,7 +267,9 @@ nmap <leader>s :FSHere<CR>
 nnoremap <leader>ft Vatzf
 
 " Search for current word with fugitive
-map <leader>g :Ggrep -w '<C-r><C-w>'<CR>
+nmap <leader>g :Ggrep! -w '<C-r><C-w>'<CR>
+" Search for current selection with fugitive
+vmap <leader>g y:Ggrep! '<C-r>"'<CR>
 
 nmap <C-B> :Buffers<CR>
 nmap <C-P> :GFiles -co --exclude-standard<CR>
@@ -294,16 +307,14 @@ if &term == "screen" || &term == "xterm"
   au BufEnter * let &titlestring = "vim " . pathshorten(expand("%:~:.:f"))
 endif
 
-" Resize my window to fit N columns of 81 columns with 4 gutter columns each
+" Resize my window to fit N columns of 81 columns with 6 gutter columns each
 " plus (n - 1) separator bars, and be max height
 function! SetCols(n)
-  let cols = a:n * 86 - 1
+  let cols = a:n * 88 - 1
   exec "set columns=" . cols . " lines=999"
+  normal =
 endfunction
 command! -count=1 Cols call SetCols(<count>)
-
-" Use git to find files
-let g:ctrlp_user_command = ['.git', 'cd %s && git ls-files . -co --exclude-standard']
 
 augroup insert_trailingspace " {{{
   au!
@@ -327,8 +338,15 @@ augroup END " }}}
 
 augroup grep " {{{
   au!
-  " Automatically open the grep window after performing a grep.
-  autocmd QuickFixCmdPost *grep* cwindow
+  " Automatically open the location list after performing an grep.
+  autocmd QuickFixCmdPost grep botright cwindow
+augroup END " }}}
+
+augroup gutter " {{{
+  au!
+  " Add a dummy sign to every buffer to always show the gutter
+  autocmd BufEnter * sign define ALEDummySign
+  autocmd BufEnter * execute 'sign place 1000000 line=1 name=ALEDummySign buffer=' . bufnr('')
 augroup END " }}}
 
 " }}}
