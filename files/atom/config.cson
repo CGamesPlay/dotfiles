@@ -6,10 +6,15 @@
     autocompleteBrackets: false
     autocompleteSmartQuotes: false
   core:
+    allowPendingPaneItems: false
     disabledPackages: [
       "cucumber-runner"
       "deprecation-cop"
       "dev-live-reload"
+      "busy-signal"
+      "lcov-info"
+      "linter-eslint"
+      "language-javascript-jsx"
     ]
     ignoredNames: [
       ".git"
@@ -22,7 +27,6 @@
       "cucumber-step"
       "hard-wrap"
     ]
-    projectHome: "/Users/rpatterson/Projects"
     telemetryConsent: "limited"
     themes: [
       "atom-light-ui"
@@ -31,6 +35,7 @@
   "cucumber-runner": {}
   editor:
     fontFamily: "Anonymous Pro"
+    fontSize: 15
     invisibles: {}
     lineHeight: 1
     scrollPastEnd: true
@@ -41,6 +46,15 @@
   "find-and-replace":
     scrollToResultOnLiveSearch: true
   "jupyter-notebook": {}
+  "language-babel": {}
+  "lcov-info":
+    coveredType: "Uncovered Lines Only"
+  linter:
+    lintOnChangeInterval: 1000
+  "linter-ui-default":
+    decorateOnTreeView: "None"
+    panelRepresents: "Entire Project"
+    statusBarRepresents: "Entire Project"
   "markdown-preview":
     grammars: [
       "source.gfm"
@@ -60,8 +74,10 @@
   "prettier-atom":
     formatOnSaveOptions:
       enabled: true
+      isDisabledIfNotInPackageJson: true
       showInStatusBar: true
     prettierOptions:
+      parser: "flow"
       trailingComma: "all"
   "release-notes":
     viewedVersion: "0.90.0"

@@ -32,6 +32,10 @@
   'ctrl-i': 'last-cursor-position:next'
   ', /': 'vim-mode-plus:clear-highlight-search'
   'Q Q': 'hard-wrap:reflow-selection'
+  'j': 'vim-mode-plus:move-down-screen'
+  'k': 'vim-mode-plus:move-up-screen'
+  'g j': 'vim-mode-plus:move-down'
+  'g k': 'vim-mode-plus:move-up'
 
 'atom-text-editor.vim-mode-plus.visual-mode':
   'Q': 'hard-wrap:reflow-selection'
