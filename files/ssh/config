@@ -51,4 +51,11 @@ Host pdfservice-hypervisor
   User administrator
   ForwardAgent yes
 
+Host raspberrypi
+  Hostname 10.0.1.5
+  User pi
+
+Host git-codecommit.*.amazonaws.com
+  User APKAJZFTZ5TFKWP5QDJQ
+
 # vim: ft=config

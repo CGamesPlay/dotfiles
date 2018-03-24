@@ -2,6 +2,8 @@ set -x EDITOR vim
 set -x LESS "-RS"
 set -x PATH ./node_modules/.bin $PATH
 
+eval (python -m virtualfish)
+
 source ~/.config/fish/iterm2_shell_integration.fish
 
 # Load hterminal shell integration
