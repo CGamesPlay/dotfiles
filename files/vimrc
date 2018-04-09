@@ -110,11 +110,10 @@ endif
 " Core display settings {{{
 
 if version >= 703
-  " I like this, some people prefer set number
-  " set relativenumber
-  " However, it can severly impact UI responsiveness due to excessive screen
-  " updates, so disabled for now.
+  " Show line numbers in the gutter
   set number
+  " I prefer this, but it slows the UI too much to be useful.
+  "set relativenumber
 end
 
 " I like to know what file I'm editing even when I'm only editing one.
@@ -134,8 +133,11 @@ end
 " Highlight tab literals and trailing spaces
 set list listchars=tab:\ \ ,trail:\ 
 
-" Don't update the screen while running macos
+" Don't update the screen while running macros
 set lazyredraw
+
+" Always show the sign column, so it doesn't flicker in when I load files
+set signcolumn=yes
 
 " }}}
 
@@ -161,7 +163,7 @@ augroup initial_winsize " {{{
   au!
   " Initial window size. 171 is just wide enough for 2 vertical splits of 80
   " columns plus chrome. 999 is quite tall.
-  au GUIEnter * :set columns=171 lines=999
+  au GUIEnter * :2Cols
 augroup END " }}}
 
 " }}}
@@ -316,37 +318,30 @@ function! SetCols(n)
 endfunction
 command! -count=1 Cols call SetCols(<count>)
 
-augroup insert_trailingspace " {{{
+augroup personal " {{{
   au!
 
   " Remove trailing spaces when leaving insert mode
   au InsertLeave * '[,']s/\s\+$//e|normal `^
-augroup END " }}}
 
-augroup jump_to_last_pos " {{{
-  au!
   " When editing a file, always jump to the last known cursor position.
   " Don't do it when the position is invalid or when inside an event handler
   " (happens when dropping a file on gvim).
   " Also don't do it when the mark is in the first line, that is the default
   " position when opening a file.
-  autocmd BufReadPost *
+  au BufReadPost *
     \ if line("'\"") > 1 && line("'\"") <= line("$") |
     \   exe "normal! g`\"" |
     \ endif
-augroup END " }}}
 
-augroup grep " {{{
-  au!
   " Automatically open the location list after performing an grep.
-  autocmd QuickFixCmdPost grep botright cwindow
-augroup END " }}}
+  au QuickFixCmdPost grep botright cwindow
 
-augroup gutter " {{{
-  au!
-  " Add a dummy sign to every buffer to always show the gutter
-  autocmd BufEnter * sign define ALEDummySign
-  autocmd BufEnter * execute 'sign place 1000000 line=1 name=ALEDummySign buffer=' . bufnr('')
+  " Remove trailing spaces when leaving insert mode
+  au InsertLeave * '[,']s/\s\+$//e|normal `^
+
+  " Close the location list when closing the parent window
+  au BufWinLeave * lclose
 augroup END " }}}
 
 " }}}
@@ -394,6 +389,12 @@ augroup ft_ruby " {{{
   if has("balloon_eval")
     au FileType ruby setlocal balloonexpr=
   end
+augroup END " }}}
+
+augroup ft_sh " {{{
+  au!
+  " Disable automatic work wrapping in shell scripts
+  au FileType sh setlocal tw=0
 augroup END " }}}
 
 augroup prettier " {{{
