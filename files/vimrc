@@ -140,7 +140,7 @@ set list listchars=tab:\ \ ,trail:\
 set lazyredraw
 
 " Always show the sign column, so it doesn't flicker in when I load files
-if has('signs')
+if exists('+signcolumn')
   set signcolumn=yes
 end
 

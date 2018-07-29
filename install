@@ -20,7 +20,7 @@ LINK_CONTENTS_OF_dest := $(LINK_CONTENTS_OF_src:$(SOURCE)/%=$(TARGET)/.%)
 install: $(LINK_FILES_dest) $(LINK_CONTENTS_OF_dest)
 	mkdir -p ~/.vim/swaps/
 	vim -c VundleInstall -c qa
-	apm install --packages-file ~/.atom/installed-packages.txt
+	if command -v apm; then apm install --packages-file ~/.atom/installed-packages.txt; fi
 
 uninstall:
 	rm -i $(LINK_FILES_dest) $(LINK_CONTENTS_OF_dest)
