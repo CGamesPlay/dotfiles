@@ -6,26 +6,6 @@ ControlPath /tmp/ssh_mux_%h_%p_%r
 Host guest
   Hostname simplyinsured-guest.local
 
-Host ec2blog
-  User ubuntu
-  Hostname ec2-184-72-238-3.compute-1.amazonaws.com
-  ForwardAgent yes
-
-Host www.simplyinsured.com
-  User ubuntu
-  Hostname ec2-23-23-81-142.compute-1.amazonaws.com
-
-Host ec2main
-  User ubuntu
-  Hostname ec2-23-23-81-142.compute-1.amazonaws.com
-
-Host api.simplyinsured.com
-  User ubuntu
-
-Host delayedjob.simplyinsured.com
-  User ubuntu
-  Hostname ec2-54-145-137-215.compute-1.amazonaws.com
-
 Host code.simplyinsured.com
   User ubuntu
   IdentityFile /Users/rpatterson/.ssh/id_phabricator.pem
@@ -51,11 +31,11 @@ Host pdfservice-hypervisor
   User administrator
   ForwardAgent yes
 
-Host raspberrypi
-  Hostname 10.0.1.5
-  User pi
-
 Host git-codecommit.*.amazonaws.com
   User APKAJZFTZ5TFKWP5QDJQ
+
+Host screeps.cgamesplay.com
+  User ubuntu
+  ForwardAgent yes
 
 # vim: ft=config

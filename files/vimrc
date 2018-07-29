@@ -140,7 +140,12 @@ set list listchars=tab:\ \ ,trail:\
 set lazyredraw
 
 " Always show the sign column, so it doesn't flicker in when I load files
-set signcolumn=yes
+if has('signs')
+  set signcolumn=yes
+end
+
+" Ensure there's some context around search results
+set scrolloff=5
 
 " }}}
 
@@ -245,6 +250,12 @@ nnoremap <silent> k gk
 " and gj/gk should scroll by actual lines
 nnoremap <silent> gj j
 nnoremap <silent> gk k
+
+" n / N normally follow / reverse the current search direction. I want n to
+" always go forward, and N always backward, regardless of the current search
+" direction. (This means #n will always take you to where you just were.)
+nnoremap n /<cr>
+nnoremap N ?<cr>
 
 " Use %% in command mode to get the directory of the current file.
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
