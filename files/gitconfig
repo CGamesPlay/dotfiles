@@ -46,7 +46,7 @@
   ci = commit
   st = status
   cp = cherry-pick
-  graph = log --oneline --graph --decorate
+  graph = log --date-order --date=short --graph --full-history --all --pretty=format:'%x08%x09%C(red)%h %C(cyan)%cd %C(bold blue)%cN%C(reset)%C(bold yellow)%d %C(reset)%s'
   track = branch --set-upstream-to
   # Safe remove all branches reachable from HEAD.  Good way to GC old branches after dcommit/rebase
   gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | grep -v master | xargs -n1 git branch -d &> /dev/null || exit 0
