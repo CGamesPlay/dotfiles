@@ -29,6 +29,7 @@ Plugin 'tpope/vim-fugitive'
 Plugin 'rizzatti/dash.vim'
 Plugin 'prettier/vim-prettier'
 Plugin 'w0rp/ale'
+Plugin 'jparise/vim-graphql'
 
 runtime macros/matchit.vim
 
@@ -51,6 +52,9 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_open_list = 1
 let g:ale_fixers = {
       \'ruby': ['rubocop'],
+      \}
+let g:ale_linters = {
+      \'graphql': ['gqlint'],
       \}
 
 " Set up fzf to transfer results to location window
@@ -99,9 +103,6 @@ set tabstop=4 expandtab shiftwidth=2 softtabstop=2
 
 " In general, 80col
 set textwidth=80
-
-" Ignore node_modules from file searches
-set wildignore=*/node_modules/*,*/tmp/*
 
 " Remove comment characters at the start of lines when using J
 if v:version > 703 || v:version == 703 && has('patch541')
