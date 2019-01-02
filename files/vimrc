@@ -30,6 +30,7 @@ Plugin 'rizzatti/dash.vim'
 Plugin 'prettier/vim-prettier'
 Plugin 'w0rp/ale'
 Plugin 'jparise/vim-graphql'
+Plugin 'qpkorr/vim-bufkill'
 
 runtime macros/matchit.vim
 
@@ -241,6 +242,10 @@ noremap <C-j> <C-w>j
 noremap <C-k> <C-w>k
 noremap <C-l> <C-w>l
 
+" Instead of closing the window, wipe out the current buffer, but switch to the
+" previous buffer before doing so to preserve window splits.
+noremap <D-w> :BD<CR>
+
 " Arrow keys scroll view in normal mode
 noremap <Up> <C-y>
 noremap <Down> <C-e>
@@ -332,6 +337,10 @@ function! SetCols(n)
   normal =
 endfunction
 command! -count=1 Cols call SetCols(<count>)
+
+" Quick way to toggle prettier write_on_save
+command! PrettierDisable let g:prettier#write_on_save = 0
+command! PrettierEnable let g:prettier#write_on_save = 1
 
 augroup personal " {{{
   au!
