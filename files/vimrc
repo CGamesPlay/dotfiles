@@ -31,6 +31,9 @@ Plugin 'prettier/vim-prettier'
 Plugin 'w0rp/ale'
 Plugin 'jparise/vim-graphql'
 Plugin 'qpkorr/vim-bufkill'
+Plugin 'leafgarland/typescript-vim'
+Plugin 'peitalin/vim-jsx-typescript'
+Plugin 'fatih/vim-go'
 
 runtime macros/matchit.vim
 
@@ -50,13 +53,15 @@ let g:prettier#autoformat = 0
 let g:prettier#write_on_save = 1
 let g:ale_sign_column_always = 1
 let g:ale_lint_on_text_changed = 'never'
-let g:ale_open_list = 1
+let g:ale_open_list = 'on_save'
 let g:ale_fixers = {
       \'ruby': ['rubocop'],
       \}
 let g:ale_linters = {
       \'graphql': ['gqlint'],
       \}
+let g:ale_echo_msg_format = '%linter% says %s'
+let g:ale_javascript_eslint_suppress_missing_config = 1
 
 " Set up fzf to transfer results to location window
 
@@ -383,6 +388,7 @@ augroup ft_javascript " {{{
   au!
   " CommonJS modules omit the .js, so this allows gf to work
   au FileType javascript setlocal suffixesadd=.js
+  au BufNewFile,BufRead *.tsx,*.jsx set filetype=typescript.tsx
 augroup END " }}}
 
 augroup ft_text " {{{
@@ -424,7 +430,15 @@ augroup END " }}}
 augroup prettier " {{{
   au!
 
-  autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql if g:prettier#write_on_save | Prettier | endif
+  autocmd BufWritePre *.js,*.json,*.css,*.scss,*.less,*.graphql,*.ts,*.tsx if g:prettier#write_on_save | Prettier | endif
+augroup END
+
+" }}}
+
+augroup ft_go " {{{
+  au!
+
+  au FileType go setlocal nolist noexpandtab sw=4 sts=4 ts=4
 augroup END
 
 " }}}

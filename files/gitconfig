@@ -81,7 +81,7 @@
 [merge]
   tool = emerge
 [status]
-  relativePaths = false
+  relativePaths = true
 [web]
   browser = lynx
 [rebase]
