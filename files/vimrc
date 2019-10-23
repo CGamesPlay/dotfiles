@@ -17,23 +17,28 @@ set rtp+=/usr/local/opt/fzf
 call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
+" Vim general enhancements
 Plugin 'altercation/vim-colors-solarized'
+Plugin 'kana/vim-textobj-user'
+Plugin 'junegunn/fzf'
+Plugin 'junegunn/fzf.vim'
+Plugin 'nelstrom/vim-textobj-rubyblock'
+Plugin 'rizzatti/dash.vim'
+Plugin 'tpope/vim-fugitive'
+Plugin 'qpkorr/vim-bufkill'
+Plugin 'editorconfig/editorconfig-vim'
+" Language syntaxes
 Plugin 'pangloss/vim-javascript'
 Plugin 'mxw/vim-jsx'
 Plugin 'dag/vim-fish'
 Plugin 'groenewege/vim-less'
-Plugin 'kana/vim-textobj-user'
-Plugin 'junegunn/fzf.vim'
-Plugin 'nelstrom/vim-textobj-rubyblock'
-Plugin 'tpope/vim-fugitive'
-Plugin 'rizzatti/dash.vim'
-Plugin 'prettier/vim-prettier'
-Plugin 'w0rp/ale'
 Plugin 'jparise/vim-graphql'
-Plugin 'qpkorr/vim-bufkill'
 Plugin 'leafgarland/typescript-vim'
 Plugin 'peitalin/vim-jsx-typescript'
 Plugin 'fatih/vim-go'
+" Language-specific tools
+Plugin 'prettier/vim-prettier'
+Plugin 'w0rp/ale'
 
 runtime macros/matchit.vim
 
@@ -62,6 +67,8 @@ let g:ale_linters = {
       \}
 let g:ale_echo_msg_format = '%linter% says %s'
 let g:ale_javascript_eslint_suppress_missing_config = 1
+" Prevent editorconfig from touching these buffers
+let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
 
 " Set up fzf to transfer results to location window
 
@@ -115,6 +122,9 @@ if v:version > 703 || v:version == 703 && has('patch541')
   set formatoptions+=j
 endif
 
+" Check .git/tags for tags files, in all parent directories.
+set tags^=./.git/tags;
+
 " }}}
 
 " Core display settings {{{
@@ -159,13 +169,17 @@ set scrolloff=5
 " Pretty display settings (colors, GUI) {{{
 
 " Main color settings
-set guifont=Consolas:h14,Anonymous_Pro:h14
+if !has("gui_macvim")
+  set guifont="Anonymous Pro":h14
+else
+  set guifont=Consolas:h14,Anonymous_Pro:h14
+end
 set linespace=2
 set background=light
 colors solarized
 
 " e: tab bar; g: show disabled menu items gray; m: use menubar
-set guioptions=egm
+set guioptions=eg
 
 if has("gui_macvim")
   " Transparency rocks, but only in small quantities
@@ -249,7 +263,11 @@ noremap <C-l> <C-w>l
 
 " Instead of closing the window, wipe out the current buffer, but switch to the
 " previous buffer before doing so to preserve window splits.
-noremap <D-w> :BD<CR>
+if has("gui_macvim")
+    noremap <D-w> :BD<CR>
+else
+    noremap <A-w> :BD<CR>
+end
 
 " Arrow keys scroll view in normal mode
 noremap <Up> <C-y>
@@ -364,7 +382,7 @@ augroup personal " {{{
     \ endif
 
   " Automatically open the location list after performing an grep.
-  au QuickFixCmdPost grep botright cwindow
+  au QuickFixCmdPost *grep* botright cwindow
 
   " Remove trailing spaces when leaving insert mode
   au InsertLeave * '[,']s/\s\+$//e|normal `^
