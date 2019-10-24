@@ -27,6 +27,7 @@ Plugin 'rizzatti/dash.vim'
 Plugin 'tpope/vim-fugitive'
 Plugin 'qpkorr/vim-bufkill'
 Plugin 'editorconfig/editorconfig-vim'
+Plugin 'chrisbra/Recover.vim'
 " Language syntaxes
 Plugin 'pangloss/vim-javascript'
 Plugin 'mxw/vim-jsx'
@@ -69,6 +70,7 @@ let g:ale_echo_msg_format = '%linter% says %s'
 let g:ale_javascript_eslint_suppress_missing_config = 1
 " Prevent editorconfig from touching these buffers
 let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
+let g:RecoverPlugin_Delete_Unmodified_Swapfile = 1
 
 " Set up fzf to transfer results to location window
 
