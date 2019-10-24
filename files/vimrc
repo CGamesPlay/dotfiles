@@ -195,6 +195,22 @@ augroup initial_winsize " {{{
   au GUIEnter * :2Cols
 augroup END " }}}
 
+augroup os_appearance " {{{
+  au!
+  " Switch to a dark background in Dark Mode.
+  if exists('v:os_appearance')
+    function! s:SyncOSAppearance()
+      if v:os_appearance % 2 == 0
+        set background=light
+      else
+        set background=dark
+      endif
+    endfunction
+    au GUIEnter * call s:SyncOSAppearance()
+    au OSAppearanceChanged * call s:SyncOSAppearance()
+  endif
+augroup END " }}}
+
 " }}}
 
 " Input settings {{{
