@@ -1,16 +1,17 @@
 # Welcome to my dotfiles
 
-Feel free to use anything here. My install script is based on make:
+Feel free to use anything here. This repository is designed to be managed with [dfm](https://github.com/CGamesPlay/dfm).
 
 ```
-# First see what it will do:
-make install -n
-# Then actually install it:
-make install
-# Maybe you want a non-standard directory:
-make install TARGET=/other/path
-# Maybe you hate it all
-make install uninstall
-# Copy the files from the destinations into the git repo.
-make import
+# Install on a new machine
+./bootstrap.sh
+# Add a new config file to the repo
+dfm add ~/.config/fish/functions/cool.fish
+git add files/.config/fish/functions/cool.fish
+git commit -m "Added cool function"
+git push
+# Update config on other machines
+git pull
+dfm link
 ```
+

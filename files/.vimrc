@@ -207,6 +207,7 @@ augroup os_appearance " {{{
       else
         set background=dark
       endif
+      redraw!
     endfunction
     au GUIEnter * call s:SyncOSAppearance()
     au OSAppearanceChanged * call s:SyncOSAppearance()
