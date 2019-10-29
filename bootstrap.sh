@@ -45,9 +45,9 @@ fi
 
 if [ ! -e '.dfm.toml' ]; then
   bin/dfm -d "$DFM_DIR" --repos files init
-  bin/dfm -d "$DFM_DIR" link
 else
   echo 'dfm already initialized, skipping...'
 fi
 
+bin/dfm -d "$DFM_DIR" link
 ./run_tasks.sh
