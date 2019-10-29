@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 DFM_DIR="$(dirname "$0")"
@@ -6,6 +6,9 @@ DFM_DIR="$(dirname "$0")"
 case `uname -s` in
   Darwin)
     DFM_VERSION=darwin_amd64
+    ;;
+  Linux)
+    DFM_VERSION=linux_amd64
     ;;
   *)
     echo "Unsupported system: `uname -s`" >&2
@@ -40,5 +43,11 @@ if [ ! -e 'bin/dfm' ]; then
   install_dfm
 fi
 
-bin/dfm -d "$DFM_DIR" --repos files init
-bin/dfm -d "$DFM_DIR" link
+if [ ! -e '.dfm.toml' ]; then
+  bin/dfm -d "$DFM_DIR" --repos files init
+  bin/dfm -d "$DFM_DIR" link
+else
+  echo 'dfm already initialized, skipping...'
+fi
+
+./run_tasks.sh

@@ -273,9 +273,6 @@ cnoremap <C-d> <Delete>
 
 " Window nav
 noremap <C-h> <C-w>h
-if !has("gui_macvim")
-  noremap <BS> <C-w>h " This is kludgy, since it means Backspace switches to the left window. But necessary for Neovim.
-end
 noremap <C-j> <C-w>j
 noremap <C-k> <C-w>k
 noremap <C-l> <C-w>l
