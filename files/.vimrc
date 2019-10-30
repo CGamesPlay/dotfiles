@@ -72,19 +72,6 @@ let g:ale_javascript_eslint_suppress_missing_config = 1
 let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
 let g:RecoverPlugin_Delete_Unmodified_Swapfile = 1
 
-" Set up fzf to transfer results to location window
-
-function! s:fzf_to_qf(lines)
-  call setloclist(map(copy(a:lines), '{ "filename": v:val }'), 'r', { 'title': 'FZF results' })
-  lopen
-  ll
-endfunction
-
-let g:fzf_action = {
-  \ 'ctrl-q': function('s:fzf_to_qf') }
-
-let $FZF_DEFAULT_OPTS = '--bind ctrl-a:select-all'
-
 " }}}
 
 " Core behavioral settings {{{
@@ -321,9 +308,6 @@ map Q gq
 " ,/ will turn off search highlighting until you search again.
 nmap <silent> <leader>/ :nohlsearch<CR>
 
-" FSwitch
-nmap <leader>s :FSHere<CR>
-
 " "Fold tag", useful for XML/HTML
 nnoremap <leader>ft Vatzf
 
@@ -332,8 +316,19 @@ nmap <leader>g :Ggrep! -w '<C-r><C-w>'<CR>
 " Search for current selection with fugitive
 vmap <leader>g y:Ggrep! '<C-r>"'<CR>
 
+" Jump to an open file (fzf)
 nmap <C-B> :Buffers<CR>
+" Jump to a file in git, include untracked files (fzf)
 nmap <C-P> :GFiles -co --exclude-standard<CR>
+if has("gui_macvim")
+  " Command palette (fzf)
+  nmap <D-p> :Commands<CR>
+  " Keyboard shortcut palette, in case you forget one (fzf)
+  nmap <D-P> :Maps<CR>
+else
+  nmap <C-S-P> :Commands<CR>
+  nmap <C-A-P> :Maps<CR>
+end
 
 " Split the buffer or window left, right, up, or down
 nmap <leader>sh  :leftabove  vnew<CR>
