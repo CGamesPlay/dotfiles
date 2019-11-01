@@ -18,6 +18,7 @@ call vundle#begin()
 
 Plugin 'gmarik/Vundle.vim'
 " Vim general enhancements
+Plugin 'tpope/vim-sensible'
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'kana/vim-textobj-user'
 Plugin 'junegunn/fzf'
@@ -28,6 +29,7 @@ Plugin 'tpope/vim-fugitive'
 Plugin 'qpkorr/vim-bufkill'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
+Plugin 'tpope/vim-eunuch'
 " Language syntaxes
 Plugin 'pangloss/vim-javascript'
 Plugin 'mxw/vim-jsx'
@@ -81,9 +83,6 @@ set nobackup
 " set directory to a local path, because swapping over sshfs is really slow.
 set directory=~/.vim/swaps//
 
-" Necessary to fix up vim system() calls since I use fish normally.
-set shell=/bin/sh
-
 " This means a buffer will still be loaded even if it isn't displayed. Use :ls
 " and :bd to manage
 set hidden
@@ -106,10 +105,11 @@ set tabstop=4 expandtab shiftwidth=2 softtabstop=2
 " In general, 80col
 set textwidth=80
 
-" Remove comment characters at the start of lines when using J
-if v:version > 703 || v:version == 703 && has('patch541')
-  set formatoptions+=j
-endif
+" Wrap long lines by showing a symbol at the beginning of the next line and
+" indenting.
+set linebreak breakindent breakindentopt=shift:4
+let &showbreak = "\u21b3 "
+
 
 " Check .git/tags for tags files, in all parent directories.
 set tags^=./.git/tags;
@@ -164,7 +164,6 @@ else
   set guifont=Consolas:h14,Anonymous_Pro:h14
 end
 set linespace=2
-set background=light
 colors solarized
 
 " e: tab bar; g: show disabled menu items gray; m: use menubar
@@ -452,7 +451,7 @@ augroup END " }}}
 
 augroup ft_sh " {{{
   au!
-  " Disable automatic work wrapping in shell scripts
+  " Disable automatic word wrapping in shell scripts
   au FileType sh setlocal tw=0
 augroup END " }}}
 
