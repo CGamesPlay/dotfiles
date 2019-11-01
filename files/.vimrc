@@ -326,8 +326,8 @@ if has("gui_macvim")
   " Keyboard shortcut palette, in case you forget one (fzf)
   nmap <D-P> :Maps<CR>
 else
-  nmap <C-S-P> :Commands<CR>
-  nmap <C-A-P> :Maps<CR>
+  nmap <A-p> :Commands<CR>
+  nmap <A-P> :Maps<CR>
 end
 
 " Split the buffer or window left, right, up, or down
@@ -388,7 +388,7 @@ augroup personal " {{{
   " Also don't do it when the mark is in the first line, that is the default
   " position when opening a file.
   au BufReadPost *
-    \ if line("'\"") > 1 && line("'\"") <= line("$") |
+    \ if line("'\"") > 1 && line("'\"") <= line("$") && &ft != 'gitcommit' |
     \   exe "normal! g`\"" |
     \ endif
 
