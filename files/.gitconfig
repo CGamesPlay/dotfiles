@@ -92,7 +92,7 @@
 [rerere]
   enabled = 1
 [push]
-	default = upstream
+	default = current
 [branch]
 	autosetuprebase = always
 [filter "lfs"]
