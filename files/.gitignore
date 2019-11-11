@@ -9,3 +9,5 @@ xcuserdata/
 .gtm
 yarn-error.log
 .virtualgo
+.envrc
+.direnv
