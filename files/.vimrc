@@ -83,6 +83,10 @@ set nobackup
 " set directory to a local path, because swapping over sshfs is really slow.
 set directory=~/.vim/swaps//
 
+" I use fish, but startup is super slow and I don't care about the differences
+" in vim.
+set shell=/bin/sh
+
 " This means a buffer will still be loaded even if it isn't displayed. Use :ls
 " and :bd to manage
 set hidden
