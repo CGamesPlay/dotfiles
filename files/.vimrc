@@ -70,6 +70,7 @@ let g:ale_linters = {
       \'graphql': ['gqlint'],
       \}
 let g:ale_echo_msg_format = '%linter% says %s'
+let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1
 " Prevent editorconfig from touching these buffers
 let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
