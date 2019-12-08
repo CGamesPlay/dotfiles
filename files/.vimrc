@@ -2,7 +2,7 @@
 
 " Vundle setup {{{
 
-" vim: foldmethod=marker
+" vim: foldmethod=marker fdl=0
 
 set nocompatible
 filetype off
@@ -119,6 +119,20 @@ let &showbreak = "\u21b3 "
 
 " Check .git/tags for tags files, in all parent directories.
 set tags^=./.git/tags;
+
+" vim-go has a bug with folding
+let g:go_fmt_experimental = 1
+
+augroup folding
+  au!
+  " Default to syntax folding, but no folds enabled by default
+  autocmd GUIEnter * set foldmethod=syntax foldlevelstart=99
+  " Don't screw up folds when inserting text that might affect them, until
+  " leaving insert mode. Foldmethod is local to the window. Protect against
+  " screwing up folding when switching between windows.
+  autocmd InsertEnter * if !exists('w:last_fdm') | let w:last_fdm=&foldmethod | setlocal foldmethod=manual | endif
+  autocmd InsertLeave,WinLeave * if exists('w:last_fdm') | let &l:foldmethod=w:last_fdm | unlet w:last_fdm | endif
+augroup END
 
 " }}}
 
@@ -444,6 +458,7 @@ augroup ft_python " {{{
   au!
 
   au FileType python setlocal sw=4 sts=4 ts=4
+  au FileType python setlocal foldmethod=indent
 augroup END " }}}
 
 augroup ft_ruby " {{{
