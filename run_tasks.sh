@@ -2,7 +2,7 @@
 set -e
 
 cd "$(dirname "$0")"
-ls ./tasks/*.sh | sort | while read script; do
+for script in $(ls ./tasks/*.sh | sort); do
   echo "Running $script..."
   "$script"
 done

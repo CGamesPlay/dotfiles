@@ -1,0 +1,17 @@
+[[snippets]]
+  description = "get WAN IP address"
+  command = "curl ifconfig.co"
+  tag = ["network", "ifconfig"]
+  output = ""
+
+[[snippets]]
+  description = "Start a devserver for use with docker."
+  command = "devserver start"
+  output = ""
+  tag = ["common"]
+
+[[snippets]]
+  description = "Snapshot and shut down the running devserver."
+  command = "devserver stop"
+  output = ""
+  tag = ["common"]
