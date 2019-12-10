@@ -7,11 +7,41 @@
 [[snippets]]
   description = "Start a devserver for use with docker."
   command = "devserver start"
-  output = ""
   tag = ["common"]
+  output = ""
 
 [[snippets]]
   description = "Snapshot and shut down the running devserver."
   command = "devserver stop"
-  output = ""
   tag = ["common"]
+  output = ""
+
+[[snippets]]
+  description = "start VM"
+  command = "/Applications/VMware\\ Fusion.app/Contents/Library/vmrun start <vmx='/Users/rpatterson/Documents/Virtual Machines.localized/Freelancing.vmwarevm/Freelancing.vmx'> gui"
+  tag = ["vmware"]
+  output = ""
+
+[[snippets]]
+  description = "stop VM"
+  command = "/Applications/VMware\\ Fusion.app/Contents/Library/vmrun stop <vmx='/Users/rpatterson/Documents/Virtual Machines.localized/Freelancing.vmwarevm/Freelancing.vmx'>"
+  tag = ["vmware"]
+  output = ""
+
+[[snippets]]
+  description = "get VM guest IP address"
+  command = "/Applications/VMware\\ Fusion.app/Contents/Library/vmrun getGuestIPAddress <vmx='/Users/rpatterson/Documents/Virtual Machines.localized/Freelancing.vmwarevm/Freelancing.vmx'>"
+  tag = ["vmware"]
+  output = ""
+
+[[snippets]]
+  description = "start dev server, vpn to it, and run freelancing vm"
+  command = "fish -c 'start_freelancing'"
+  tag = ["common"]
+  output = ""
+
+[[snippets]]
+  description = "stop dev server, stop freelancing vm, disconnect vpn"
+  command = "fish -c 'stop_freelancing'"
+  tag = ["common"]
+  output = ""
