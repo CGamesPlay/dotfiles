@@ -1,9 +1,17 @@
 function fish_moon -d 'Describe the current phase of the moon'
   # Time now (unix time)
-  if test (count $argv) -gt 0
-    set now (date -j -f "%F" $argv[1] +"%s")
+  if test (uname) = "Linux"
+    if test (count $argv) -gt 0
+      set now (date -d $argv[1] +"%s")
+    else
+      set now (date -u +"%s")
+    end
   else
-    set now (date -j -u +"%s")
+    if test (count $argv) -gt 0
+      set now (date -j -f "%F" $argv[1] +"%s")
+    else
+      set now (date -j -u +"%s")
+    end
   end
   # Lunar period in seconds (29.53 days)
   set lp 2551442.8015584
