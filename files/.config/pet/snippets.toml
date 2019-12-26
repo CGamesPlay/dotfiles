@@ -45,3 +45,14 @@
   command = "fish -c 'stop_freelancing'"
   tag = ["common"]
   output = ""
+
+[[snippets]]
+  description = "Run command when files change in paths"
+  command = "fswatch -or0 <paths=.> | xargs -0 -n 1 -I {} <command>"
+  output = ""
+
+[[snippets]]
+  description = "Show the shared objects used by the binary."
+  command = "otool -L <binary>"
+  tag = ["macos"]
+  output = ""

@@ -25,13 +25,11 @@ shopt -s histappend
 shopt -s checkwinsize
 
 unset PROMPT_COMMAND
-export PS1="\n\[\033[1;32m\]\u@\h \[\033[1;31m\]\d \@\[\033[1;34m\] \w \n\[\033[1;34m\]\$\[\033[0m\] "
+export PS1="\n\[\033[1;34m\]\$\[\033[0m\] "
 export HISTCONTROL=erasedups
 export LESS="-FRSX"
 export EDITOR="vim"
 export CLICOLOR=1
-
-. /usr/local/git/contrib/completion/git-completion.bash
 
 function ss() {
   echo ssh "$@" -o ControlMaster=auto -t tmux attach
