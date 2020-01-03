@@ -39,7 +39,10 @@ Plugin 'groenewege/vim-less'
 Plugin 'jparise/vim-graphql'
 Plugin 'leafgarland/typescript-vim'
 Plugin 'peitalin/vim-jsx-typescript'
-Plugin 'fatih/vim-go'
+if version > 801
+  " This isn't the precisely correct version number, but close enough
+  Plugin 'fatih/vim-go'
+end
 " Language-specific tools
 Plugin 'prettier/vim-prettier'
 Plugin 'w0rp/ale'
