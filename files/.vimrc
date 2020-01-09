@@ -221,6 +221,9 @@ augroup os_appearance " {{{
     endfunction
     au GUIEnter * call s:SyncOSAppearance()
     au OSAppearanceChanged * call s:SyncOSAppearance()
+  else
+    " Default to light bg
+    set background=light
   endif
 augroup END " }}}
 
