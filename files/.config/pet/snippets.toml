@@ -56,3 +56,14 @@
   command = "otool -L <binary>"
   tag = ["macos"]
   output = ""
+
+[[snippets]]
+  description = "ssh without saving host key to known_hosts"
+  command = "ssh -o UserKnownHostsFile=/dev/null"
+  output = ""
+
+[[snippets]]
+  description = "Stash; rebase; push to master; pop stash"
+  command = "git stash && git pull && git push <origin=origin> <branch> && git stash pop"
+  tag = ["common"]
+  output = ""
