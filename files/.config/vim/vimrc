@@ -33,6 +33,7 @@ Plugin 'qpkorr/vim-bufkill'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
 Plugin 'tpope/vim-eunuch'
+Plugin 'itchyny/lightline.vim'
 " Language syntaxes
 Plugin 'pangloss/vim-javascript'
 Plugin 'mxw/vim-jsx'
@@ -47,13 +48,13 @@ if version >= 801
 end
 " Language-specific tools
 Plugin 'prettier/vim-prettier'
-Plugin 'w0rp/ale'
+Plugin 'dense-analysis/ale'
 
 runtime macros/matchit.vim
 
 " End of Vundle config
 call vundle#end()
-syntax on
+syntax enable
 filetype plugin indent on
 
 " Set up plugin defaults
@@ -158,9 +159,6 @@ if version >= 703
   "set relativenumber
 end
 
-" I like to know what file I'm editing even when I'm only editing one.
-set laststatus=2
-
 " Display the caret position at bottom of screen
 set ruler
 
@@ -235,6 +233,73 @@ augroup os_appearance " {{{
     set background=light
   endif
 augroup END " }}}
+
+" Lightline config {{{
+
+" Always show the status (lightline)
+set laststatus=2
+" lightline shows the mode in it
+set noshowmode
+" Lightline configuration. Note that this only gets
+let g:lightline = {
+  \   'colorscheme': 'solarized',
+  \   'active': {
+  \     'left': [['mode', 'paste'], ['relativepath', 'modified', 'readonly']],
+  \     'right': [['percent', 'lineinfo'], [], ['filetype', 'readonly', 'fileformat']]
+  \   },
+  \   'inactive': {
+  \     'left': [['relativepath', 'modified', 'readonly']],
+  \     'right': [['percent', 'lineinfo'], ['gitbranch'], ['filetype', 'readonly', 'fileformat']]
+  \   },
+  \   'component_function': {
+  \     'gitbranch': 'FugitiveHead'
+  \   },
+  \   'mode_map': {
+  \     'n' : 'NRM',
+  \     'i' : 'INS',
+  \     'R' : 'RPL',
+  \     'v' : 'VIS',
+  \     'V' : 'VIL',
+  \     "\<C-v>": 'VIB',
+  \     'c' : 'CMD',
+  \     's' : 'SEL',
+  \     'S' : 'SLL',
+  \     "\<C-s>": 'SLB',
+  \     't': 'TRM',
+  \   },
+  \}
+if !has('vim_starting')
+  " Call when re-sourcing the vimrc. For some reason doing this before vim has
+  " started also causes lightline to break.
+  call s:lightline_update()
+end
+augroup LightlineColorscheme
+  autocmd!
+  autocmd ColorScheme * call s:lightline_update()
+  if exists('v:os_appearance')
+    au OSAppearanceChanged * call s:lightline_update()
+  end
+augroup END
+" Lightline has a strangely complex and undocumented process to reload the
+" config.
+function! s:lightline_update()
+  if !exists('g:loaded_lightline')
+    return
+  endif
+  try
+    if g:colors_name == 'solarized'
+      " Forcibly reload the color scheme file
+      execute 'source' globpath(&rtp, 'autoload/lightline/colorscheme/' . g:lightline.colorscheme . '.vim')
+      call lightline#init()
+      call lightline#colorscheme()
+      call lightline#update()
+      call lightline#highlight()
+    endif
+  catch
+  endtry
+endfunction
+
+" }}}
 
 " }}}
 
