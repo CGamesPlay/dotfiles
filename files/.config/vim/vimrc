@@ -1,21 +1,17 @@
 " Welcome to my vimrc!
 
-" Vundle setup {{{
-
-" vim: foldmethod=marker fdl=0
+" Vundle setup and plugin list {{{
 
 set nocompatible
 filetype off
 set runtimepath+=$XDG_CONFIG_HOME/vim/bundle/Vundle.vim
 
-" }}}
-
-" Plugin configuration {{{
-
+" Use system fzf if installed
 if isdirectory("/usr/local/opt/fzf")
   set rtp+=/usr/local/opt/fzf
 end
 
+" Use custom XDG-compliant plugin directory
 call vundle#begin(expand("$XDG_CONFIG_HOME/vim/bundle"))
 
 Plugin 'gmarik/Vundle.vim'
@@ -34,6 +30,9 @@ Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
 Plugin 'tpope/vim-eunuch'
 Plugin 'itchyny/lightline.vim'
+" VimWiki / note taking stuff
+Plugin 'vimwiki/vimwiki'
+Plugin 'git@github.com:CGamesPlay/vim-zettel.git'
 " Language syntaxes
 Plugin 'pangloss/vim-javascript'
 Plugin 'mxw/vim-jsx'
@@ -49,15 +48,97 @@ end
 " Language-specific tools
 Plugin 'prettier/vim-prettier'
 Plugin 'dense-analysis/ale'
+Plugin 'Quramy/tsuquyomi' " Typescript
+" Color schemes
+Plugin 'tjammer/blandon.vim'
+Plugin 'tjammer/blayu.vim'
+Plugin 'jonasmao/vim-color-lost-shrine'
 
+" Not Vundle plugin, built in to vim.
 runtime macros/matchit.vim
 
 " End of Vundle config
 call vundle#end()
+
+" }}}
+
+" VimWiki {{{
+
+if empty($VIMWIKI_ROOT)
+  let $VIMWIKI_ROOT = expand("$HOME/Dropbox/notes/kasten")
+end
+let g:vimwiki_list = [{
+      \ 'path': $VIMWIKI_ROOT,
+      \ 'syntax': 'markdown', 'ext': '.md'
+      \ }]
+let g:zettel_format = '%Y%m%d-%H%M-%title'
+let g:zettel_options = [{ 'front_matter': { 'tags': '' } }]
+
+" Define a custom ZettelNew function that works from everywhere, rather than
+" only inside of an existing vimwiki buffer.
+function! MyZettelNew(title)
+  call vimwiki#base#goto_index(0)
+  if !empty(a:title)
+    call zettel#vimwiki#zettel_new(a:title)
+  endif
+endfunction
+
+" Open a quickfix list with all "orphaned" files, which need to be linked from
+" somewhere else.
+function! MyZettelOrphans()
+  call vimwiki#base#check_links()
+  let errors = []
+  for d in getqflist()
+    if !has_key(d, 'filename') && !d.bufnr
+      " Vimwiki puts a filename for all errors except unlinked files.
+      let fname = fnamemodify(split(d.text, '\.md\zs')[0], ':p')
+      call add(errors, {'text': 'not reachable from index', 'filename': fname})
+    endif
+  endfor
+  if empty(errors)
+    cclose
+  else
+    call setqflist(errors)
+    copen
+  end
+endfunction
+
+" Open the given filename with Typora.
+function! OpenInTypora(filename)
+  call system('open -a Typora '.shellescape(a:filename))
+endfunction
+
+" Use `Zet my note title` to create a new Zet from anywhere.
+command! -nargs=* Zet silent call MyZettelNew(<q-args>)
+" Use `ZetOrphans` to list orphaned notes in quickfix
+command! ZetOrphans call MyZettelOrphans()
+
+" Use F3 to search the wiki from anywhere
+nmap <F3> :call LocateWikiFile()<CR>
+" Use F4 to jump to the wiki from anywhere
+nmap <F4> :Zet<CR>
+
+call vimwiki#vars#init()
+call vimwiki#vars#populate_syntax_vars('markdown')
+let g:vimwiki_syntax_variables.markdown.wikilink = '\[[^\]]\+\](\zs[^)]\+\ze)'
+
+augroup ft_vimwiki
+  au!
+  au FileType vimwiki nmap <silent><buffer> <C-]> <Plug>VimwikiFollowLink
+  au FileType vimwiki nmap <silent><buffer> <S-BS> <Plug>VimwikiGoBackLink
+  au FileType vimwiki nmap <buffer> <F5> :ZetOrphans<CR>
+  au FileType vimwiki nmap <buffer> <F6> :call OpenInTypora(expand('%:p'))<CR>
+  au FileType vimwiki nmap <buffer> <F7> :VimwikiBacklinks<CR>
+augroup END
+
+" }}}
+
+" Plugin configuration {{{
+
+" Activate filetype plugins. This will cause all plugins to add their default
+" mappings.
 syntax enable
 filetype plugin indent on
-
-" Set up plugin defaults
 
 let g:javascript_plugin_flow = 1
 let g:prettier#config#single_quote = 'false'
@@ -82,6 +163,7 @@ let g:ale_javascript_eslint_suppress_missing_config = 1
 " Prevent editorconfig from touching these buffers
 let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
 let g:RecoverPlugin_Delete_Unmodified_Swapfile = 1
+let g:tsuquyomi_disable_quickfix = 1
 
 " }}}
 
@@ -189,13 +271,16 @@ set scrolloff=5
 " Pretty display settings (colors, GUI) {{{
 
 " Main color settings
-if !has("gui_macvim")
-  set guifont="Anonymous Pro":h14
-else
-  set guifont=Consolas:h14,Anonymous_Pro:h14
-end
 set linespace=2
-colors solarized
+" Only reset colors and fonts when starting vim
+if has('vim_starting')
+  colors solarized
+  if !has("gui_macvim")
+    set guifont="Anonymous Pro":h14
+  else
+    set guifont=Consolas:h14,Anonymous_Pro:h14
+  end
+end
 
 " e: tab bar; g: show disabled menu items gray; m: use menubar
 set guioptions=eg
@@ -249,10 +334,7 @@ let g:lightline = {
   \   },
   \   'inactive': {
   \     'left': [['relativepath', 'modified', 'readonly']],
-  \     'right': [['percent', 'lineinfo'], ['gitbranch'], ['filetype', 'readonly', 'fileformat']]
-  \   },
-  \   'component_function': {
-  \     'gitbranch': 'FugitiveHead'
+  \     'right': [['percent', 'lineinfo'], ['filetype', 'readonly', 'fileformat']]
   \   },
   \   'mode_map': {
   \     'n' : 'NRM',
@@ -268,18 +350,6 @@ let g:lightline = {
   \     't': 'TRM',
   \   },
   \}
-if !has('vim_starting')
-  " Call when re-sourcing the vimrc. For some reason doing this before vim has
-  " started also causes lightline to break.
-  call s:lightline_update()
-end
-augroup LightlineColorscheme
-  autocmd!
-  autocmd ColorScheme * call s:lightline_update()
-  if exists('v:os_appearance')
-    au OSAppearanceChanged * call s:lightline_update()
-  end
-augroup END
 " Lightline has a strangely complex and undocumented process to reload the
 " config.
 function! s:lightline_update()
@@ -298,6 +368,18 @@ function! s:lightline_update()
   catch
   endtry
 endfunction
+if !has('vim_starting')
+  " Call when re-sourcing the vimrc. For some reason doing this before vim has
+  " started also causes lightline to break.
+  call s:lightline_update()
+end
+augroup LightlineColorscheme
+  autocmd!
+  autocmd ColorScheme * call s:lightline_update()
+  if exists('v:os_appearance')
+    au OSAppearanceChanged * call s:lightline_update()
+  end
+augroup END
 
 " }}}
 
@@ -419,7 +501,7 @@ vmap <leader>g y:Ggrep! '<C-r>"'<CR>
 " Jump to an open file (fzf)
 nmap <C-B> :Buffers<CR>
 " Jump to a file in git, include untracked files (fzf)
-nmap <C-P> :GFiles -co --exclude-standard<CR>
+nmap <C-P> :call LocateFile()<CR>
 if has("gui_macvim")
   " Command palette (fzf)
   nmap <D-p> :Commands<CR>
@@ -477,7 +559,35 @@ command! PrettierDisable let g:prettier#write_on_save = 0
 command! PrettierEnable let g:prettier#write_on_save = 1
 
 " Edit this file using :e $VIMRC or :vsp $VIMRC or whatever
-let $VIMRC = expand('<sfile>')
+let $MYVIMRC = expand('<sfile>')
+
+function! LocateWikiFileSink(line)
+   let parts = split(a:line, ':')
+   let wikiname = join(split(parts[0], '\V.')[0:-2], '.')
+   let command = ':e '
+   if &ft != 'vimwiki'
+     let command = ':tabnew '
+   end
+   call vimwiki#base#open_link(command.'+'.parts[1], wikiname, g:zettel_dir.'/index.md')
+endfunction
+
+function! LocateWikiFile()
+    let Fzf = function('fzf#vim#'.g:zettel_fzf_command)
+    call Fzf('', '--skip-vcs-ignores', {
+          \ 'down': '~40%',
+          \ 'sink': function('LocateWikiFileSink'),
+          \ 'dir': g:zettel_dir,
+          \ 'options': '--exact'})
+endfunction
+
+" When in a vimwiki, use the ag on the wiki directory. Otherwise, use git files.
+function! LocateFile()
+  if &ft == 'vimwiki'
+    call LocateWikiFile()
+  else
+    call fzf#vim#gitfiles('-co --exclude-standard', 0)
+  endif
+endfunction
 
 augroup personal " {{{
   au!
@@ -496,7 +606,8 @@ augroup personal " {{{
   au QuickFixCmdPost *grep* botright cwindow
 
   " Remove trailing spaces when leaving insert mode
-  au InsertLeave * '[,']s/\s\+$//e|normal `^
+  "au InsertLeave * '[,']s/\s\+$//e|normal `^
+  " If this needs to be reenabled try using C-C to leave insert in vimwiki [[
 
   " Close the location list when closing the parent window
   au BufWinLeave * lclose
@@ -518,6 +629,9 @@ augroup ft_javascript " {{{
   " CommonJS modules omit the .js, so this allows gf to work
   au FileType javascript setlocal suffixesadd=.js
   au BufNewFile,BufRead *.tsx,*.jsx set filetype=typescript.tsx
+
+  " Disable this weird default shortcut from Tsuquyomi
+  au FileType typescript,typescript.tsx silent! exe "nunmap <buffer> <C-^>"
 augroup END " }}}
 
 augroup ft_text " {{{
@@ -572,5 +686,10 @@ augroup ft_go " {{{
 augroup END
 
 " }}}
+
+augroup ft_vim " {{{
+  au!
+  au FileType vim setlocal foldmethod=marker fdl=0
+augroup END " }}}
 
 " }}}
