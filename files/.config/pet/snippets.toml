@@ -67,3 +67,8 @@
   command = "git stash && git pull && git push <origin=origin> <branch> && git stash pop"
   tag = ["common"]
   output = ""
+
+[[snippets]]
+  description = "List indexes in ElasticSearch"
+  command = "http -v <elasticsearch_host=http://10.254.0.1:9200/>_aliases"
+  output = ""

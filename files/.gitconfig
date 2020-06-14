@@ -3,8 +3,7 @@
 ### the [user] section to your info
 
 [user]
-  name = Ryan Patterson
-  email = cgamesplay@cgamesplay.com
+	useConfigOnly = true
 
 [core]
   excludesfile = ~/.gitignore
@@ -60,6 +59,10 @@
   gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | grep -v master | xargs -n1 git branch -d &> /dev/null || exit 0
   push-pull = !git pull --rebase && git push
   pull-all = "!git fetch --all && git for-each-ref 'refs/heads/*' --format '%(refname:strip=2)' | while read br; do git checkout $br && git rebase @{u} || git rebase --abort; done"
+  # User setup involves choosing a git identity for each project. These are
+  # named identities stored in the global git config, and copied to the local
+  # git project using this alias.
+	identity = "! git config user.name \"$(git config user.$1.name)\"; git config user.email \"$(git config user.$1.email)\"; git config user.signingkey \"$(git config user.$1.signingkey)\"; :"
 
 [svn]
   followparent = true
@@ -112,3 +115,9 @@
 	stripLeadingSymbols = false
 [fetch]
 	prune = true
+[user "github"]
+	name = Ryan Patterson
+	email = cgamesplay@cgamesplay.com
+[user "bdbq"]
+	name = Ryan Patterson
+	email = ryan@bigdataboutique.com
