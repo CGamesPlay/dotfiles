@@ -37,6 +37,10 @@ noremap <S-Space> ,
 " direction. (This means #n will always take you to where you just were.)
 nnoremap <silent> n /<cr>
 nnoremap <silent> N ?<cr>
+" By default, * and # do not respect 'smartcase'. This mapping rebinds them to
+" respect it normally.
+nnoremap <silent> * /\<<C-R>=expand('<cword>')<CR>\><CR>
+nnoremap <silent> # ?\<<C-R>=expand('<cword>')<CR>\><CR>
 " ,/ will turn off search highlighting until you search again.
 noremap <silent> <leader>/ :nohlsearch<CR>
 
@@ -90,6 +94,10 @@ end
 
 " Command-R will save and then refresh the active Chrome window, why not
 nnoremap <silent> <D-r> :wa\|RefreshBrowser<CR>
+
+" gx will open the URL under the cursor.
+" [google](http://google.com/)
+nnoremap gx :OpenURL <C-R>=expand('<cWORD>')<CR><CR>
 
 " Jump to an open file (fzf)
 nnoremap <C-B> :Buffers<CR>

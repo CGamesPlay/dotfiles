@@ -69,6 +69,13 @@ filetype plugin indent on
 " See :help matchit
 packadd! matchit
 
+" Disable netrw, because:
+" - gx doesn't work https://github.com/vim/vim/issues/4738
+" - editing directories is never what I want to do
+" - netrw buffers can't be closed with BW
+" - I don't presently edit any files on remote servers
+let g:loaded_netrw = 1
+
 " }}}
 " Configuration variables for plugins {{{
 

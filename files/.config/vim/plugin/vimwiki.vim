@@ -4,6 +4,7 @@
 if empty($VIMWIKI_ROOT)
   let $VIMWIKI_ROOT = expand("$HOME/Seafile/Notes")
 end
+let g:pilikino_directory = $VIMWIKI_ROOT
 let g:vimwiki_list = [{
       \ 'path': $VIMWIKI_ROOT,
       \ 'syntax': 'markdown', 'ext': '.md'
@@ -11,6 +12,13 @@ let g:vimwiki_list = [{
 let g:zettel_fzf_command = 'ag'
 let g:zettel_format = '%Y%m%d-%H%M-%title'
 let g:zettel_options = [{ 'front_matter': { 'tags': '' } }]
+
+function! MyPilikinoLink(filename)
+  let title = substitute(fnamemodify(a:filename, ":r"), "^........-....-", "", "")
+  let filename = fnamemodify(a:filename, ":r")
+  return "[".title."](".filename.")"
+endfunction
+let g:pilikino_link_template = 'MyPilikinoLink'
 
 " Define a custom ZettelNew function that works from everywhere, rather than
 " only inside of an existing vimwiki buffer.
@@ -42,40 +50,13 @@ function! MyZettelOrphans()
   end
 endfunction
 
-" Open the given filename with Typora.
-function! OpenInTypora(filename)
-  call system('open -a Typora '.shellescape(a:filename))
-endfunction
-
 " Use `Zet my note title` to create a new Zet from anywhere.
 command! -nargs=* Zet silent call MyZettelNew(<q-args>)
 " Use `ZetOrphans` to list orphaned notes in quickfix
 command! ZetOrphans call MyZettelOrphans()
 
-function! LocateWikiFileSink(lines)
-  let default_action = {
-        \ 'ctrl-t': 'tab split',
-        \ 'ctrl-x': 'split',
-        \ 'ctrl-v': 'vsplit' }
-  let command = get(default_action, a:lines[1], 'e')
-  let parts = split(a:lines[1], ':')
-  let wikiname = join(split(parts[0], '\V.')[0:-2], '.')
-  call vimwiki#base#open_link(':'.command.' +'.parts[1], wikiname, $VIMWIKI_ROOT.'/index.md')
-endfunction
-
-function! LocateWikiFile()
-  let Fzf = function('fzf#vim#'.g:zettel_fzf_command)
-  let grep_command = 'cd '.fzf#shellescape($VIMWIKI_ROOT).'&& find . -name ''*.md'' -exec sh -c "printf {}:1:; cat {} | tr ''\\n'' '' ''; echo" \;'
-  "call Fzf('', '--skip-vcs-ignores', {
-  call fzf#vim#grep(grep_command, 0, fzf#vim#with_preview({
-        \ 'down': '~40%',
-        \ 'sink*': function('LocateWikiFileSink'),
-        \ 'dir': $VIMWIKI_ROOT,
-        \ 'options': '--exact'}))
-endfunction
-
 " Use F3 to search the wiki from anywhere
-nmap <F3> :call LocateWikiFile()<CR>
+nmap <F3> :Pilikino<CR>
 " Use F4 to jump to the wiki from anywhere
 nmap <F4> :Zet<CR>
 

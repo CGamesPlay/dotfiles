@@ -21,11 +21,27 @@ function! s:refresh_browser()
     echo result
   endif
 endfunction
-
 command! -bar RefreshBrowser call s:refresh_browser()
 
+" Open the given URL in the default program. The URL can contain extra
+" characters, for example if using <cWORD>.
+function! OpenURL(url)
+  let url = matchstr(a:url, '[a-z]*:\/\/[^ >,;()]*')
+  call system('open '.shellescape(url))
+endfunction
+command! -nargs=1 -bar OpenURL call OpenURL(<q-args>)
+
+" Open the given filename with Typora.
+function! s:open_in_typora(filename)
+  call system('open -a Typora '.shellescape(a:filename))
+endfunction
+command! -bar Typora call s:open_in_typora(expand('%:p'))
+
 " FZF for all vim runtime files
-command! VimRuntime call fzf#run(fzf#wrap({ 'source': 'find '.substitute(&rtp, ',', ' ', 'g').' -type f -name \*.vim 2>/dev/null | sort -u' }))
+command! VimRuntime call fzf#run(fzf#wrap({
+  \ 'source': split(substitute(execute('scriptnames'), ' *\d*: ', '', 'g'), "\n"),
+  \ 'options': ['--prompt', 'Vim> ', '--nth=2'],
+  \ }))
 " FZF for my own vimrc files
 command! Vimrc call fzf#run(fzf#wrap(fzf#vim#with_preview({ 'source': 'find $XDG_CONFIG_HOME/vim -name bundle -prune -o -path \*/\*.vim -print -o \! -type d -print' })))
 " Full text search for my vimrc files
@@ -45,7 +61,6 @@ endfunction
 " Automatically enable prettier_enabled based on heuristics.
 function! PrettierAutoenable()
   " TODO: don't do this for node_modules
-  echom 'PrettierAutoenable called'
   let b:prettier_enabled=1
 endfunction
 
