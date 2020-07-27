@@ -116,4 +116,7 @@ end
 " Dash lookups
 nnoremap <silent> <leader>d <Plug>DashSearch
 
+" Disable this weird default shortcut from Tsuquyomi
+map <Plug>Unused <Plug>(TsuquyomiReferences)
+
 " }}}

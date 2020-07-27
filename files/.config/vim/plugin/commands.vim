@@ -40,7 +40,7 @@ command! -bar Typora call s:open_in_typora(expand('%:p'))
 " FZF for all vim runtime files
 command! VimRuntime call fzf#run(fzf#wrap({
   \ 'source': split(substitute(execute('scriptnames'), ' *\d*: ', '', 'g'), "\n"),
-  \ 'options': ['--prompt', 'Vim> ', '--nth=2'],
+  \ 'options': ['--prompt', 'Vim> ', '--nth=1'],
   \ }))
 " FZF for my own vimrc files
 command! Vimrc call fzf#run(fzf#wrap(fzf#vim#with_preview({ 'source': 'find $XDG_CONFIG_HOME/vim -name bundle -prune -o -path \*/\*.vim -print -o \! -type d -print' })))
