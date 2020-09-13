@@ -37,6 +37,15 @@ function! s:open_in_typora(filename)
 endfunction
 command! -bar Typora call s:open_in_typora(expand('%:p'))
 
+
+" Vimrc navigation {{{
+
+" Handler for the VimrcLines command
+function s:lines_handler(line)
+  let components = split(a:line, ":", 2)
+  exec 'silent' 'edit' '+'.components[1] components[0]
+endfunction
+
 " FZF for all vim runtime files
 command! VimRuntime call fzf#run(fzf#wrap({
   \ 'source': split(substitute(execute('scriptnames'), ' *\d*: ', '', 'g'), "\n"),
@@ -45,8 +54,12 @@ command! VimRuntime call fzf#run(fzf#wrap({
 " FZF for my own vimrc files
 command! Vimrc call fzf#run(fzf#wrap(fzf#vim#with_preview({ 'source': 'find $XDG_CONFIG_HOME/vim -name bundle -prune -o -path \*/\*.vim -print -o \! -type d -print' })))
 " Full text search for my vimrc files
-command! VimrcLines call fzf#run(fzf#wrap(fzf#vim#with_preview({ 'source': 'find $XDG_CONFIG_HOME/vim -name bundle -prune -o -path \*/\*.vim -print -o \! -type d -print | xargs grep -Hn .' })))
+command! VimrcLines call fzf#run(fzf#wrap(fzf#vim#with_preview({
+  \ 'source': 'find $XDG_CONFIG_HOME/vim -name bundle -prune -o -path \*/\*.vim -print -o \! -type d -print | xargs grep -Hn .',
+  \ 'sink': function('s:lines_handler')
+  \ })))
 
+" }}}
 " Prettier {{{
 
 let g:prettier_enabled = 1

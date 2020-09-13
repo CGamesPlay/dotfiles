@@ -1,4 +1,4 @@
-# Defined in /var/folders/2r/0y4kz7r53y1bflwy7l87z4n40000gn/T//fish.1Ayzwd/bonk.fish @ line 2
+# Defined in /var/folders/2r/0y4kz7r53y1bflwy7l87z4n40000gn/T//fish.aUBCAW/bonk.fish @ line 2
 function bonk
-    iterm_sound LTTP_Menu_Erase
+    iterm_sound MM_Tatl_Alarm.wav
 end

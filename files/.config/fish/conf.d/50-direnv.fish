@@ -5,3 +5,4 @@ if ! command -qs direnv 2>/dev/null
 end
 
 direnv hook fish | source
+direnv export fish | source

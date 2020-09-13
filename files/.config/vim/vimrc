@@ -41,6 +41,7 @@ Plugin 'groenewege/vim-less'
 Plugin 'jparise/vim-graphql'
 Plugin 'leafgarland/typescript-vim'
 "Plugin 'peitalin/vim-jsx-typescript'
+Plugin 'cstrahan/vim-capnp'
 " Language-specific tools
 Plugin 'prettier/vim-prettier'
 Plugin 'dense-analysis/ale'
@@ -49,6 +50,7 @@ if version >= 801
   " This isn't the precisely correct version number, but close enough
   Plugin 'fatih/vim-go'
 end
+Plugin 'GutenYe/json5.vim'
 " Color schemes
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'tjammer/blandon.vim'
@@ -80,11 +82,13 @@ let g:loaded_netrw = 1
 " Configuration variables for plugins {{{
 
 let g:javascript_plugin_flow = 1
-let g:prettier#config#single_quote = 'false'
-let g:prettier#config#bracket_spacing = 'true'
-let g:prettier#config#jsx_bracket_same_line = 'false'
-let g:prettier#config#arrow_parens = 'always'
-let g:prettier#config#trailing_comma = 'es5'
+" Unsure how these defaults work, but a config file is likely better than
+" adjusting these defaults.
+"let g:prettier#config#single_quote = 'false'
+"let g:prettier#config#bracket_spacing = 'true'
+"let g:prettier#config#jsx_bracket_same_line = 'false'
+"let g:prettier#config#arrow_parens = 'always'
+"let g:prettier#config#trailing_comma = 'es5'
 let g:prettier#quickfix_enabled = 0
 let g:prettier#autoformat = 0
 let g:prettier#write_on_save = 1
@@ -99,7 +103,7 @@ let g:ale_fixers = {
 let g:ale_linters = {
       \'graphql': ['gqlint'],
       \}
-let g:ale_echo_msg_format = '%linter% says %s'
+let g:ale_echo_msg_format = '%linter%:%code%: %s'
 let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1
 " Prevent editorconfig from touching these buffers

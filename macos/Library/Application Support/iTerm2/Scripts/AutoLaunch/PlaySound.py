@@ -11,6 +11,7 @@ import traceback
 COMMAND = "play-sound"
 LIBRARIES = [
     expanduser("~/Seafile/General/Sounds/Nintendo/"),
+    expanduser("~/Seafile/General/Sounds/"),
     "/System/Library/Sounds",
 ]
 
