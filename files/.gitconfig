@@ -6,18 +6,27 @@
 	useConfigOnly = true
 
 [core]
-  excludesfile = ~/.gitignore
+  excludesfile = ~/.config/git/ignore
+  attributesfile = ~/.config/git/attributes
   whitespace = trailing-space,space-before-tab
   editor = vim
   mergeoptions = --no-edit
-  pager = diff-so-fancy | less --tabs=4 -RFX
+  pager = delta
+  askpass = 
 
 [pager]
   # Never paginate git branch output
   branch = cat
   # Allow long lines in git grep, but paginate if it goes over the screen height
   grep = less -+S -FRX
-  diff = diff-so-fancy | less --tabs=4 -RFX --pattern '^(Date|added|deleted|modified): '
+
+[delta]
+  line-numbers = true
+  light = true
+  #color-only = true
+  commit-decoration-style = bold yellow ul ol
+  file-decoration-style = blue ul ol
+  hunk-header-decoration-style = none
 
 ### colors are meant for a dark terminal
 [color]
@@ -32,12 +41,12 @@
   remote = green
 [color "diff"]
   plain = reset
-	meta = yellow
-	frag = magenta bold
-	old = red bold
-	new = green bold
-	whitespace = red reverse
-	commit = yellow bold
+  meta = yellow
+  frag = magenta bold
+  old = red bold
+  new = green bold
+  whitespace = red reverse
+  commit = yellow bold
 [color "status"]
   added = yellow
   changed = green
@@ -45,7 +54,7 @@
 
 [alias]
   start = checkout @{u} -B
-  br = branch -vv
+  br = branch -v
   bg = bisect good
   bb = bisect bad
   co = checkout
@@ -62,7 +71,7 @@
   # User setup involves choosing a git identity for each project. These are
   # named identities stored in the global git config, and copied to the local
   # git project using this alias.
-	identity = "! git config user.name \"$(git config user.$1.name)\"; git config user.email \"$(git config user.$1.email)\"; git config user.signingkey \"$(git config user.$1.signingkey)\"; :"
+  identity = "! git config user.name \"$(git config user.$1.name)\"; git config user.email \"$(git config user.$1.email)\"; git config user.signingkey \"$(git config user.$1.signingkey)\"; :"
 
 [svn]
   followparent = true
@@ -73,7 +82,7 @@
   date = relative
 [format]
   # This is (almost) the same as medium (the default) but it uses commit dates
-  pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%s%n%n%b"
+  pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%s%b"
 [blame]
   date = short
 [diff]
@@ -89,9 +98,6 @@
   browser = lynx
 [rebase]
   stat = true
-## for perf reasons (sad), don't add the index-dirtiness state to bash PS1
-[bash]
-  showDirtyState = false
 [rerere]
   enabled = 1
 [push]

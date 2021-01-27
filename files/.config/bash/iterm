@@ -1,0 +1,37 @@
+function iterm_sound {
+  printf "\e]1337;Custom=id=%s:%s\a" "play-sound" $1
+}
+
+function iterm_notify {
+    printf '\e]9;%s\a' "$@"
+}
+
+function iterm_bounce {
+    printf '\e]1337;RequestAttention=yes\a'
+}
+
+function iterm_badge {
+  printf "\e]1337;SetBadgeFormat=%s\a" $(echo "$@" | base64)
+}
+
+function ding {
+  iterm_sound OOT_PressStart
+}
+
+function bonk {
+    iterm_sound MM_Tatl_Alarm
+}
+
+function sound_status {
+    local last_status=$?
+    test $last_status -eq 0 && ding || bonk
+    iterm_bounce
+    if test -z "$@"; then
+        iterm_notify "Command finished with status $last_status"
+    else
+        iterm_notify "$@ finished with status $last_status"
+    fi
+    return $last_status
+}
+
+# vi:ft=sh

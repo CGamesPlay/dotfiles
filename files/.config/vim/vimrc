@@ -1,5 +1,10 @@
 " This main file just sets the list of plugins and the configuration variables
 " for them. Check the plugin folder for more interesting functionality.
+"
+" Quick reference for Vundle:
+" PluginInstall - installs new plugins, doesn't update
+" PluginUpdate - updates all plugins, never do this
+" PluginUpdate vim-bufkill - update a specific plugin
 
 " List of plugins {{{
 " These are the first lines of every vimrc.
@@ -14,12 +19,9 @@ Plugin 'gmarik/Vundle.vim'
 Plugin 'tpope/vim-sensible'
 Plugin 'tpope/vim-unimpaired'
 Plugin 'kana/vim-textobj-user'
-" Use system fzf if installed
-if isdirectory("/usr/local/opt/fzf")
-  set rtp+=/usr/local/opt/fzf
-else
-  Plugin 'junegunn/fzf'
-end
+" Note that fzf.vim and fzf need to be updated in lockstep. It may also be
+" necessary to run fzf#install() after updating.
+Plugin 'junegunn/fzf'
 Plugin 'junegunn/fzf.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'rizzatti/dash.vim'
@@ -29,9 +31,7 @@ Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
 Plugin 'tpope/vim-eunuch'
 Plugin 'itchyny/lightline.vim'
-" VimWiki / note taking stuff
-Plugin 'vimwiki/vimwiki'
-Plugin 'git@github.com:CGamesPlay/vim-zettel.git'
+" Note taking stuff
 set rtp+=/Users/rpatterson/Projects/pilikino/vim
 " Language syntaxes
 "Plugin 'pangloss/vim-javascript'
@@ -42,8 +42,9 @@ Plugin 'jparise/vim-graphql'
 Plugin 'leafgarland/typescript-vim'
 "Plugin 'peitalin/vim-jsx-typescript'
 Plugin 'cstrahan/vim-capnp'
+Plugin 'nathangrigg/vim-beancount'
 " Language-specific tools
-Plugin 'prettier/vim-prettier'
+Plugin 'CGamesPlay/vim-prettier'
 Plugin 'dense-analysis/ale'
 Plugin 'Quramy/tsuquyomi' " Typescript
 if version >= 801
@@ -89,6 +90,7 @@ let g:javascript_plugin_flow = 1
 "let g:prettier#config#jsx_bracket_same_line = 'false'
 "let g:prettier#config#arrow_parens = 'always'
 "let g:prettier#config#trailing_comma = 'es5'
+"let g:prettier#config#arrow_parens = 'always'
 let g:prettier#quickfix_enabled = 0
 let g:prettier#autoformat = 0
 let g:prettier#write_on_save = 1

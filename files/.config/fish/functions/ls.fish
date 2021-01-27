@@ -1,6 +1,6 @@
 function ls
   if command -qs exa
-    exa $argv
+    exa -b $argv
   else
     ls -G $argv
   end
