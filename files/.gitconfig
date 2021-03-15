@@ -54,7 +54,7 @@
 
 [alias]
   start = checkout @{u} -B
-  br = branch -v
+  br = branch -vv
   bg = bisect good
   bb = bisect bad
   co = checkout
@@ -127,3 +127,5 @@
 [user "bdbq"]
 	name = Ryan Patterson
 	email = ryan@bigdataboutique.com
+[credential]
+	helper = store

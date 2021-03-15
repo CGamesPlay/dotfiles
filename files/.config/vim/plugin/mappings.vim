@@ -37,10 +37,11 @@ noremap <S-Space> ,
 " direction. (This means #n will always take you to where you just were.)
 nnoremap <silent> n /<cr>
 nnoremap <silent> N ?<cr>
-" By default, * and # do not respect 'smartcase'. This mapping rebinds them to
-" respect it normally.
-nnoremap <silent> * /\<<C-R>=expand('<cword>')<CR>\><CR>
-nnoremap <silent> # ?\<<C-R>=expand('<cword>')<CR>\><CR>
+" By default, * and # respect 'ignorecase'. This mapping forces these commands
+" to search case sensitively, which is usually what you want when searching
+" code with * or #. May be less good for prose.
+nnoremap <silent> * /\C\<<C-R>=expand('<cword>')<CR>\><CR>
+nnoremap <silent> # ?\C\<<C-R>=expand('<cword>')<CR>\><CR>
 " ,/ will turn off search highlighting until you search again.
 noremap <silent> <leader>/ :nohlsearch<CR>
 

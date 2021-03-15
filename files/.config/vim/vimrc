@@ -43,6 +43,7 @@ Plugin 'leafgarland/typescript-vim'
 "Plugin 'peitalin/vim-jsx-typescript'
 Plugin 'cstrahan/vim-capnp'
 Plugin 'nathangrigg/vim-beancount'
+Plugin 'jvirtanen/vim-hcl'
 " Language-specific tools
 Plugin 'CGamesPlay/vim-prettier'
 Plugin 'dense-analysis/ale'
