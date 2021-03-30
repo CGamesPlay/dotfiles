@@ -33,6 +33,7 @@ Plugin 'tpope/vim-eunuch'
 Plugin 'itchyny/lightline.vim'
 " Note taking stuff
 set rtp+=/Users/rpatterson/Projects/pilikino/vim
+
 " Language syntaxes
 "Plugin 'pangloss/vim-javascript'
 "Plugin 'mxw/vim-jsx'
@@ -44,6 +45,8 @@ Plugin 'leafgarland/typescript-vim'
 Plugin 'cstrahan/vim-capnp'
 Plugin 'nathangrigg/vim-beancount'
 Plugin 'jvirtanen/vim-hcl'
+Plugin 'pantharshit00/vim-prisma'
+
 " Language-specific tools
 Plugin 'CGamesPlay/vim-prettier'
 Plugin 'dense-analysis/ale'
@@ -53,6 +56,7 @@ if version >= 801
   Plugin 'fatih/vim-go'
 end
 Plugin 'GutenYe/json5.vim'
+
 " Color schemes
 Plugin 'altercation/vim-colors-solarized'
 Plugin 'tjammer/blandon.vim'
@@ -92,9 +96,9 @@ let g:javascript_plugin_flow = 1
 "let g:prettier#config#arrow_parens = 'always'
 "let g:prettier#config#trailing_comma = 'es5'
 "let g:prettier#config#arrow_parens = 'always'
-let g:prettier#quickfix_enabled = 0
-let g:prettier#autoformat = 0
-let g:prettier#write_on_save = 1
+"let g:prettier#quickfix_enabled = 0
+"let g:prettier#autoformat = 0
+"let g:prettier#write_on_save = 1
 let g:ale_sign_column_always = 1
 let g:ale_set_highlights = 0
 let g:ale_lint_on_text_changed = 'never'

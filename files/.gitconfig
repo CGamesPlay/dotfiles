@@ -82,7 +82,7 @@
   date = relative
 [format]
   # This is (almost) the same as medium (the default) but it uses commit dates
-  pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%s%b"
+  pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%C(bold)%s%Creset%n%n%-b%-n"
 [blame]
   date = short
 [diff]
