@@ -72,6 +72,10 @@
   # named identities stored in the global git config, and copied to the local
   # git project using this alias.
   identity = "! git config user.name \"$(git config user.$1.name)\"; git config user.email \"$(git config user.$1.email)\"; git config user.signingkey \"$(git config user.$1.signingkey)\"; :"
+  # Rebase onto the same base commit. Allows editing a stack of commits without
+  # changing the base. Especially useful when someone squashes your commits as
+  # part of a merge.
+  rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
 
 [svn]
   followparent = true
@@ -100,6 +104,8 @@
   stat = true
 [rerere]
   enabled = 1
+[init]
+    defaultBranch = master
 [push]
 	default = current
 [branch]
@@ -110,7 +116,7 @@
 	process = git-lfs filter-process
 	required = true
 [pull]
-	rebase = true
+	rebase = merges
 [color "diff-highlight"]
 	oldNormal = red bold
 	oldHighlight = red bold 52
