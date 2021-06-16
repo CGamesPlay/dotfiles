@@ -13,6 +13,6 @@ end
 function __fasd_run -e fish_postexec -d "fasd records the directories changed into"
   set -lx RETVAL $status
   if test -z $fish_private_mode && test $RETVAL -eq 0 # if there was no error
-    command fasd --proc (__fasd_expand_vars $argv) > "/dev/null" 2>&1 &
+    command fasd --proc (__fasd_expand_vars $argv) > "/dev/null" 2>&1 & disown
   end
 end

@@ -102,8 +102,8 @@ nnoremap gx :OpenURL <C-R>=expand('<cWORD>')<CR><CR>
 
 " Jump to an open file (fzf)
 nnoremap <C-B> :Buffers<CR>
-" Jump to a file in git, include untracked files (fzf)
-nnoremap <C-P> :call fzf#vim#gitfiles('-co --exclude-standard', 0)<CR>
+" Jump to a file (commands.vim)
+nnoremap <C-P> :JumpToFile<CR>
 if has("gui_macvim")
   " Command palette (fzf)
   nnoremap <D-p> :Commands<CR>

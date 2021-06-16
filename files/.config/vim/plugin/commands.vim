@@ -37,6 +37,27 @@ function! s:open_in_typora(filename)
 endfunction
 command! -bar Typora call s:open_in_typora(expand('%:p'))
 
+" Open fzf, either with the current git repo or with a normal file list.
+function! s:jump_to_file()
+  let git_dir = FugitiveExtractGitDir(getcwd())
+  if git_dir != ''
+    call fzf#vim#gitfiles('-co --exclude-standard', 0)
+  else
+    call fzf#vim#files(0)
+  endif
+endfunction
+command! -bar JumpToFile call s:jump_to_file()
+
+function! s:tsc()
+  let saved_efm = &efm
+  try
+    silent set efm=%f(%l\\\,%c):\ %m
+    cexpr system('tsc -b .')
+  finally
+    exec 'set efm='.escape(saved_efm, " \t|\\\"")
+  endtry
+endfunction
+command! TSC call s:tsc()
 
 " Vimrc navigation {{{
 
