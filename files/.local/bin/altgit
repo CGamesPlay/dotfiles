@@ -14,7 +14,7 @@ for (( i=0; i<$#; i++)); do
         -*)
             # Option, ignore and continue processing
             ;;
-        init | add)
+        init | add | clean)
             # Overridden command
             argv[$i]="alt${argv[i]}"
             break
