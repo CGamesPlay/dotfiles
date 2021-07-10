@@ -48,9 +48,10 @@ Plugin 'jvirtanen/vim-hcl'
 Plugin 'pantharshit00/vim-prisma'
 
 " Language-specific tools
-Plugin 'CGamesPlay/vim-prettier'
+"Plugin 'CGamesPlay/vim-prettier'
 Plugin 'dense-analysis/ale'
 Plugin 'Quramy/tsuquyomi' " Typescript
+Plugin 'ambv/black' " Python formatter
 if version >= 801
   " This isn't the precisely correct version number, but close enough
   Plugin 'fatih/vim-go'
@@ -103,9 +104,14 @@ let g:ale_sign_column_always = 1
 let g:ale_set_highlights = 0
 let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 0
+let g:ale_fix_on_save = 1
 let g:ale_open_list = 0
 let g:ale_fixers = {
       \'ruby': ['rubocop'],
+      \'javascript': ['prettier'],
+      \'typescript': ['prettier'],
+      \'typescriptreact': ['prettier'],
+      \'css': ['prettier'],
       \}
 let g:ale_linters = {
       \'graphql': ['gqlint'],
@@ -123,5 +129,7 @@ let g:go_rename_command = 'gopls'
 " vim-go has a bug with folding
 "let g:go_fmt_experimental = 1
 let g:go_fmt_command = 'gopls'
+
+let g:black_virtualenv = "~/.local/share/black"
 
 " }}}

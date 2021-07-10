@@ -81,32 +81,3 @@ command! VimrcLines call fzf#run(fzf#wrap(fzf#vim#with_preview({
   \ })))
 
 " }}}
-" Prettier {{{
-
-let g:prettier_enabled = 1
-function! s:prettier_do_save()
-  if exists('g:prettier_enabled') && !g:prettier_enabled
-    return
-  elseif exists('b:prettier_enabled') && b:prettier_enabled
-    Prettier
-  end
-endfunction
-
-" Automatically enable prettier_enabled based on heuristics.
-function! PrettierAutoenable()
-  " TODO: don't do this for node_modules
-  let b:prettier_enabled=1
-endfunction
-
-" Quick way to toggle prettier_enabled globally/for buffer
-command! PrettierDisable let g:prettier_enabled = 0
-command! PrettierEnable let g:prettier_enabled = 1
-command! PrettierDisableBuffer let b:prettier_enabled = 0
-command! PrettierEnableBuffer let b:prettier_enabled = 1
-
-augroup prettier
-  au!
-  autocmd BufWritePre * call s:prettier_do_save()
-augroup END
-
-" }}}
