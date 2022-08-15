@@ -1,0 +1,17 @@
+#!/bin/bash
+# This is a trampoline script to delay loading of nvm until it's used. It
+# should be installed in the PATH once for each delay-loaded command.
+
+if [ -z "$NVM_DIR" ]; then
+    echo 'NVM_DIR not set' >&2
+    exit 1
+fi
+. "$NVM_DIR/nvm.sh"
+
+PROG="$(basename "$0")"
+if [ "$(which "$PROG")" = "$0" ]; then
+    echo "$PROG: not installed in default node version" >&2
+    exit 127
+fi
+
+exec "$PROG" "$@"

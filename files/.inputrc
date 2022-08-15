@@ -1,0 +1,2 @@
+set completion-ignore-case on
+"\e[3~": delete-char

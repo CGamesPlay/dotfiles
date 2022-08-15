@@ -1,0 +1,14 @@
+tags
+*.swp
+*.pyc
+xcuserdata/
+*.xcodeproj/project.xcworkspace/
+.DS_Store
+.byebug_history
+.ipynb_checkpoints
+.gtm
+yarn-error.log
+.virtualgo
+.envrc
+.direnv
+pyvenv.cfg

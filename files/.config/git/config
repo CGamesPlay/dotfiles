@@ -1,0 +1,136 @@
+### Visitors!
+### Please borrow freely from this config, but make sure to change
+### the [user] section to your info
+
+[user]
+	name = Ryan Patterson
+	email = cgamesplay@cgamesplay.com
+
+[core]
+	excludesfile = ~/.config/git/ignore
+	attributesfile = ~/.config/git/attributes
+	whitespace = trailing-space,space-before-tab
+	editor = vim
+	mergeoptions = --no-edit
+	pager = delta
+	askpass = 
+
+[interactive]
+	diffFilter = delta --color-only
+
+[pager]
+  # Never paginate git branch output
+	branch = cat
+  # Allow long lines in git grep, but paginate if it goes over the screen height
+	grep = less -+S -FRX
+
+[delta]
+	navigate = true
+	line-numbers = true
+	light = true
+	commit-decoration-style = bold yellow ul ol
+	file-decoration-style = blue ul ol
+	hunk-header-decoration-style = none
+
+### colors are meant for a dark terminal
+[color]
+	ui = true
+	diff = auto
+	status = auto
+	branch = auto
+	interactive = auto
+[color "branch"]
+	current = white blue bold
+	local  = blue
+	remote = green
+[color "diff"]
+	plain = reset
+	meta = yellow
+	frag = magenta bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+	commit = yellow bold
+[color "status"]
+	added = yellow
+	changed = green
+	untracked = cyan
+
+[alias]
+	start = checkout @{u} -B
+	br = branch -vv
+	bg = bisect good
+	bb = bisect bad
+	co = checkout
+	amend = commit --amend
+	ci = commit
+	st = status
+	cp = cherry-pick
+	graph = log --date-order --date=short --graph --full-history --pretty=format:'%x08%x09%C(red)%h %C(cyan)%cd %C(bold blue)%cN%C(reset)%C(bold yellow)%d %C(reset)%s'
+	track = branch --set-upstream-to
+  # Safe remove all branches reachable from HEAD.  Good way to GC old branches after dcommit/rebase
+	gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | grep -v master | xargs -n1 git branch -d &> /dev/null || exit 0
+	push-pull = !git pull --rebase && git push
+	pull-all = "!git fetch --all && git for-each-ref 'refs/heads/*' --format '%(refname:strip=2)' | while read br; do git checkout $br && git rebase @{u} || git rebase --abort; done"
+  # Rebase onto the same base commit. Allows editing a stack of commits without
+  # changing the base. Especially useful when someone squashes your commits as
+  # part of a merge.
+	rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
+
+[svn]
+	followparent = true
+	rmdir = true
+
+[commit]
+[log]
+	date = relative
+[format]
+  # This is (almost) the same as medium (the default) but it uses commit dates
+	pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%C(bold)%s%Creset%n%n%-b%-n"
+[blame]
+	date = short
+[diff]
+	renames = true
+	mnemonicprefix = true
+	conflictstyle = diff3
+[apply]
+	whitespace = strip
+[merge]
+	tool = emerge
+	conflictstyle = diff3
+[status]
+	relativePaths = true
+[web]
+	browser = lynx
+[rebase]
+	stat = true
+[rerere]
+	enabled = 1
+[init]
+	defaultBranch = master
+[push]
+	default = current
+[branch]
+	autosetuprebase = always
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[pull]
+	rebase = merges
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[diff-so-fancy]
+	markEmptyLines = false
+	stripLeadingSymbols = false
+[fetch]
+	prune = true
+[credential]
+	helper = store
+
+[includeIf "gitdir:~/Projects/gigs/bdbq"]
+	path = bdbq.gitconfig

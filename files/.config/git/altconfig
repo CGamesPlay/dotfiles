@@ -1,0 +1,16 @@
+[include]
+	path = ~/.config/git/config
+
+[status]
+	showUntrackedFiles = no
+
+[init]
+	templateDir = ~/.config/git/alt-templates
+
+[alias]
+	primary-exec = "!unset GIT_CONFIG_GLOBAL GIT_DIR GIT_INDEX_FILE; exec git --git-dir=\"$ALTGIT_PRIMARY\""
+	altinit = init --no-bare
+	altadd = add --force
+	altclean = "!IFS='\n' x=($(git ls-files | sed 's/^/--exclude=/') --exclude=.altgit); git primary-exec clean -x \"${x[@]}\""
+
+# vim:ft=gitconfig

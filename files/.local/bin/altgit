@@ -1,0 +1,32 @@
+#!/bin/bash
+# Requires git >= 2.32.0
+set -ueo pipefail
+
+# Find the real git directory
+export ALTGIT_PRIMARY="${ALTGIT_PRIMARY:=$(git rev-parse --path-format=absolute --git-dir)}"
+altgitdir="$(dirname "$ALTGIT_PRIMARY")/.altgit"
+
+# We need to override some built-in git commands, so we transparently rewrite
+# these to alt- variants which are configured as aliases.
+argv=("$@")
+for (( i=0; i<$#; i++)); do
+    case "${argv[i]}" in
+        -*)
+            # Option, ignore and continue processing
+            ;;
+        init | add | clean)
+            # Overridden command
+            argv[$i]="alt${argv[i]}"
+            break
+            ;;
+        *)
+            # Any other command, stop processing
+            break
+            ;;
+    esac
+done
+
+# Execute git
+unset GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+export GIT_CONFIG_GLOBAL=${ALTGIT_CONFIG_GLOBAL:=~/.config/git/altconfig}
+exec git --git-dir="$altgitdir" "${argv[@]}"

@@ -1,0 +1,28 @@
+startup_message off
+defscrollback 5000
+vbell off
+
+bind X
+bind ^X
+
+termcapinfo xterm ti@:te@
+termcapinfo xterm kD=\E[3~
+
+# Set the screen title dynamically
+#
+# This depends on some co-operation from your shell.
+# This only works if the shell prints the string '\033k\033\134'
+# as part of its prompt.  See the sample.bashrc file for an example of how to
+# do this in bash.
+#
+# The part after '|' is used when no dynamic title is available from the shell.
+# Feel free to change "bash" to the name of your preferred shell.
+shelltitle '$ |bash'
+
+caption splitonly '%{= wk}%n %t'
+hardstatus off
+hardstatus alwayslastline '%{= kG}%-w%{= kW}%50>%n %t%{= kG}%+w%< %-=%H'
+windowlist string '%3n %t%=%f'
+
+setenv SSH_AUTH_SOCK "/tmp/ssh-agent-$USER-screen"
+# vi:set filetype=screen:

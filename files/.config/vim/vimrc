@@ -1,0 +1,126 @@
+" This main file just sets the list of plugins and the configuration variables
+" for them. Check the plugin folder for more interesting functionality.
+"
+" Quick reference for Vundle:
+" PluginInstall - installs new plugins, doesn't update
+" PluginUpdate - updates all plugins, never do this
+" PluginUpdate vim-bufkill - update a specific plugin
+
+" List of plugins {{{
+" These are the first lines of every vimrc.
+set nocompatible
+filetype off
+" Prepare Vundle with XDG-compliant directories
+set runtimepath+=$XDG_CONFIG_HOME/vim/bundle/Vundle.vim
+call vundle#begin(expand("$XDG_CONFIG_HOME/vim/bundle"))
+
+Plugin 'gmarik/Vundle.vim'
+" Vim general enhancements
+Plugin 'tpope/vim-sensible'
+Plugin 'tpope/vim-unimpaired'
+Plugin 'tpope/vim-abolish'
+Plugin 'kana/vim-textobj-user'
+" Note that fzf.vim and fzf need to be updated in lockstep. It may also be
+" necessary to run fzf#install() after updating.
+Plugin 'junegunn/fzf'
+Plugin 'junegunn/fzf.vim'
+Plugin 'nelstrom/vim-textobj-rubyblock'
+Plugin 'rizzatti/dash.vim'
+Plugin 'tpope/vim-fugitive'
+Plugin 'qpkorr/vim-bufkill'
+Plugin 'editorconfig/editorconfig-vim'
+Plugin 'chrisbra/Recover.vim'
+Plugin 'tpope/vim-eunuch'
+Plugin 'itchyny/lightline.vim'
+
+" Language syntaxes
+"Plugin 'pangloss/vim-javascript'
+"Plugin 'Quramy/vim-js-pretty-template'
+"Plugin 'mxw/vim-jsx'
+Plugin 'dag/vim-fish'
+Plugin 'groenewege/vim-less'
+Plugin 'jparise/vim-graphql'
+Plugin 'leafgarland/typescript-vim'
+"Plugin 'peitalin/vim-jsx-typescript'
+Plugin 'cstrahan/vim-capnp'
+Plugin 'nathangrigg/vim-beancount'
+Plugin 'jvirtanen/vim-hcl'
+Plugin 'pantharshit00/vim-prisma'
+if !has('patch-8.2.3519')
+  " Now included in vim mainline.
+  Plugin 'cespare/vim-toml'
+end
+
+" Language-specific tools
+Plugin 'dense-analysis/ale'
+Plugin 'ambv/black' " Python formatter
+
+" rust-doc {{{
+" Provides :RustDoc to open Rust documentation
+Plugin 'rhysd/rust-doc.vim'
+" This package strangely only looks for std docs if this variable is set, but
+" it doesn't need to be set to a real path and it will autodetect the
+" location.
+let g:rust_doc#downloaded_rust_doc_dir = '1'
+" }}}
+
+if version >= 801
+  " This isn't the precisely correct version number, but close enough
+  Plugin 'fatih/vim-go'
+end
+Plugin 'GutenYe/json5.vim'
+
+" Color schemes
+Plugin 'altercation/vim-colors-solarized'
+
+call vundle#end()
+" Vundle has reapplied the vim-default config directory to the rtp, so we
+" make sure to reorder or override into its place.
+set rtp-=$HOME/.vim
+set rtp-=$XDG_CONFIG_HOME/vim
+set rtp^=$XDG_CONFIG_HOME/vim
+
+" Finally, enable autoloading features
+syntax enable
+filetype plugin indent on
+
+" See :help matchit
+packadd! matchit
+
+" Disable netrw, because:
+" - gx doesn't work https://github.com/vim/vim/issues/4738
+" - editing directories is never what I want to do
+" - netrw buffers can't be closed with BW
+" - I don't presently edit any files on remote servers
+let g:loaded_netrw = 1
+
+" }}}
+" Configuration variables for plugins {{{
+
+let g:javascript_plugin_flow = 1
+" Prevent editorconfig from touching these buffers
+let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
+let g:RecoverPlugin_Delete_Unmodified_Swapfile = 1
+let g:solarized_menu=0
+
+let g:fzf_action = {
+      \ 'ctrl-t': 'tab split',
+      \ 'ctrl-x': 'split',
+      \ 'ctrl-v': 'botright vsplit' }
+
+let g:black_virtualenv = "~/.local/share/black"
+
+" }}}
+" vim-go {{{
+
+" The default go rename doesn't work in modules.
+" https://github.com/fatih/vim-go/issues/2366#issuecomment-583033166
+let g:go_rename_command = 'gopls'
+
+let g:go_template_use_pkg = 1
+
+" ALE handles these features
+let g:go_fmt_autosave = 0
+let g:go_imports_autosave = 0
+
+" }}}

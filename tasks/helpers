@@ -1,0 +1,36 @@
+check_deps() {
+  for dep in "$@"; do
+    if ! hash $dep 2>/dev/null; then
+      echo "$dep: Command not found" >&2
+      echo "The following must be installed first: $@" >&2
+      exit 1
+    fi
+  done
+}
+
+goos_goarch() {
+  case `uname -s` in
+    Darwin)
+      GOOS=darwin
+      ;;
+    Linux)
+      GOOS=linux
+      ;;
+    *)
+      echo "Unsupported OS: `uname -s`" >&2
+      kill $$
+      ;;
+  esac
+  case `uname -m` in
+    x86_64)
+      GOARCH=amd64
+      ;;
+    *)
+      # TODO - try `arch` for arm?
+      # https://stackoverflow.com/questions/48678152/
+      echo "Unsupported architecture: `uname -m`" >&2
+      kill $$
+      ;;
+  esac
+  echo "${GOOS}_${GOARCH}"
+}

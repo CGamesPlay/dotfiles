@@ -1,0 +1,3 @@
+tasks:
+  - before: cd ~/.dotfiles && bin/dfm remove && cd .. && rm -rf .dotfiles
+    command: cd /workspace/dotfiles && ./bootstrap.sh

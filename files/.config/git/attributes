@@ -1,0 +1,5 @@
+*.go diff=golang
+*.rb diff=ruby
+*.rake diff=ruby
+*.md diff=markdown
+*.py diff=python
