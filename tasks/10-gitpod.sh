@@ -17,4 +17,5 @@ chmod +x ~/start
 
 # Save fish history between workspace starts
 touch /workspace/.fish_history
+mkdir -p ~/.local/share/fish/
 ln -sf /workspace/.fish_history ~/.local/share/fish/fish_history
