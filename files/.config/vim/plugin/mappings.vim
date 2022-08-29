@@ -1,5 +1,8 @@
 " All of my personal remaps and maps.
 
+" Decrease the delay on waiting for keycodes to finish (Esc in SSH).
+set timeout timeoutlen=1000 ttimeoutlen=100
+
 " Mappings for builtin Vim commands {{{
 
 " Use , as a custom leader key, see :help <Leader>

@@ -1,4 +1,5 @@
 #!/bin/sh
+# If the dotfiles are running on Gitpod, perform some additional machine setup.
 
 if [ -z "$GITPOD_INSTANCE_ID" ]; then
     exit 0

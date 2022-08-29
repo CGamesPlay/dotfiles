@@ -1,4 +1,6 @@
 #!/bin/sh
+# Install the latest release of dfm to ../bin/dfm (it's kept in the repository
+# folder itself, not in ~/.local/bin), and run dfm to set up the symlinks.
 set -e
 . "$(dirname "$0")/helpers"
 

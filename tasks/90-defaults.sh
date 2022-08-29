@@ -1,5 +1,6 @@
 #!/bin/sh
-# Set MacOS defaults that I like
+# Set MacOS defaults that I like.
+
 set -e
 
 if [ `uname -s` != "Darwin" ]; then

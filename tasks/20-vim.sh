@@ -1,4 +1,6 @@
 #!/bin/sh
+# Install all of the plugins listed in the vim configuration.
+
 set -e
 mkdir -p ~/.config/vim/bundle
 cd ~/.config/vim/bundle
