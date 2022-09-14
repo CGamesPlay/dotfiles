@@ -2,9 +2,9 @@
 
 augroup terminal
   au!
-  au TerminalOpen * setlocal termwinkey=<C-@>
-  au TerminalOpen * setlocal nonumber norelativenumber cc=-1 nolist ve+=onemore scrolloff=0
-  au TerminalOpen * hi! EndOfBuffer ctermfg=0
+  au TerminalWinOpen * setlocal termwinkey=<C-@>
+  au TerminalWinOpen * setlocal nonumber norelativenumber cc=-1 nolist ve+=onemore scrolloff=0
+  au TerminalWinOpen * hi! EndOfBuffer ctermfg=0
 augroup END
 
 tnoremap jk <C-@>N

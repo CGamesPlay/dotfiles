@@ -20,6 +20,11 @@ Plugin 'tpope/vim-sensible'
 Plugin 'tpope/vim-unimpaired'
 Plugin 'tpope/vim-abolish'
 Plugin 'kana/vim-textobj-user'
+if $TMUX != ""
+  " Add tmux intergration only when manually installed from inside a tmux
+  " session.
+  Plugin 'roxma/vim-tmux-clipboard'
+end
 " Note that fzf.vim and fzf need to be updated in lockstep. It may also be
 " necessary to run fzf#install() after updating.
 Plugin 'junegunn/fzf'

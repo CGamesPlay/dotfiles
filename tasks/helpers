@@ -34,3 +34,9 @@ goos_goarch() {
   esac
   echo "${GOOS}_${GOARCH}"
 }
+
+is_installed() {
+  command -v $1 >/dev/null
+}
+
+# vi:ft=sh

@@ -3,10 +3,6 @@
 set -e
 . "$(dirname "$0")/helpers"
 
-is_installed() {
-  command -v $1 >/dev/null
-}
-
 if is_installed delta; then
   exit 0
 fi
