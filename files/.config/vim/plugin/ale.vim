@@ -11,6 +11,7 @@ let g:ale_fixers = {
       \'css': ['prettier'],
       \'go': ['gofmt', 'goimports'],
       \'javascript': ['prettier'],
+      \'python': ['black'],
       \'ruby': ['rubocop'],
       \'rust': ['rustfmt'],
       \'typescript': ['prettier'],
