@@ -11,6 +11,7 @@
 	primary-exec = "!unset GIT_CONFIG_GLOBAL GIT_DIR GIT_INDEX_FILE; exec git --git-dir=\"$ALTGIT_PRIMARY\""
 	altinit = init --no-bare
 	altadd = add --force
-	altclean = "!IFS='\n' x=($(git ls-files | sed 's/^/--exclude=/') --exclude=.altgit); git primary-exec clean -x \"${x[@]}\""
+	altclean = "!bash -c 'IFS=\"\n\" x=($(git ls-files --directory | sed 's/^/--exclude=/') --exclude=.altgit); git primary-exec clean \"$@\" -x \"${x[@]}\"' \"$@\""
+	altls-files = primary-exec ls-files -o --directory -X .git/info/exclude
 
 # vim:ft=gitconfig

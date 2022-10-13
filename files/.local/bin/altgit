@@ -2,6 +2,28 @@
 # Requires git >= 2.32.0
 set -ueo pipefail
 
+function help() {
+    cat <<EOF
+usage: altgit <command> [<args>]
+
+Altgit allows you to keep a git repository strictly for the files that
+are ignored in another git repository.
+
+To start, initialize the .altgit directory:
+  altgit init
+
+Normal git commands will work normally:
+  altgit add .envrc
+  altgit commit -m "Check in .envrc"
+
+There are two commands to help manage the ignored files. To see files that are ignored by git and not checked into altgit:
+  altgit ls-files
+
+And to delete them:
+  altgit clean -nd
+EOF
+}
+
 # Find the real git directory
 export ALTGIT_PRIMARY="${ALTGIT_PRIMARY:=$(git rev-parse --path-format=absolute --git-dir)}"
 altgitdir="$(dirname "$ALTGIT_PRIMARY")/.altgit"
@@ -11,10 +33,14 @@ altgitdir="$(dirname "$ALTGIT_PRIMARY")/.altgit"
 argv=("$@")
 for (( i=0; i<$#; i++)); do
     case "${argv[i]}" in
+        --help | help)
+            help
+            exit 0
+            ;;
         -*)
             # Option, ignore and continue processing
             ;;
-        init | add | clean)
+        init | add | clean | ls-files)
             # Overridden command
             argv[$i]="alt${argv[i]}"
             break
