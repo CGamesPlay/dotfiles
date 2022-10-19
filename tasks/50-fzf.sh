@@ -4,15 +4,25 @@ set -e
 . "$(dirname "$0")/helpers"
 
 TARGET=~/.local/bin/fzf
-VERSION=0.32.1
+VERSION=0.34.0
 
 if [ -x $TARGET ] && [ "$($TARGET --version | cut -d' ' -f1)" = "$VERSION" ]; then
   exit 0
 fi
 
-filename=fzf-${VERSION}-$(goos_goarch).tar.gz
+# For some reason, macOS gets the distribution as a zip instead of a tar file.
+ext=tar.gz
+if [ `uname -s` = "Darwin" ]; then
+    ext=zip
+fi
+
+filename=fzf-${VERSION}-$(goos_goarch).${ext}
 url=https://github.com/junegunn/fzf/releases/download/${VERSION}/${filename}
 curl -fsSL $url -o $filename
-tar xzf $filename -C $(dirname $TARGET) fzf
+if [ `uname -s` = "Darwin" ]; then
+    unzip $filename -d $(dirname $TARGET)
+else
+    tar xzf $filename -C $(dirname $TARGET) fzf
+fi
 rm $filename
 echo "Installed fzf version $VERSION at $TARGET"

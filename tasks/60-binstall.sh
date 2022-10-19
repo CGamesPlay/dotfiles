@@ -16,6 +16,21 @@ case `uname -s` in
     tar xf $filename -C ~/.local/bin
     rm $filename
     ;;
+  Darwin)
+    case `uname -m` in
+      arm64)
+        arch=aarch64
+        ;;
+      *)
+        arch=$(uname -m)
+        ;;
+    esac
+    filename=cargo-binstall-${arch}-apple-darwin.zip
+    url=https://github.com/cargo-bins/cargo-binstall/releases/latest/download/${filename}
+    curl -fsSL $url -o $filename
+    unzip $filename -d ~/.local/bin
+    rm $filename
+    ;;
   *)
     echo "Unsupported OS: `uname -s`" >&2
     kill $$

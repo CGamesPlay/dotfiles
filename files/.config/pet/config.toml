@@ -1,6 +1,0 @@
-[General]
-  snippetfile = "~/.config/pet/snippets.toml"
-  editor = "$EDITOR"
-  column = 40
-  selectcmd = "fzf"
-  sortby = ""

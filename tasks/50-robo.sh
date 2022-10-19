@@ -4,12 +4,14 @@ set -e
 . "$(dirname "$0")/helpers"
 
 TARGET=~/.local/bin/robo
-VERSION=0.7.0
+VERSION=0.7.0-cgamesplay
 
 if [ -x $TARGET ]; then
   exit 0
 fi
 
-curl -fsSL https://github.com/tj/robo/releases/download/v$VERSION/robo_$(goos_goarch) -o $TARGET
-chmod +x $TARGET
+url=https://github.com/cgamesplay/robo/releases/download/v$VERSION/robo_$(goos_goarch).gz
+curl -fsSL $url -o ${TARGET}.gz
+gunzip ${TARGET}.gz
+chmod +x ${TARGET}
 echo "Installed robo $($TARGET --version) at $TARGET"

@@ -25,6 +25,9 @@ goos_goarch() {
     x86_64)
       GOARCH=amd64
       ;;
+    arm64)
+      GOARCH=arm64
+      ;;
     *)
       # TODO - try `arch` for arm?
       # https://stackoverflow.com/questions/48678152/
