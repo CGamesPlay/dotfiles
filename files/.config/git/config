@@ -19,9 +19,9 @@
 	diffFilter = delta --color-only
 
 [pager]
-  # Never paginate git branch output
+	# Never paginate git branch output
 	branch = cat
-  # Allow long lines in git grep, but paginate if it goes over the screen height
+	# Allow long lines in git grep, but paginate if it goes over the screen height
 	grep = less -+S -FRX
 
 [delta]
@@ -68,13 +68,14 @@
 	cp = cherry-pick
 	graph = log --date-order --date=short --graph --full-history --pretty=format:'%x08%x09%C(red)%h %C(cyan)%cd %C(bold blue)%cN%C(reset)%C(bold yellow)%d %C(reset)%s'
 	track = branch --set-upstream-to
-  # Safe remove all branches reachable from HEAD.  Good way to GC old branches after dcommit/rebase
+	# Safe remove all branches reachable from HEAD.  Good way to GC old
+	# branches after dcommit/rebase
 	gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | grep -v master | xargs -n1 git branch -d &> /dev/null || exit 0
 	push-pull = !git pull --rebase && git push
 	pull-all = "!git fetch --all && git for-each-ref 'refs/heads/*' --format '%(refname:strip=2)' | while read br; do git checkout $br && git rebase @{u} || git rebase --abort; done"
-  # Rebase onto the same base commit. Allows editing a stack of commits without
-  # changing the base. Especially useful when someone squashes your commits as
-  # part of a merge.
+	# Rebase onto the same base commit. Allows editing a stack of commits
+	# without changing the base. Especially useful when someone squashes your
+	# commits as part of a merge.
 	rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
 
 [svn]
@@ -85,7 +86,8 @@
 [log]
 	date = relative
 [format]
-  # This is (almost) the same as medium (the default) but it uses commit dates
+	# This is (almost) the same as medium (the default) but it uses commit
+	# dates instead of author dates.
 	pretty = tformat:"%C(yellow)commit %H%Creset%nCommitter: %cN <%cE>%nDate:      %cd%n%n%w(0,4,4)%C(bold)%s%Creset%n%n%-b%-n"
 [blame]
 	date = short
@@ -110,6 +112,7 @@
 	defaultBranch = master
 [push]
 	default = current
+	recurseSubmodules = on-demand
 [branch]
 	autosetuprebase = always
 [filter "lfs"]
@@ -132,5 +135,6 @@
 [credential]
 	helper = store
 
-[includeIf "gitdir:~/Projects/gigs/bdbq"]
-	path = bdbq.gitconfig
+# Always use SSH for Github, in place of HTTPS.
+[url "git@github.com:"]
+	insteadOf = https://github.com/

@@ -99,15 +99,15 @@ command! VimRuntime call fzf#run(fzf#wrap({
 " Dotfiles navigation {{{
 
 " Open a new MacVim window in my dotfiles folder.
-command! Dotfiles silent !cd ~/Projects/toolbox/dotfiles && mvim && sleep 1
+command! Dotfiles silent !cd ~/Projects/dotfiles && mvim && sleep 1
 " Choose a particular file from my dotfiles, then edit it in a new MacVim.
 command! -nargs=? Dotfile call fzf#run(fzf#wrap(fzf#vim#with_preview({
-  \ 'dir': '~/Projects/toolbox/dotfiles',
+  \ 'dir': '~/Projects/dotfiles',
   \ 'source': 'find * -type f',
-  \ 'sink': 'silent !cd ~/Projects/toolbox/dotfiles && mvim',
+  \ 'sink': 'silent !cd ~/Projects/dotfiles && mvim',
   \ 'options': ['--prompt', 'Dotfiles> ', '--query', <q-args>]
   \ })))
 " Run dfm
-command! -nargs=* Dfm !~/Projects/toolbox/dotfiles/bin/dfm -d ~/Projects/toolbox/dotfiles <args>
+command! -nargs=* Dfm !~/Projects/dotfiles/bin/dfm -d ~/Projects/dotfiles <args>
 
 " }}}

@@ -144,13 +144,13 @@ set noshowmode
 
 let g:solarized_termtrans=1
 colorscheme solarized
-set guioptions=eg
+set guioptions=egk
 set lazyredraw
 set linespace=2
 if !has("gui_macvim")
   set guifont="Anonymous Pro":h14
 else
-  set guifont=Consolas:h14,Anonymous_Pro:h14
+  set guifont=Consolas:h14,Monaco:h14
 end
 " Use the tab-completion (for files) that I'm used to in bash.
 set wildmode=list:longest

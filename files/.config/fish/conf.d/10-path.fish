@@ -3,6 +3,12 @@ set -x PATH /usr/local/sbin /usr/local/bin $PATH
 if [ -d /Applications/MacVim.app/Contents/bin/ ]
   set -x PATH /Applications/MacVim.app/Contents/bin/ $PATH
 end
+if [ -d ~/Library/Python/3.9/bin ]
+  set -x PATH ~/Library/Python/3.9/bin $PATH
+end
+if [ -d /opt/homebrew/bin ]
+  set -x PATH /opt/homebrew/bin $PATH
+end
 if [ -d /opt/pkg/bin ]
   set -x PATH /opt/pkg/bin $PATH
 end

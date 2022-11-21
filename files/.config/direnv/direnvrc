@@ -27,6 +27,10 @@ layout_python-venv() {
     export PATH
 }
 
+layout_rust() {
+    PATH_add ~/.cargo/bin
+}
+
 use_nodejs() {
     NODE_VERSION="$1"
 
