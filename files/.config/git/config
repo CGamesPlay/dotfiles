@@ -84,7 +84,7 @@
 
 [commit]
 [log]
-	date = relative
+	date = human-local
 [format]
 	# This is (almost) the same as medium (the default) but it uses commit
 	# dates instead of author dates.
@@ -98,6 +98,7 @@
 [apply]
 	whitespace = strip
 [merge]
+	ff = false
 	tool = emerge
 	conflictstyle = diff3
 [status]

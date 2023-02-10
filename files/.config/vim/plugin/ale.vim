@@ -11,6 +11,7 @@ let g:ale_fixers = {
       \'css': ['prettier'],
       \'go': ['gofmt', 'goimports'],
       \'javascript': ['prettier'],
+      \'json': ['prettier'],
       \'python': ['black'],
       \'ruby': ['rubocop'],
       \'rust': ['rustfmt'],
@@ -23,12 +24,15 @@ let g:ale_linters = {
       \'rust': ['analyzer'],
       \}
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
+let g:ale_floating_preview = 1 " Show docs in a floating window instead of split
 let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1
 let g:ale_rust_analyzer_config = {
       \'diagnostics': { 'disabled': ['inactive-code'] },
       \'procMacro': { 'enable': 1 },
       \}
+set omnifunc=ale#completion#OmniFunc
+
 
 " ALE Tags fallback {{{
 " Coppied from https://github.com/liskin/dotfiles/blob/home/.vim/plugin/ale_tags_fallback.vim
@@ -93,6 +97,7 @@ command! ALEEnableFix let g:ale_fix_on_save = 1
 command! ALEDisableFixBuffer let b:ale_fix_on_save = 0
 command! ALEEnableFixBuffer let b:ale_fix_on_save = 1
 
+nmap gh <Plug>(ale_hover)
 nmap gd <Plug>(ale_go_to_definition)
 nmap gt <Plug>(ale_go_to_type_definition)
 nmap <C-]> <Plug>(ale_tags_fallback_go_to_definition)

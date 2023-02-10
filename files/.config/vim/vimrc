@@ -31,7 +31,6 @@ Plugin 'junegunn/fzf'
 Plugin 'junegunn/fzf.vim'
 Plugin 'nelstrom/vim-textobj-rubyblock'
 Plugin 'rizzatti/dash.vim'
-Plugin 'tpope/vim-fugitive'
 Plugin 'qpkorr/vim-bufkill'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
@@ -39,18 +38,16 @@ Plugin 'tpope/vim-eunuch'
 Plugin 'itchyny/lightline.vim'
 
 " Language syntaxes
-"Plugin 'pangloss/vim-javascript'
-"Plugin 'Quramy/vim-js-pretty-template'
-"Plugin 'mxw/vim-jsx'
+Plugin 'GutenYe/json5.vim'
+Plugin 'cstrahan/vim-capnp'
 Plugin 'dag/vim-fish'
 Plugin 'groenewege/vim-less'
 Plugin 'jparise/vim-graphql'
-Plugin 'leafgarland/typescript-vim'
-"Plugin 'peitalin/vim-jsx-typescript'
-Plugin 'cstrahan/vim-capnp'
-Plugin 'nathangrigg/vim-beancount'
 Plugin 'jvirtanen/vim-hcl'
+Plugin 'leafgarland/typescript-vim'
+Plugin 'nathangrigg/vim-beancount'
 Plugin 'pantharshit00/vim-prisma'
+
 if !has('patch-8.2.3519')
   " Now included in vim mainline.
   Plugin 'cespare/vim-toml'
@@ -60,6 +57,11 @@ end
 Plugin 'dense-analysis/ale'
 Plugin 'ambv/black' " Python formatter
 
+" fugitive {{{
+Plugin 'tpope/vim-fugitive'
+" Disable the deprecated Gremove command variants
+let g:fugitive_legacy_commands = 0
+" }}}
 " rust-doc {{{
 " Provides :RustDoc to open Rust documentation
 Plugin 'rhysd/rust-doc.vim'
@@ -68,12 +70,22 @@ Plugin 'rhysd/rust-doc.vim'
 " location.
 let g:rust_doc#downloaded_rust_doc_dir = '1'
 " }}}
-
+" vim-go {{{
 if version >= 801
   " This isn't the precisely correct version number, but close enough
   Plugin 'fatih/vim-go'
+
+  " The default go rename doesn't work in modules.
+  " https://github.com/fatih/vim-go/issues/2366#issuecomment-583033166
+  let g:go_rename_command = 'gopls'
+
+  let g:go_template_use_pkg = 1
+
+  " ALE handles these features
+  let g:go_fmt_autosave = 0
+  let g:go_imports_autosave = 0
 end
-Plugin 'GutenYe/json5.vim'
+" }}}
 
 " Color schemes
 Plugin 'altercation/vim-colors-solarized'
@@ -114,18 +126,5 @@ let g:fzf_action = {
       \ 'ctrl-v': 'botright vsplit' }
 
 let g:black_virtualenv = "~/.local/share/black"
-
-" }}}
-" vim-go {{{
-
-" The default go rename doesn't work in modules.
-" https://github.com/fatih/vim-go/issues/2366#issuecomment-583033166
-let g:go_rename_command = 'gopls'
-
-let g:go_template_use_pkg = 1
-
-" ALE handles these features
-let g:go_fmt_autosave = 0
-let g:go_imports_autosave = 0
 
 " }}}
