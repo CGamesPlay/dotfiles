@@ -92,15 +92,14 @@
 [blame]
 	date = short
 [diff]
-	renames = true
+	renames = copies
 	mnemonicprefix = true
-	conflictstyle = diff3
 [apply]
 	whitespace = strip
 [merge]
 	ff = false
 	tool = emerge
-	conflictstyle = diff3
+	conflictStyle = merge
 [status]
 	relativePaths = true
 [web]

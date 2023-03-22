@@ -31,6 +31,7 @@ let g:ale_rust_analyzer_config = {
       \'diagnostics': { 'disabled': ['inactive-code'] },
       \'procMacro': { 'enable': 1 },
       \}
+let g:ale_rust_rustfmt_options = '--edition 2021'
 set omnifunc=ale#completion#OmniFunc
 
 
