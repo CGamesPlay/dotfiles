@@ -12,7 +12,7 @@ let g:ale_fixers = {
       \'go': ['gofmt', 'goimports'],
       \'javascript': ['prettier'],
       \'json': ['prettier'],
-      \'python': ['black'],
+      \'python': ['black', 'isort'],
       \'ruby': ['rubocop'],
       \'rust': ['rustfmt'],
       \'typescript': ['prettier'],

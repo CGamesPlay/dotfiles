@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import asyncio
-import iterm2
-import subprocess
-from os.path import expanduser
 import glob
+import subprocess
 import sys
 import traceback
+from os.path import expanduser
+
+import iterm2
 
 COMMAND = "play-sound"
 LIBRARIES = [
@@ -14,6 +15,7 @@ LIBRARIES = [
     expanduser("~/Seafile/General/Sounds/"),
     "/System/Library/Sounds",
 ]
+
 
 def locate_sound(name):
     for d in LIBRARIES:
@@ -26,12 +28,12 @@ def locate_sound(name):
 
 # printf "\033]1337;Custom=id=%s:%s\a" "play-sound" "ding"
 async def main(connection):
-    async with iterm2.CustomControlSequenceMonitor(connection, COMMAND, r'^.*$') as mon:
+    async with iterm2.CustomControlSequenceMonitor(connection, COMMAND, r"^.*$") as mon:
         while True:
             match = await mon.async_get()
             try:
                 filename = locate_sound(match.group(0))
-                subprocess.run(["afplay", filename])
+                subprocess.run(["afplay", "-v", "0.75", filename])
             except:
                 traceback.print_tb(sys.exc_info()[2])
 
