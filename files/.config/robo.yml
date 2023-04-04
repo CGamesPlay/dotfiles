@@ -1,0 +1,9 @@
+# This robo.yml is accessible by running .robo, from any directory.
+create-docker-template:
+  summary: Copy the Docker workspace root template to the named directory.
+  command: |
+    set -eu
+    project="$1"
+    template_dir="$(dirname "$(readlink -f "{{ .robo.file }}")")/../../share/docker-template"
+    cp -R "$template_dir" "$project"
+    sed -i 's/PROJECT_NAME/'"$project"'/g' "$project"/robo.yml

@@ -1,0 +1,13 @@
+up:
+  summary: Start everything in the background
+  command: robo compose up -d
+compose:
+  summary: Shortcut to run docker-compose
+  examples:
+    - description: Show running containers
+      command: robo compose ps
+    - description: Completely destroy containers and database
+      command: robo compose down --volumes
+    - description: Run a shell in a container, with connected services
+      command: robo compose run --rm --use-aliases
+  exec: docker-compose -p PROJECT_NAME -f local/docker-compose.yml
