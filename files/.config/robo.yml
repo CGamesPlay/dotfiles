@@ -7,3 +7,34 @@ create-docker-template:
     template_dir="$(dirname "$(readlink -f "{{ .robo.file }}")")/../../share/docker-template"
     cp -R "$template_dir" "$project"
     sed -i 's/PROJECT_NAME/'"$project"'/g' "$project"/robo.yml
+
+traefik:
+  # The traefik container will run permanently. The dashboard will be available
+  # at http://lvh.me/. All docker containers will be made available at URLs
+  # according to their compose configuration:
+  #
+  #     http://SERVICE-PROJECT.lvh.me/
+  #
+  # The port used can be customized by setting the PORT variable. The domain can
+  # be customized by setting the DOMAIN variable.
+  #
+  # - Docker label reference: https://doc.traefik.io/traefik/providers/docker/
+  summary: Runs a Traefik container that automatically gives DNS names to docker containers.
+  examples:
+    - description: See {{ .robo.file }} for docs.
+      command: cat {{ .robo.file }}
+  command: |
+    PORT=${PORT:-80}
+    DOMAIN=${DOMAIN:-lvh.me}
+    docker rm -f traefik
+    docker run -d --name traefik --restart=always --network=host \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      --label 'traefik.http.routers.dashboard.rule=Host(`'$DOMAIN'`)' \
+      --label 'traefik.http.routers.dashboard.service=api@internal' \
+      --label 'traefik.http.services.traefik.loadbalancer.server.port='$PORT \
+      traefik:v2.10 \
+      --global.sendAnonymousUsage=false \
+      --entryPoints.web.address=":$PORT" \
+      --api.dashboard=true \
+      --providers.docker.defaultRule='Host(`{{"{{"}} index .Labels "com.docker.compose.service" }}.{{"{{"}} index .Labels "com.docker.compose.project" }}.'$DOMAIN'`)' \
+      --providers.docker.httpClientTimeout=300
