@@ -1,0 +1,97 @@
+{
+  "window.autoDetectColorScheme": true,
+  "vim.insertModeKeyBindings": [
+    {
+      "before": ["j", "k"],
+      "after": ["<Esc>"]
+    }
+  ],
+  "vim.normalModeKeyBindings": [
+    // I have these disabled because gj and gk do not remember the column they were on
+    /*
+      { "before": [ "j" ], "after": [ "g", "j" ] },
+      { "before": [ "k" ], "after": [ "g", "k" ] },
+      { "before": [ "g", "j" ], "after": [ "j" ] },
+      { "before": [ "g", "k" ], "after": [ "k" ] },
+      */
+    {
+      "before": ["Q", "Q"],
+      "after": ["V", "g", "q"]
+    }
+  ],
+  "vim.visualModeKeyBindings": [
+    {
+      "before": ["Q"],
+      "after": ["g", "q"]
+    }
+  ],
+  "editor.showUnused": false,
+  "editor.wordWrap": "on",
+  "vim.whichwrap": "b,s,j,k",
+  "editor.wrappingIndent": "deepIndent",
+  "editor.minimap.enabled": false,
+  "editor.fontFamily": "Consolas, monospace",
+  "editor.fontSize": 14,
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.dragAndDrop": false,
+  "vim.mouseSelectionGoesIntoVisualMode": false,
+  "workbench.editor.navigationScope": "editor",
+  "editor.renderLineHighlight": "none",
+  "editor.occurrencesHighlight": false,
+  "editor.matchBrackets": "near",
+  "window.restoreWindows": "none",
+  "remote.SSH.configFile": "/Users/rpatterson/.ssh/config.local",
+  "workbench.startupEditor": "none",
+  "files.insertFinalNewline": true,
+  "[plaintext]": {
+    "editor.suggest.showWords": false
+  },
+  "editor.autoClosingQuotes": "never",
+  "editor.autoClosingBrackets": "never",
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "docker.containers.label": "ContainerName",
+  "docker.containers.description": ["Image", "Status"],
+  "gitlens.currentLine.enabled": false,
+  "gitlens.hovers.currentLine.over": "line",
+  "gitlens.codeLens.enabled": false,
+  "gitlens.statusBar.enabled": false,
+  "gitlens.hovers.enabled": false,
+  "editor.suggestOnTriggerCharacters": false,
+  "editor.parameterHints.enabled": false,
+  "editor.autoSurround": "never",
+  "editor.quickSuggestions": {
+    "other": "inline"
+  },
+  "window.clickThroughInactive": false,
+  "window.newWindowDimensions": "inherit",
+  "editor.gotoLocation.multipleDefinitions": "goto",
+  "editor.gotoLocation.alternativeDefinitionCommand": "editor.action.goToTypeDefinition",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "emmet.showAbbreviationSuggestions": false,
+  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "explorer.confirmDragAndDrop": false,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "go.enableCodeLens": {
+    "runtest": false
+  },
+  "gitlens.plusFeatures.enabled": false,
+  "testing.automaticallyOpenPeekView": "never",
+  "files.associations": {
+    "*.bats": "shellscript",
+    "*.nomad": "hcl"
+  },
+  "workbench.colorTheme": "Default Light+",
+  "editor.multiCursorModifier": "ctrlCmd",
+  "search.useGlobalIgnoreFiles": true,
+  "explorer.autoReveal": false
+}

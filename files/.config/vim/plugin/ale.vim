@@ -8,11 +8,13 @@ let g:ale_lint_on_insert_leave = 0
 let g:ale_fix_on_save = 1
 let g:ale_open_list = 0
 let g:ale_fixers = {
+      \'astro': ['prettier'],
       \'css': ['prettier'],
       \'go': ['gofmt', 'goimports'],
+      \'hcl': ['remove_trailing_lines', 'terraform', 'trim_whitespace'],
       \'javascript': ['prettier'],
       \'json': ['prettier'],
-      \'python': ['black', 'isort'],
+      \'python': ['black', 'ruff'],
       \'ruby': ['rubocop'],
       \'rust': ['rustfmt'],
       \'typescript': ['prettier'],
@@ -22,9 +24,11 @@ let g:ale_linters = {
       \'beancount': [],
       \'graphql': ['gqlint'],
       \'rust': ['analyzer'],
+      \'python': ['pyright', 'ruff'],
       \}
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
 let g:ale_floating_preview = 1 " Show docs in a floating window instead of split
+let g:ale_python_ruff_options = '--unfixable F401,F841'
 let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1
 let g:ale_rust_analyzer_config = {

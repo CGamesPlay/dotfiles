@@ -47,6 +47,7 @@ Plugin 'jvirtanen/vim-hcl'
 Plugin 'leafgarland/typescript-vim'
 Plugin 'nathangrigg/vim-beancount'
 Plugin 'pantharshit00/vim-prisma'
+Plugin 'wuelnerdotexe/vim-astro'
 
 if !has('patch-8.2.3519')
   " Now included in vim mainline.
