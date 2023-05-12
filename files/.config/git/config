@@ -26,11 +26,13 @@
 
 [delta]
 	navigate = true
+	navigate-regex = ^(commit|added:|removed:|renamed:|Δ)
 	line-numbers = true
 	light = true
 	commit-decoration-style = bold yellow ul ol
 	file-decoration-style = blue ul ol
 	hunk-header-decoration-style = none
+	pager = less -+F
 
 ### colors are meant for a dark terminal
 [color]
