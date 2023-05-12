@@ -93,5 +93,8 @@
   "workbench.colorTheme": "Default Light+",
   "editor.multiCursorModifier": "ctrlCmd",
   "search.useGlobalIgnoreFiles": true,
-  "explorer.autoReveal": false
+  "explorer.autoReveal": false,
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
