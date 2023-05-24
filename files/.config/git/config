@@ -79,6 +79,7 @@
 	# without changing the base. Especially useful when someone squashes your
 	# commits as part of a merge.
 	rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
+	unstage = restore --staged
 
 [svn]
 	followparent = true
@@ -108,6 +109,9 @@
 	browser = lynx
 [rebase]
 	stat = true
+	updateRefs = true
+	missingCommitsCheck = error
+	autoStash = true
 [rerere]
 	enabled = 1
 [init]

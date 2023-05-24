@@ -108,6 +108,7 @@ nnoremap <C-B> :Buffers<CR>
 " Jump to a file (commands.vim)
 nnoremap <C-P> :JumpToFile<CR>
 if has("gui_macvim")
+  nnoremap <D-o> :JumpToFile<CR>
   " Command palette (fzf)
   nnoremap <D-p> :Commands<CR>
   " Keyboard shortcut palette, in case you forget one (fzf)

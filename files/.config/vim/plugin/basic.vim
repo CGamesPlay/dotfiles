@@ -150,7 +150,7 @@ set linespace=2
 if !has("gui_macvim")
   set guifont="Anonymous Pro":h14
 else
-  set guifont=Consolas:h14,Monaco:h14
+  set guifont=JetBrainsMono-Regular:h13,Menlo:h13,Consolas:h14
 end
 " Use the tab-completion (for files) that I'm used to in bash.
 set wildmode=list:longest
