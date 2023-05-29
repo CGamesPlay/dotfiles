@@ -38,6 +38,37 @@ goos_goarch() {
   echo "${GOOS}_${GOARCH}"
 }
 
+rust_triple() {
+  case `uname -s` in
+    Darwin)
+      VENDOR_SYS=apple-darwin
+      ;;
+    Linux)
+      # XXX - Does -musl need to be behind a flag?
+      VENDOR_SYS=unknown-linux-musl
+      ;;
+    *)
+      echo "Unsupported OS: `uname -s`" >&2
+      kill $$
+      ;;
+  esac
+  case `uname -m` in
+    x86_64)
+      ARCH=x86_64
+      ;;
+    arm64)
+      ARCH=aarch64
+      ;;
+    *)
+      # TODO - try `arch` for arm?
+      # https://stackoverflow.com/questions/48678152/
+      echo "Unsupported architecture: `uname -m`" >&2
+      kill $$
+      ;;
+  esac
+  echo "${ARCH}-${VENDOR_SYS}"
+}
+
 is_installed() {
   command -v $1 >/dev/null
 }
