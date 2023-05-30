@@ -11,11 +11,11 @@ dotfiles_root() {
 # @cmd Copy the docker workspace root template to the named directory.
 # @arg      target!            Location of the new workspace.
 # @option   -n --name <NAME>   Human-readable name for the workspace.
-create-docker-template() {
+create-docker-workspace() {
     template_dir="$(dotfiles_root)/share/docker-template"
     argc_name=${argc_name:-$argc_target}
-    echo cp -R "$template_dir" "$argc_target"
-    echo sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
+    cp -R "$template_dir" "$argc_target"
+    sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
 }
 
 # @cmd Start an automatic local vhost for Docker containers.
@@ -41,6 +41,14 @@ traefik() {
         --api.dashboard=true \
         --providers.docker.defaultRule='Host(`{{"{{"}} index .Labels "com.docker.compose.service" }}.{{"{{"}} index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
         --providers.docker.httpClientTimeout=300
+}
+
+# @cmd Create a sample Argcfile.
+# @arg      target=Argcfile.sh            Target filename.
+create-argcfile() {
+    template_file="$(dotfiles_root)/share/Argcfile-template.sh"
+    cp -i "$template_file" "$argc_target"
+    echo $argc_target
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
