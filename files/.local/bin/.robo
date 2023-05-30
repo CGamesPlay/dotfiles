@@ -1,2 +1,0 @@
-#!/bin/sh
-exec robo -c ~/.config/robo.yml "$@"

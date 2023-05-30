@@ -31,3 +31,12 @@ The vim configuration is also worth explaining.
 - `files/.config/vim/vimrc` is the main entry point for my vim configuration. It is primarily responsible for listing plugins, and the only configuration is does is setting global variables which must be set before the plugins load.
 - `files/.config/vim/plugin/*` are all loaded next, and are generally grouped into broad categories.
 - `files/.config/vim/ftplugin/*` are loaded when a file of the matching type is loaded. This is used to override default settings for the given file type.
+
+I also have a collection of custom scripts available in this repository:
+
+- `files/.local/bin/*` are all of my custom scripts which I keep installed by default.
+- `files/.local/bin/.argc` is of special note. I keep high-level scripts in this file, it's like a documented collection of snippets. It is built on [argc](https://github.com/sigoden/argc) which is installed by the bootstrap script.
+
+And finally, the "share" directory contains files that are also generally useful to have.
+
+- `share/docker-template` is a minimal template I use when I begin working on a new project. It includes basic scaffolding for working with my `.argc traefik` server on a remote machine.

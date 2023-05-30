@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# @describe Useful commands from my dotfiles.
+
+set -eu
+
+dotfiles_root() {
+    path=${BASH_SOURCE[0]}
+    realpath -m "$path"/../../../..
+}
+
+# @cmd Copy the docker workspace root template to the named directory.
+# @arg      target!            Location of the new workspace.
+# @option   -n --name <NAME>   Human-readable name for the workspace.
+create-docker-template() {
+    template_dir="$(dotfiles_root)/share/docker-template"
+    argc_name=${argc_name:-$argc_target}
+    echo cp -R "$template_dir" "$argc_target"
+    echo sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
+}
+
+# @cmd Start an automatic local vhost for Docker containers.
+# The traefik container will run permanently. The dashboard will be available
+# at the root domain. All docker containers will be made available at URLs
+# according to their compose configuration, by default:
+#
+#     http://SERVICE-PROJECT.lvh.me/
+#
+# - Docker label reference: https://doc.traefik.io/traefik/providers/docker/
+# @option -p --port=80 <PORT>       Local post number to listen on.
+# @option -h --host=lvh.me <HOST>   Base hostname to use. All subdomains must resolve to localhost.
+traefik() {
+    docker rm -f traefik
+    docker run -d --name traefik --restart=always --network=host \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        --label 'traefik.http.routers.dashboard.rule=Host(`'${argc_host}'`)' \
+        --label 'traefik.http.routers.dashboard.service=api@internal' \
+        --label 'traefik.http.services.traefik.loadbalancer.server.port='${argc_port} \
+        traefik:v2.10 \
+        --global.sendAnonymousUsage=false \
+        --entryPoints.web.address=":${argc_port}" \
+        --api.dashboard=true \
+        --providers.docker.defaultRule='Host(`{{"{{"}} index .Labels "com.docker.compose.service" }}.{{"{{"}} index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
+        --providers.docker.httpClientTimeout=300
+}
+
+eval "$(argc --argc-eval "$0" "$@")"
