@@ -39,7 +39,7 @@ traefik() {
         --global.sendAnonymousUsage=false \
         --entryPoints.web.address=":${argc_port}" \
         --api.dashboard=true \
-        --providers.docker.defaultRule='Host(`{{"{{"}} index .Labels "com.docker.compose.service" }}.{{"{{"}} index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
+        --providers.docker.defaultRule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
         --providers.docker.httpClientTimeout=300
 }
 
