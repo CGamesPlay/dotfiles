@@ -115,7 +115,7 @@
 [rerere]
 	enabled = 1
 [init]
-	defaultBranch = master
+	defaultBranch = main
 [push]
 	default = current
 	recurseSubmodules = on-demand

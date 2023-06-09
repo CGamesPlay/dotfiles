@@ -37,26 +37,21 @@ function! s:open_in_typora(filename)
 endfunction
 command! -bar Typora call s:open_in_typora(expand('%:p'))
 
-" Open fzf, either with the current git repo or with a normal file list.
-" - When editing a file in a git repo, use gitfiles in that repo.
-" - When the cwd is in that git repo, use gitfiles in that subdirectory.
-" - Otherwise, use fzf.
-function! s:jump_to_file()
-  let git_dir_buf = FugitiveExtractGitDir(expand('%:p'))
-  let git_dir_cwd = FugitiveExtractGitDir(getcwd())
-
-  let dir = ''
-  if git_dir_buf != ''
-    if git_dir_cwd == git_dir_buf
-      let dir = getcwd()
-    else
-      let dir = git_dir_buf.'/..'
-    end
-  elseif git_dir_cwd != ''
-    let dir = getcwd()
-  endif
-
-  if dir != ''
+" Open fzf, either with the current git repo or with a normal file list. If
+" the current buffer is in a git repo, use this table:
+" | CWD             | Effect             |
+" | --------------- | ------------------ |
+" | Worktree root   | Gitfiles           |
+" | Worktree subdir | Gitfiles in subdir |
+" | Otherwise       | Files              |
+"
+" Fugitive will handle cases where no buffer is loaded by falling back to the
+" cwd. If there is no git dir, always fall back to Files.
+function! s:jump_to_file() abort
+  let git_worktree = FugitiveWorkTree()
+  let dir = getcwd()
+  if !empty(git_worktree) && (git_worktree == dir || stridx(dir, git_worktree.'/') == 0)
+    " In the workdir root or subdirectory
     call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': dir })
   else
     call fzf#vim#files(0)
@@ -76,15 +71,6 @@ function! s:tsc()
 endfunction
 command! TSC call s:tsc()
 
-" Tsuquyomi and ALE both have issues with tsserver not refreshing properly.
-" This command restarts both of the embedded tsserver instances.
-function! s:restart_tsserver()
-  execute "ALEStopAllLSPs"
-  execute "TsuquyomiStopServer"
-  execute "TsuquyomiStartServer"
-endfunction
-command! RestartTsserver call s:restart_tsserver()
-
 " Vimrc tools {{{
 
 command! ReloadVimrc source ~/.vimrc | runtime! plugin/**/*.vim
@@ -98,16 +84,11 @@ command! VimRuntime call fzf#run(fzf#wrap({
 " }}}
 " Dotfiles navigation {{{
 
-" Open a new MacVim window in my dotfiles folder.
-command! Dotfiles silent !cd ~/Projects/dotfiles && mvim && sleep 1
-" Choose a particular file from my dotfiles, then edit it in a new MacVim.
-command! -nargs=? Dotfile call fzf#run(fzf#wrap(fzf#vim#with_preview({
-  \ 'dir': '~/Projects/dotfiles',
-  \ 'source': 'find * -type f',
-  \ 'sink': 'silent !cd ~/Projects/dotfiles && mvim',
-  \ 'options': ['--prompt', 'Dotfiles> ', '--query', <q-args>]
-  \ })))
+let g:dotfiles_dir = simplify(fnamemodify(resolve(expand('<sfile>')), ':h').'/../../../..')
+
+" Choose a particular file from my dotfiles.
+command! -nargs=? Dotfile call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': g:dotfiles_dir })
 " Run dfm
-command! -nargs=* Dfm !~/Projects/dotfiles/bin/dfm -d ~/Projects/dotfiles <args>
+exe 'command! -nargs=* Dfm !'.shellescape(g:dotfiles_dir).'/bin/dfm -d '.shellescape(g:dotfiles_dir).' <args>'
 
 " }}}
