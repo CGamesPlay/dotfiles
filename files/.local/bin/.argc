@@ -8,14 +8,21 @@ dotfiles_root() {
     realpath -m "$path"/../../../..
 }
 
-# @cmd Copy the docker workspace root template to the named directory.
-# @arg      target!            Location of the new workspace.
-# @option   -n --name <NAME>   Human-readable name for the workspace.
-create-docker-workspace() {
-    template_dir="$(dotfiles_root)/share/docker-template"
-    argc_name=${argc_name:-$argc_target}
-    cp -R "$template_dir" "$argc_target"
-    sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
+# @cmd Open VSCodium in the current directory.
+# @flag --microsoft Open VSCode instead of VSCodium.
+codium() {
+    binary=codium
+    if [ ${argc_microsoft:-0} -eq 1 ]; then
+        binary=code
+    fi
+    product=vs${binary}
+    if type -P $binary &>/dev/null; then
+        command $binary .
+    else
+        dir=$(pwd)
+        hostname=$(hostname -s)
+        echo ${product}://vscode-remote/ssh-remote+${hostname}${dir}
+    fi
 }
 
 # @cmd Start an automatic local vhost for Docker containers.
@@ -41,6 +48,16 @@ traefik() {
         --api.dashboard=true \
         --providers.docker.defaultRule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
         --providers.docker.httpClientTimeout=300
+}
+
+# @cmd Copy the docker workspace root template to the named directory.
+# @arg      target!            Location of the new workspace.
+# @option   -n --name <NAME>   Human-readable name for the workspace.
+create-docker-workspace() {
+    template_dir="$(dotfiles_root)/share/docker-template"
+    argc_name=${argc_name:-$argc_target}
+    cp -R "$template_dir" "$argc_target"
+    sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
 }
 
 # @cmd Create a sample Argcfile.
