@@ -4,7 +4,7 @@ set -e
 . "$(dirname "$0")/helpers"
 
 TARGET=~/.local/bin/argc
-VERSION=1.4.0
+VERSION=1.5.0
 
 if [ -x $TARGET ] && $TARGET --argc-version | grep -q $VERSION; then
   exit 0
