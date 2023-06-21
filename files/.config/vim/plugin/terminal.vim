@@ -1,11 +1,13 @@
 " Settings related to terminal mode
 
-augroup terminal
-  au!
-  au TerminalWinOpen * setlocal termwinkey=<C-@>
-  au TerminalWinOpen * setlocal nonumber norelativenumber cc=-1 nolist ve+=onemore scrolloff=0
-  au TerminalWinOpen * hi! EndOfBuffer ctermfg=0
-augroup END
+if !has("nvim")
+  augroup terminal
+    au!
+    au TerminalWinOpen * setlocal termwinkey=<C-@>
+    au TerminalWinOpen * setlocal nonumber norelativenumber cc=-1 nolist ve+=onemore scrolloff=0
+    au TerminalWinOpen * hi! EndOfBuffer ctermfg=0
+  augroup END
+end
 
 tnoremap jk <C-@>N
 
