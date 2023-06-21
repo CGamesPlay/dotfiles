@@ -38,24 +38,23 @@ endfunction
 command! -bar Typora call s:open_in_typora(expand('%:p'))
 
 " Open fzf, either with the current git repo or with a normal file list. If
-" the current buffer is in a git repo, use this table:
-" | CWD             | Effect             |
-" | --------------- | ------------------ |
-" | Worktree root   | Gitfiles           |
-" | Worktree subdir | Gitfiles in subdir |
-" | Otherwise       | Files              |
-"
+" the cwd is a subdirectory of the git repo, we root the GitFiles in that
+" subdirectory. If there is no git repo at all, we fall back to Files.
 " Fugitive will handle cases where no buffer is loaded by falling back to the
-" cwd. If there is no git dir, always fall back to Files.
+" cwd.
 function! s:jump_to_file() abort
   let git_worktree = FugitiveWorkTree()
   let dir = getcwd()
-  if !empty(git_worktree) && (git_worktree == dir || stridx(dir, git_worktree.'/') == 0)
-    " In the workdir root or subdirectory
-    call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': dir })
-  else
+  if empty(git_worktree)
     call fzf#vim#files(0)
-  endif
+  else
+    if !(git_worktree == dir || stridx(dir, git_worktree.'/') == 0)
+      " Outside of the git repo, search from the repo root.
+      let dir = git_worktree
+    endif
+    call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': dir })
+  end
+
 endfunction
 command! -bar JumpToFile call s:jump_to_file()
 

@@ -31,6 +31,8 @@ example() {
 # @alias    args-info
 args() {
     (set -o posix; set | grep argc)
+    # Syntax for properly quoting the variable number of arguments:
+    echo source: ${argc_source[@]+"${argc_source[@]}"}
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
