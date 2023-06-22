@@ -22,22 +22,23 @@ end
 bind \co fasd-cd-widget
 
 function fasd-cd-widget -d "Change directory"
-  set -l commandline (__fzf_parse_commandline)
-  set -l dir $commandline[1]
-  set -l fzf_query $commandline[2]
-  set -l prefix $commandline[3]
-
   test -n "$FZF_TMUX_HEIGHT"; or set FZF_TMUX_HEIGHT 40%
   begin
     set -lx FZF_DEFAULT_OPTS "--height $FZF_TMUX_HEIGHT --reverse --bind=ctrl-z:ignore $FZF_DEFAULT_OPTS $FZF_ALT_C_OPTS"
-    eval 'fasd -Rdl | fzf +m --tiebreak=index --query "'$fzf_query'"' | read -l result
+    eval 'fasd -Rdl | fzf +m --tiebreak=index' | read -l result
 
     if [ -n "$result" ]
-      builtin cd -- $result
+      set -g __fasd_oldcmd (commandline -b)
+      set -g __fasd_cursor_pos (commandline -C)
 
-      # Remove last token from commandline.
-      commandline -t ""
-      commandline -it -- $prefix
+      commandline -r "cd "(string escape $result)
+      commandline -f repaint execute
+
+      function __fasd_restore_cmd -e fish_postexec
+        commandline -r $__fasd_oldcmd
+        commandline -C $__fasd_cursor_pos
+        functions -e __fasd_restore_cmd
+      end
     end
   end
 
