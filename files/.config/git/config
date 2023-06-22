@@ -59,16 +59,17 @@
 	untracked = cyan
 
 [alias]
-	start = checkout @{u} -B
+	# Most common aliases
 	br = branch -vv
-	bg = bisect good
-	bb = bisect bad
 	co = checkout
 	amend = commit --amend
 	ci = commit
 	st = status
 	cp = cherry-pick
+	# Show a commit graph
 	graph = log --date-order --date=short --graph --full-history --pretty=format:'%x08%x09%C(red)%h %C(cyan)%cd %C(bold blue)%cN%C(reset)%C(bold yellow)%d %C(reset)%s'
+	# Utilities for setting up branches with tracking
+	start = checkout @{u} -B
 	track = branch --set-upstream-to
 	# Safe remove all branches reachable from HEAD.  Good way to GC old
 	# branches after dcommit/rebase
@@ -80,6 +81,8 @@
 	# commits as part of a merge.
 	rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
 	unstage = restore --staged
+	# Open the web repo associated with this repository.
+	web = !sh -c \"git remote get-url \\${1:-origin} | sed -e 's\\$git@gitlab.com:\\$https://gitlab.com/\\$' -e 's\\$git@github.com:\\$https://github.com/\\$' | xargs \\$(which open || which xdg-open)\" git-web
 
 [svn]
 	followparent = true
