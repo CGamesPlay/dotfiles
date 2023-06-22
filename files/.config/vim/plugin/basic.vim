@@ -21,7 +21,7 @@ end
 " Allow backspacing over everything in insert mode
 set backspace=indent,eol,start
 " Highlight tab literals and trailing spaces
-set list listchars=tab:\ \ ,trail:\ 
+set listchars=tab:\ \ ,trail:\  list
 " Ensure there's some context around search results
 set scrolloff=5
 " For omnifunc completion, the preview window is distracting.
