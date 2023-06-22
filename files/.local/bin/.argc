@@ -4,25 +4,30 @@
 set -eu
 
 dotfiles_root() {
-    path=${BASH_SOURCE[0]}
-    realpath -m "$path"/../../../..
+	path=${BASH_SOURCE[0]}
+	realpath -m "$path"/../../../..
 }
 
 # @cmd Open VSCodium in the current directory.
 # @flag --microsoft Open VSCode instead of VSCodium.
 codium() {
-    binary=codium
-    if [ ${argc_microsoft:-0} -eq 1 ]; then
-        binary=code
-    fi
-    product=vs${binary}
-    if type -P $binary &>/dev/null; then
-        command $binary .
-    else
-        dir=$(pwd)
-        hostname=$(hostname -s)
-        echo ${product}://vscode-remote/ssh-remote+${hostname}${dir}
-    fi
+	binary=codium
+	if [ ${argc_microsoft:-0} -eq 1 ]; then
+		binary=code
+	fi
+	product=vs${binary}
+	if type -P $binary &>/dev/null; then
+		command $binary .
+	else
+		dir=$(pwd)
+		hostname=$(hostname -s)
+		url="${product}://vscode-remote/ssh-remote+${hostname}${dir}"
+		if which xdg-open >/dev/null; then
+			xdg-open "$url"
+		else
+			echo "$url"
+		fi
+	fi
 }
 
 # @cmd Start an automatic local vhost for Docker containers.
@@ -36,18 +41,18 @@ codium() {
 # @option -p --port=80 <PORT>       Local post number to listen on.
 # @option -h --host=lvh.me <HOST>   Base hostname to use. All subdomains must resolve to localhost.
 traefik() {
-    docker rm -f traefik
-    docker run -d --name traefik --restart=always --network=host \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        --label 'traefik.http.routers.dashboard.rule=Host(`'${argc_host}'`)' \
-        --label 'traefik.http.routers.dashboard.service=api@internal' \
-        --label 'traefik.http.services.traefik.loadbalancer.server.port='${argc_port} \
-        traefik:v2.10 \
-        --global.sendAnonymousUsage=false \
-        --entryPoints.web.address=":${argc_port}" \
-        --api.dashboard=true \
-        --providers.docker.defaultRule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
-        --providers.docker.httpClientTimeout=300
+	docker rm -f traefik
+	docker run -d --name traefik --restart=always --network=host \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		--label 'traefik.http.routers.dashboard.rule=Host(`'${argc_host}'`)' \
+		--label 'traefik.http.routers.dashboard.service=api@internal' \
+		--label 'traefik.http.services.traefik.loadbalancer.server.port='${argc_port} \
+		traefik:v2.10 \
+		--global.sendAnonymousUsage=false \
+		--entryPoints.web.address=":${argc_port}" \
+		--api.dashboard=true \
+		--providers.docker.defaultRule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ index .Labels "com.docker.compose.project" }}.'${argc_host}'`)' \
+		--providers.docker.httpClientTimeout=300
 }
 
 # @cmd Instantiate templates.
@@ -57,26 +62,26 @@ create() { :; }
 # @arg      target!            Location of the new workspace.
 # @option   -n --name <NAME>   Human-readable name for the workspace.
 create::docker-workspace() {
-    template_dir="$(dotfiles_root)/share/docker-template"
-    argc_name=${argc_name:-$argc_target}
-    cp -R "$template_dir" "$argc_target"
-    sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
+	template_dir="$(dotfiles_root)/share/docker-template"
+	argc_name=${argc_name:-$argc_target}
+	cp -R "$template_dir" "$argc_target"
+	sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
 }
 
 # @cmd Create a sample Argcfile.
 # @arg      target=Argcfile.sh            Target filename.
 create::argcfile() {
-    template_file="$(dotfiles_root)/share/Argcfile-template.sh"
-    cp -i "$template_file" "$argc_target"
-    echo $argc_target
+	template_file="$(dotfiles_root)/share/Argcfile-template.sh"
+	cp -i "$template_file" "$argc_target"
+	echo $argc_target
 }
 
 # @cmd Create a CACHEDIR.TAG file in the target directory.
 # https://bford.info/cachedir/
 # @arg      target=. <DIR>              Target directory.
 create::cachedir-tag() {
-    echo "Signature: 8a477f597d28d172789f06886806bc55" > ${argc_target}/CACHEDIR.TAG
-    echo ${argc_target}/CACHEDIR.TAG: created
+	echo "Signature: 8a477f597d28d172789f06886806bc55" > ${argc_target}/CACHEDIR.TAG
+	echo ${argc_target}/CACHEDIR.TAG: created
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
