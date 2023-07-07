@@ -1,7 +1,7 @@
-function cat
+function less
   if command -qs bat
     bat $argv
   else
-    command cat $argv
+    command less $argv
   end
 end

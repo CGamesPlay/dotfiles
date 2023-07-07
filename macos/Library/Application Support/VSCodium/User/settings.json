@@ -88,7 +88,7 @@
   "window.clickThroughInactive": false,
   "window.newWindowDimensions": "inherit",
   "window.restoreWindows": "none",
-  "workbench.colorTheme": "Default Light+",
   "workbench.editor.navigationScope": "editor",
-  "workbench.startupEditor": "none"
+  "workbench.startupEditor": "none",
+  "workbench.colorTheme": "Default Light Modern"
 }

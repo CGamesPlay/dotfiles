@@ -7,13 +7,13 @@ set -eu
 
 # @cmd Example command
 # Additional documentation about the command goes here.
-# @arg      filename=foo.txt    Positional argument
-# @flag     -v --verbose        Boolean argument
-# @option   -p --port=80 <PORT> Named argument
+# @arg		filename=foo.txt	Positional argument
+# @flag		-v --verbose		Boolean argument
+# @option	-p --port=80 <PORT>	Named argument
 example() {
-    echo "Example command: $argc_filename"
-    echo "Boolean flag: ${argc_verbose:-0}"
-    echo "Named argument: $argc_port"
+	echo "Example command: $argc_filename"
+	echo "Boolean flag: ${argc_verbose:-0}"
+	echo "Named argument: $argc_port"
 }
 
 # @cmd Command with complex arguments
@@ -23,16 +23,16 @@ example() {
 # the shell completions. To generate completions:
 #
 #   argc --argc-completions fish mycmd1 mycmd2 | source
-# @arg      source* <PATH>  Filename argument
-# @arg      dest! <DIR>     Directory argument
-# @option   --required!     Must be provided
-# @option   --multiple*     Zero or more (alternatively use +)
-# @option   --choice[=a|b]  Choice with default value
-# @alias    args-info
+# @arg		source* <PATH>	Filename argument
+# @arg		dest! <DIR>		Directory argument
+# @option	--required!		Must be provided
+# @option	--multiple*		Zero or more (alternatively use +)
+# @option	--choice[=a|b]	Choice with default value
+# @alias	args-info
 args() {
-    (set -o posix; set | grep argc)
-    # Syntax for properly quoting the variable number of arguments:
-    echo source: ${argc_source[@]+"${argc_source[@]}"}
+	(set -o posix; set | grep argc)
+	# Syntax for properly quoting the variable number of arguments:
+	echo source: ${argc_source[@]+"${argc_source[@]}"}
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
