@@ -5,7 +5,7 @@ set -e
 
 if is_installed apt 2>/dev/null; then
     sudo apt-get update
-    sudo apt-get install -y curl tar git vim tmux fish
+    sudo apt-get install -y curl tar git vim tmux fish direnv
 else
     echo "Don't know how to install on this platform" >&2
     exit 1
