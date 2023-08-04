@@ -17,15 +17,6 @@ install_fish() {
       return 0
     fi
   fi
-
-  if is_installed apt 2>/dev/null; then
-    sudo apt-add-repository -y ppa:fish-shell/release-3
-    sudo apt-get update
-    sudo apt-get install -y fish
-  else
-    echo "Don't know how to install on this platform" >&2
-    exit 1
-  fi
 }
 
 set_shell() {

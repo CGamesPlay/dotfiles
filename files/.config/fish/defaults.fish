@@ -1,7 +1,7 @@
 # This file is executed by tasks/20-fish.sh. It should only set default values
 # and not overwrite anything.
 set -Uq DFM_DIR || set -U DFM_DIR (cd (readlink ~/.config/fish/defaults.fish)/../../../..; pwd)
-cd (readlink ~/.config/fish/defaults.fish)/../../../..; pwd
+cd (readlink ~/.config/fish/defaults.fish)/../../../..
 set -Uq fish_color_autosuggestion || set -U fish_color_autosuggestion 3BA3D0
 set -Uq fish_color_cancel || set -U fish_color_cancel --reverse
 set -Uq fish_color_command || set -U fish_color_command 0772A1
