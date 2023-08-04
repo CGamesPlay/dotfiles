@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install robo to ~/.local/bin
+# Install argc to ~/.local/bin
 set -e
 . "$(dirname "$0")/helpers"
 

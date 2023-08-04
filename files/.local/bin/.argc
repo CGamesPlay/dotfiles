@@ -65,7 +65,6 @@ create::docker-workspace() {
 	template_dir="$(dotfiles_root)/share/docker-template"
 	argc_name=${argc_name:-$argc_target}
 	cp -R "$template_dir" "$argc_target"
-	sed -i 's/PROJECT_NAME/'"$argc_name"'/g' "$argc_target"/robo.yml
 }
 
 # @cmd Create a sample Argcfile.
