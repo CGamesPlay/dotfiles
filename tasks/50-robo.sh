@@ -11,7 +11,10 @@ if [ -x $TARGET ]; then
 fi
 
 url=https://github.com/cgamesplay/robo/releases/download/v$VERSION/robo_$(goos_goarch).gz
-curl -fsSL $url -o ${TARGET}.gz
+if ! curl -fsSL $url -o ${TARGET}.gz; then
+  echo "Skipping robo installation" >&2
+  exit 0
+fi
 gunzip ${TARGET}.gz
 chmod +x ${TARGET}
 echo "Installed robo $($TARGET --version) at $TARGET"

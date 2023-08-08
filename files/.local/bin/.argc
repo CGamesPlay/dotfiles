@@ -30,7 +30,7 @@ codium() {
 	fi
 }
 
-# @cmd Start an automatic local vhost for Docker containers.
+# @cmd Start an automatic local vhost for Docker compose containers.
 # The traefik container will run permanently. The dashboard will be available
 # at the root domain. All docker containers will be made available at URLs
 # according to their compose configuration, by default:
@@ -41,8 +41,15 @@ codium() {
 # @option -p --port=80 <PORT>       Local post number to listen on.
 # @option -h --host=lvh.me <HOST>   Base hostname to use. All subdomains must resolve to localhost.
 traefik() {
-	docker rm -f traefik
-	docker run -d --name traefik --restart=always --network=host \
+	docker rm -f traefik 2>/dev/null
+	case $(uname -s) in
+		Darwin)
+			net_args="-p ${argc_port}:${argc_port}"
+			;;
+		*)
+			net_args="--network=host"
+	esac
+	docker run -d --name traefik --restart=always $net_args \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		--label 'traefik.http.routers.dashboard.rule=Host(`'${argc_host}'`)' \
 		--label 'traefik.http.routers.dashboard.service=api@internal' \
