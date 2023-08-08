@@ -170,6 +170,14 @@ if has("gui_macvim")
   set fuoptions+=maxhorz,background:Normal
 endif
 
+" Disable smartcase in command-line mode, so that tab completion always uses
+" ignorecase.
+augroup dynamic_smartcase
+    autocmd!
+    autocmd CmdLineEnter : set nosmartcase
+    autocmd CmdLineLeave : set smartcase
+augroup END
+
 augroup setup_gui
   " Set preferred window size on startup
   autocmd GUIEnter * :2Cols

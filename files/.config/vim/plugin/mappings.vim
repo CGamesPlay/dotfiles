@@ -80,6 +80,10 @@ end
 " Q normally switches to ex mode, but I don't use that
 map Q gq
 
+" use vp to select the most recently pasted text (VP for whole lines)
+vmap p `[o`]
+vmap P '[o']
+
 " }}}
 " Mappings for plugins {{{
 

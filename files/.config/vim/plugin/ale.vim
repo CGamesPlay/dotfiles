@@ -14,6 +14,7 @@ let g:ale_fixers = {
       \'hcl': ['remove_trailing_lines', 'terraform', 'trim_whitespace'],
       \'javascript': ['prettier'],
       \'json': ['prettier'],
+      \'jsonc': ['prettier'],
       \'python': ['black', 'ruff'],
       \'ruby': ['rubocop'],
       \'rust': ['rustfmt'],

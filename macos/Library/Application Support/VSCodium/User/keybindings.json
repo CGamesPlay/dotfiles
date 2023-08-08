@@ -133,5 +133,15 @@
   {
     "key": "ctrl+k",
     "command": "workbench.action.focusFirstEditorGroup"
+  },
+  {
+    "key": "ctrl+x ctrl+o",
+    "command": "editor.action.triggerSuggest",
+    "when": "editorHasCompletionItemProvider && textInputFocus && !editorReadonly && !suggestWidgetVisible"
+  },
+  {
+    "key": "alt+escape",
+    "command": "-editor.action.triggerSuggest",
+    "when": "editorHasCompletionItemProvider && textInputFocus && !editorReadonly && !suggestWidgetVisible"
   }
 ]

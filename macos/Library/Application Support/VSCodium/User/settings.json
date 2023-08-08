@@ -90,5 +90,5 @@
   "window.restoreWindows": "none",
   "workbench.editor.navigationScope": "editor",
   "workbench.startupEditor": "none",
-  "workbench.colorTheme": "Default Light Modern"
+  "explorer.confirmDelete": false
 }
