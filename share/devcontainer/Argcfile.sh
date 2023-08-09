@@ -21,40 +21,25 @@ devcontainer::main() {
 # @arg command* Arguments passed to the shell
 devcontainer::shell() {
     if [[ ${argc_command:+1} ]]; then
-        _devcontainer exec sh -c "${argc_command+"${argc_command[@]}"}"
+        _devcontainer exec "${argc_command[@]}"
     else
         _devcontainer exec fish
     fi
 }
 
 # @cmd Start the devcontainer
-# @flag   --restart   Restart the container if already running
 # @flag   --rebuild   Rebuild the existing container if it exists
 devcontainer::up() {
-	if [[ ${argc_restart+1} ]]; then
-		id=$(find_devcontainer)
-		if [[ "$id" ]]; then docker stop "$id"; fi
-	fi
     args=(--dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git)
     if [[ ${argc_rebuild+1} ]]; then
         args=("${args[@]}" --remove-existing-container)
     fi
     if docker version | grep 'Docker Desktop' >/dev/null; then
-        args=("${args[@]}"
-            --mount=type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent.sock
-            --remote-env=SSH_AUTH_SOCK=/run/ssh-agent.sock
-        )
+        args=("${args[@]}" --mount=type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent/ssh-auth.sock)
     elif [[ "${SSH_AUTH_SOCK:-}" ]]; then
-        args=("${args[@]}"
-            --mount=type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock
-            --remote-env=SSH_AUTH_SOCK=/run/ssh-agent/ssh-auth.sock
-        )
+        args=("${args[@]}" --mount=type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock)
     fi
     _devcontainer up "${args[@]}"
-}
-
-find_devcontainer() {
-	docker ps -f label=devcontainer.local_folder="$(pwd)" --format '{{.ID}}'
 }
 
 _devcontainer() {

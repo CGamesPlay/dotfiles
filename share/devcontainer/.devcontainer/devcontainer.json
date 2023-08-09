@@ -20,7 +20,8 @@
   // "customizations": {},
   // Environment variables hard-coded into the container at build-time.
   "containerEnv": {
-    "DEVCONTAINER_ID": "${devcontainerId}"
+    "DEVCONTAINER_ID": "${devcontainerId}",
+    "SSH_AUTH_SOCK": "/run/ssh-agent/ssh-auth.sock"
   },
   // Additional mounts beyond the workspace directory.
   "mounts": [
