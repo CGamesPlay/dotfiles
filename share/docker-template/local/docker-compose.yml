@@ -1,6 +1,0 @@
-version: '3.8'
-services:
-  app:
-    image: kornkitti/express-hello-world
-    ports:
-      - 8080:8080

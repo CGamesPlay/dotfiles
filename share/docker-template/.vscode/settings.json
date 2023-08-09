@@ -1,6 +1,0 @@
-{
-  "remote.portsAttributes": {
-    "8080": { "label": "traefik", "onAutoForward": "silent" }
-  },
-  "remote.otherPortsAttributes": { "onAutoForward": "ignore" }
-}

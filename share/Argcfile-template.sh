@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # @describe Example Argcfile
-
-# Argc docs: https://github.com/sigoden/argc
+# Arguments, options, and flags listed here apply to the main command and all
+# subcommands.
+#
+# For more information about argc, see https://github.com/sigoden/argc
+# @option	--name	Name to greet
 
 set -eu
+
+main() {
+	echo "Hello, ${argc_name:-world}!"
+}
 
 # @cmd Example command
 # Additional documentation about the command goes here.
 # @arg		filename=foo.txt	Positional argument
-# @flag		-v --verbose		Boolean argument
-# @option	-p --port=80 <PORT>	Named argument
+# @flag		-f --flag			Optional flag
+# @option	-p --port=80 <PORT>	Named argument with default value
 example() {
-	echo "Example command: $argc_filename"
-	echo "Boolean flag: ${argc_verbose:-0}"
+	echo "Filename: $argc_filename"
+	if [[ "${argc_flag+1}" ]]; then
+		echo "Flag: passed"
+	else
+		echo "Flag: not passed"
+	fi
 	echo "Named argument: $argc_port"
 }
 
@@ -29,10 +40,33 @@ example() {
 # @option	--multiple*		Zero or more (alternatively use +)
 # @option	--choice[=a|b]	Choice with default value
 # @alias	args-info
-args() {
-	(set -o posix; set | grep argc)
+complex-args() {
+	# Show all received arguments.
+	(set -o posix; set | grep ^argc)
 	# Syntax for properly quoting the variable number of arguments:
 	echo source: ${argc_source[@]+"${argc_source[@]}"}
 }
 
+# @cmd Pass arguments to another command with a default
+# @arg	args*	Arguments
+pass-args() {
+	if [[ ${argc_args:+1} ]]; then
+		wrapped-command "${argc_args[@]}"
+	else
+		wrapped-command default-arguments
+	fi
+}
+
+wrapped-command() {
+	index=1
+	for arg in "$@"; do
+		echo "Arg #$index = $arg"
+		(( index+=1 ))
+	done
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
 eval "$(argc --argc-eval "$0" "$@")"

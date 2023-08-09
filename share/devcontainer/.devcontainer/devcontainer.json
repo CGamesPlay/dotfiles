@@ -1,0 +1,33 @@
+// JSON format reference: https://containers.dev/implementors/json_reference/
+{
+  "name": "Devcontainer",
+  "image": "mcr.microsoft.com/devcontainers/base:jammy",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {}
+  },
+  // Use 'updateContentCommand' to run commands at the end of the build step.
+  // These are the commands that prebuilds will use to update themselves. The
+  // commands are executed in parallel.
+  "updateContentCommand": {
+    // "npm": "cd project && npm ci"
+  },
+  // Use 'postStartCommand' to run commands each time the container is started.
+  "postStartCommand": {
+    "compose": "docker compose up -d"
+  },
+  // Configure tool-specific properties.
+  // "customizations": {},
+  // Environment variables hard-coded into the container at build-time.
+  "containerEnv": {
+    "DEVCONTAINER_ID": "${devcontainerId}"
+  },
+  // Additional mounts beyond the workspace directory.
+  "mounts": [
+    // Preserve fish_history
+    "source=${localWorkspaceFolder}/.devcontainer/fish,target=/home/vscode/.local/share/fish,type=bind,consistency=delegated"
+  ],
+  // Expose ports outside of the container. This works for local services that
+  // bind on all interfaces as well as dind exposed ports.
+  "appPort": ["8000:8000"]
+}
