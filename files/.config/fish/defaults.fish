@@ -25,4 +25,5 @@ set -Uq fish_color_selection || set -U fish_color_selection 'white'  '--bold'  '
 set -Uq fish_color_status || set -U fish_color_status red
 set -Uq fish_color_user || set -U fish_color_user 'blue'  '--bold'
 set -Uq fish_color_valid_path || set -U fish_color_valid_path --underline
+set -Uq beep_command || set -U beep_command 'iterm_sound Factorio/alert-destroyed.wav'
 exit 0
