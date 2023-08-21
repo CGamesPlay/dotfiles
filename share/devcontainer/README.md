@@ -13,6 +13,20 @@ Then use `argc devcontainer up` to build and start the container. Finally, use `
 
 Once inside the container, docker is available using docker-in-docker, and git is configured with SSH agent forwarding.
 
-## Managing dependencies
+## Modifying the devcontainer setup
 
-Additional devcontainer features can be configured to install extra software which persists after a rebuild, and a custom Dockerfile can be used for more advanced configuration.
+- Add [prebuilt features](https://containers.dev/features) that provide the necessary behavior.
+- Write a script in `postCreateCommand`. The disadvantage of this method is that all `postCreateCommands` run in parallel, which can lead to `apt` locking issues.
+- [Write a feature](https://containers.dev/implementors/features/) that provides the necessary behavior. The code can be stored inside the `.devcontainer` folder. This allows depending on other features, and allows providing a custom `install.sh`.
+- Build from a custom Dockerfile.
+
+## Connecting with VSCodium
+
+Use the [Remote (OSS)](https://open-vsx.org/extension/xaberus/remote-oss) extension and the `vscodium-server` helper script included in my dotfiles to start a listening server. For example:
+
+```bash
+VSCODIUM_VERSION=$(vscodium-server version)
+argc devcontainer shell vscodium-server start $VSCODIUM_VERSION
+vscodum-server listen "argc devcontainer shell /home/vscode/.local/bin/vscodium-server connect $VSCODIUM_VERSION"
+```
+

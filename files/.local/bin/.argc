@@ -65,13 +65,14 @@ traefik() {
 # @cmd Instantiate templates.
 create() { :; }
 
-# @cmd Copy the docker workspace root template to the named directory.
+# @cmd Copy the devcontainer workspace root template to the named directory.
 # @arg      target!            Location of the new workspace.
 # @option   -n --name <NAME>   Human-readable name for the workspace.
-create::docker-workspace() {
-	template_dir="$(dotfiles_root)/share/docker-template"
+create::devcontainer() {
+	template_dir="$(dotfiles_root)/share/devcontainer"
 	argc_name=${argc_name:-$argc_target}
 	cp -R "$template_dir" "$argc_target"
+	echo "$argc_target: created"
 }
 
 # @cmd Create a sample Argcfile.
@@ -79,7 +80,7 @@ create::docker-workspace() {
 create::argcfile() {
 	template_file="$(dotfiles_root)/share/Argcfile-template.sh"
 	cp -i "$template_file" "$argc_target"
-	echo $argc_target
+	echo "$argc_target: created"
 }
 
 # @cmd Create a CACHEDIR.TAG file in the target directory.
@@ -87,7 +88,7 @@ create::argcfile() {
 # @arg      target=. <DIR>              Target directory.
 create::cachedir-tag() {
 	echo "Signature: 8a477f597d28d172789f06886806bc55" > ${argc_target}/CACHEDIR.TAG
-	echo ${argc_target}/CACHEDIR.TAG: created
+	echo "${argc_target}/CACHEDIR.TAG: created"
 }
 
 eval "$(argc --argc-eval "$0" "$@")"

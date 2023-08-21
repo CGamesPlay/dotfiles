@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# @describe Manage VSCodium remote extension hosts.
+
+# shellcheck disable=SC2154
+set -eu
+
+# @cmd Print the version of VSCodium installed locally.
+version() {
+	# codium -v is unhelpful, it does not print the release number in the
+	# output, which is required to find the correct package to download.
+	# Instead, we have to locate the product.json file.
+	CODIUM_BIN=$(readlink "$(which codium)")
+	PRODUCT_JSON=$(dirname "$CODIUM_BIN")/../product.json
+	CODIUM_VERSION=$(jq -r '.version' "$PRODUCT_JSON")
+	CODIUM_RELEASE=$(jq -r '.release' "$PRODUCT_JSON")
+	echo "$CODIUM_VERSION.$CODIUM_RELEASE"
+}
+
+# @cmd Install the VSCodium remote extension host.
+# @arg		version!	Version to install (must exactly match)
+# @option	--prefix	<DIR> Location to install to
+install() {
+	if [[ ! ${argc_prefix:+1} ]]; then
+		argc_prefix=${XDG_CACHE_HOME:-"$HOME/.cache"}/vscodium-server
+	fi
+	mkdir -p "$argc_prefix/$argc_version"
+	if [[ -x "$argc_prefix/$argc_version/bin/codium-server" ]]; then
+		return 0
+	fi
+	case $(uname -m) in
+		x86_64)
+			arch=linux-x64
+			;;
+		aarch64)
+			arch=linux-arm64
+			;;
+		*)
+			echo "Unknown architecture: $(uname -m)" >&2
+			return 1
+			;;
+	esac
+	package="vscodium-reh-$arch-$argc_version.tar.gz"
+	curl -fsSL "https://github.com/VSCodium/vscodium/releases/download/$argc_version/$package" -o "$argc_prefix/$package"
+	tar -xf "$argc_prefix/$package" -C "$argc_prefix/$argc_version"
+	rm "$argc_prefix/$package"
+	echo "Installed $argc_version to $argc_prefix/$argc_version/bin/codium-server"
+}
+
+# @cmd Start the VSCodium remote extension host.
+# @arg		version!	Version to start (must exactly match)
+# @arg		args*		Additional arguments to server
+# @option	--prefix	<DIR> Location to install to
+# @flag		-d --detach	Run in background
+start() {
+	install
+	socket_path="${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-$argc_version.sock"
+	if [ -S "$socket_path" ]; then
+		if nc -Uz "$socket_path" 2>/dev/null; then
+			echo "Remote extension host is already running."
+			return 0
+		else
+			rm "$socket_path"
+		fi
+	fi
+	if [[ "${argc_detach+1}" ]]; then
+		nohup "$argc_prefix/$argc_version/bin/codium-server" \
+			--socket-path "$socket_path" \
+			--without-connection-token \
+			${argc_args+"${argc_args[@]}"} \
+			>/dev/null 2>&1 &
+	else
+		exec "$argc_prefix/$argc_version/bin/codium-server" \
+			--socket-path "$socket_path" \
+			--without-connection-token \
+			${argc_args+"${argc_args[@]}"}
+	fi
+}
+
+# @cmd Create a connection with the running extension host over stdio.
+# @arg		version!	Version to connect to (must exactly match)
+# @option	--prefix	<DIR> Location to install to
+connect() {
+	socket_path="${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-$argc_version.sock"
+	nc -U "$socket_path"
+}
+
+# @cmd Utility to listen for connections and run a command for each.
+#
+# Example: vscodium-server listen -- vscodium-server connect
+# @arg		command!		Command to run
+# @option	-P --port=4444	Port to listen on
+listen() {
+	socat tcp-listen:"$argc_port",reuseaddr,fork system:"$argc_command"
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"
