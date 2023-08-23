@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
+# @version 1.0.0
 # @describe Manage VSCodium remote extension hosts.
+#
+# Note about connection tokens: this script uses UNIX sockets to communicate
+# the remote extension host. This configuration does not benefit from using
+# connection tokens, so they are disabled by default. If you decide to use
+# network sockets instead, you should enable connection tokens.
 
 # shellcheck disable=SC2154
 set -eu
@@ -9,24 +15,53 @@ version() {
 	# codium -v is unhelpful, it does not print the release number in the
 	# output, which is required to find the correct package to download.
 	# Instead, we have to locate the product.json file.
-	CODIUM_BIN=$(readlink "$(which codium)")
-	PRODUCT_JSON=$(dirname "$CODIUM_BIN")/../product.json
-	CODIUM_VERSION=$(jq -r '.version' "$PRODUCT_JSON")
-	CODIUM_RELEASE=$(jq -r '.release' "$PRODUCT_JSON")
-	echo "$CODIUM_VERSION.$CODIUM_RELEASE"
+	codium_bin=$(readlink "$(which codium)")
+	product_json=$(dirname "$codium_bin")/../product.json
+	version=$(jq -r '.version' "$product_json")
+	release=$(jq -r '.release' "$product_json")
+	echo "$version.$release"
 }
 
-# @cmd Install the VSCodium remote extension host.
-# @arg		version!	Version to install (must exactly match)
-# @option	--prefix	<DIR> Location to install to
+# @cmd Install the VSCodium remote extension host on a remote machine.
+#
+# The provided command will be executed with the shell command and will receive
+# a single argument containing a shell script to run on the remote end.
+#
+# Example: vscodium-server install "docker exec -i my-container bash -c"
+# @arg		command+						Command to get a shell on the remote machine
+# @option	--vscodium-version=`version`	Version to install
+# @option	--prefix						<DIR> Install prefix on the remote machine
+# @flag		-n --dry-run					Print the commands to install without running
+# @flag		-v --verbose					Increase logging
 install() {
-	if [[ ! ${argc_prefix:+1} ]]; then
-		argc_prefix=${XDG_CACHE_HOME:-"$HOME/.cache"}/vscodium-server
+	set -o pipefail
+	if [[ ${argc_dry_run+1} ]]; then
+		_get_install_script
+	else
+		_run_with "${argc_command}" "$(_get_install_script)"
 	fi
-	mkdir -p "$argc_prefix/$argc_version"
-	if [[ -x "$argc_prefix/$argc_version/bin/codium-server" ]]; then
-		return 0
+}
+
+_get_install_script() {
+	if [[ ${argc_verbose:+1} ]]; then
+		echo 'set -x'
 	fi
+	cat <<-EOF
+	set -eu
+	VSCODIUM_VERSION="${argc_vscodium_version}"
+	EOF
+	if [[ ${argc_prefix:+1} ]]; then
+		echo "PREFIX=\"${argc_prefix}\""
+	else
+		echo "PREFIX=\${XDG_CACHE_HOME:-\"\$HOME/.cache\"}/vscodium-server"
+	fi
+	cat <<'EOF'
+if ! command -v curl >/dev/null || ! command -v nc >/dev/null; then
+	echo 'vscodium-server requires dependencies: curl netcat' >&2
+	exit 1
+fi
+mkdir -p "$PREFIX/$VSCODIUM_VERSION"
+if [ ! -x "$PREFIX/$VSCODIUM_VERSION/bin/codium-server" ]; then
 	case $(uname -m) in
 		x86_64)
 			arch=linux-x64
@@ -36,61 +71,174 @@ install() {
 			;;
 		*)
 			echo "Unknown architecture: $(uname -m)" >&2
-			return 1
+			exit 1
 			;;
 	esac
-	package="vscodium-reh-$arch-$argc_version.tar.gz"
-	curl -fsSL "https://github.com/VSCodium/vscodium/releases/download/$argc_version/$package" -o "$argc_prefix/$package"
-	tar -xf "$argc_prefix/$package" -C "$argc_prefix/$argc_version"
-	rm "$argc_prefix/$package"
-	echo "Installed $argc_version to $argc_prefix/$argc_version/bin/codium-server"
+	package="vscodium-reh-$arch-$VSCODIUM_VERSION.tar.gz"
+	curl -fsSL "https://github.com/VSCodium/vscodium/releases/download/$VSCODIUM_VERSION/$package" -o "$PREFIX/$package"
+	tar -xf "$PREFIX/$package" -C "$PREFIX/$VSCODIUM_VERSION"
+	rm "$PREFIX/$package"
+	echo "Installed $VSCODIUM_VERSION to $PREFIX/$VSCODIUM_VERSION/bin/codium-server" >&2
+fi
+EOF
 }
 
-# @cmd Start the VSCodium remote extension host.
-# @arg		version!	Version to start (must exactly match)
-# @arg		args*		Additional arguments to server
-# @option	--prefix	<DIR> Location to install to
-# @flag		-d --detach	Run in background
-start() {
-	install
-	socket_path="${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-$argc_version.sock"
-	if [ -S "$socket_path" ]; then
-		if nc -Uz "$socket_path" 2>/dev/null; then
-			echo "Remote extension host is already running."
-			return 0
-		else
-			rm "$socket_path"
-		fi
-	fi
-	if [[ "${argc_detach+1}" ]]; then
-		nohup "$argc_prefix/$argc_version/bin/codium-server" \
-			--socket-path "$socket_path" \
-			--without-connection-token \
-			${argc_args+"${argc_args[@]}"} \
-			>/dev/null 2>&1 &
-	else
-		exec "$argc_prefix/$argc_version/bin/codium-server" \
-			--socket-path "$socket_path" \
-			--without-connection-token \
-			${argc_args+"${argc_args[@]}"}
-	fi
-}
-
-# @cmd Create a connection with the running extension host over stdio.
-# @arg		version!	Version to connect to (must exactly match)
-# @option	--prefix	<DIR> Location to install to
-connect() {
-	socket_path="${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-$argc_version.sock"
-	nc -U "$socket_path"
-}
-
-# @cmd Utility to listen for connections and run a command for each.
+# @cmd Start the VSCodium remote extension host on a remote machine.
 #
-# Example: vscodium-server listen -- vscodium-server connect
-# @arg		command!		Command to run
-# @option	-P --port=4444	Port to listen on
+# The provided command will be executed with the shell command and will receive
+# a single argument containing a shell script to run on the remote end.
+#
+# Example: vscodium-server start --extra-args="--install-extension foo --start-server" "docker exec -i my-container bash -c"
+# @arg		command+						Command to get a shell on the remote machine
+# @option	--extra-args*					Additional arguments to codium-server
+# @option	--vscodium-version=`version`	Version to start
+# @option	--prefix						<DIR> Install prefix on the remote machine
+# @flag		-d --detach						Run in background
+# @flag		-n --dry-run					Print the commands to start without running
+# @flag		-v --verbose					Increase logging
+start() {
+	set -o pipefail
+	if [[ ${argc_dry_run+1} ]]; then
+		_get_start_script
+	elif [[ ${argc_detach+1} ]]; then
+		_run_with "${argc_command}" "$(_get_start_script)"
+	else
+		_exec_with "${argc_command}" "$(_get_start_script)"
+	fi
+}
+
+_get_start_script() {
+	_get_install_script
+	cat <<'EOF'
+socket_path="${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-$VSCODIUM_VERSION.sock"
+if [ -S "$socket_path" ] && nc -Uz "$socket_path" 2>/dev/null; then
+	echo "Remote extension host is already running." >&2
+else
+	rm -f "$socket_path"
+EOF
+	# shellcheck disable=2016
+	command='$PREFIX/$VSCODIUM_VERSION/bin/codium-server \
+		--socket-path "$socket_path" \
+		--without-connection-token \
+		'${argc_extra_args+"${argc_extra_args[@]}"}
+	if [[ "${argc_detach+1}" ]]; then
+		cat <<EOF
+	log="\${XDG_RUNTIME_DIR:-/tmp}/vscodium-server.log"
+	nohup $command \\
+		</dev/null >"\$log" 2>&1 &
+	tail -f "\$log" | sed '/Extension host agent listening on/ q' >&2
+	rm -f "\$log"
+EOF
+	else
+		echo "	exec $command"
+	fi
+	echo 'fi'
+}
+
+# @cmd Connect to the VSCodium remote extension host on a remote machine.
+#
+# The provided command will be executed with the shell command and will receive
+# a single argument containing a shell script to run on the remote end. The
+# command should forward its stdio channels to the remote shell.
+#
+# Example: vscodium-server connect "docker exec -i my-container bash -c"
+# @arg		command+						Command to get a shell on the remote machine
+# @option	--extra-args*					Additional arguments to codium-server
+# @option	--vscodium-version=`version`	Version to start
+# @option	--prefix						<DIR> Install prefix on the remote machine
+# @flag		--use-existing					Assume the server is already running
+# @flag		-n --dry-run					Print the commands to start without running
+# @flag		-v --verbose					Increase logging
+connect() {
+	set -o pipefail
+	if [[ ${argc_dry_run+1} ]]; then
+		_get_connect_script
+	else
+		_exec_with "${argc_command}" "$(_get_connect_script)"
+	fi
+}
+
+_get_connect_script() {
+	if [[ ! ${argc_use_existing:+1} ]]; then
+		argc_detach=1
+		_get_start_script
+	fi
+	echo "socket_path=\"\${XDG_RUNTIME_DIR:-/tmp}/vscodium-server-${argc_vscodium_version}.sock\""
+	echo "echo \"Connecting to codium-server at \$socket_path...\" >&2"
+	echo "exec nc -U \"\$socket_path\""
+}
+
+# @cmd Wrapper around ssh that properly quotes commands.
+#
+# Use this instead of ssh when attempting to use other vscodium-server commands
+# over SSH.
+#
+# This command opens an ssh connection to the named host, then evaluates its
+# last argument as a shell script. A custom interpreter can be provided, which
+# must be a command that will receive a single argument containing a shell
+# script to evaluate.
+#
+# Example: Run a shell script in a specific directory on the remote
+#
+#   vscodium-server ssh myhost --shell "cd dir && sh -c" <(cat local_script.sh)
+#
+# Example: Run a command in a docker container on the remote
+#
+#   vscodium-server ssh --shell "docker exec -i my-container"
+# @arg		args+			Arguments to pass to ssh unmodified
+# @arg		command!		Command to run on the remote host
+# @option	--shell			Command to run to execute the shell script
+ssh() {
+	if [[ ${argc_shell+1} ]]; then
+		one_word_command=\'${argc_command//\'/\'\\\'\'}\'
+		payload=$argc_shell" "$one_word_command
+	else
+		payload=$argc_command
+	fi
+	command ssh "${argc_args[@]}" exec sh -c \"\$\(echo "$(echo "$payload" | base64 | tr -d "\n") | base64 -d)\""
+}
+
+# @cmd Wrapper around connect that listens on a local port.
+#
+# The provided command will be executed with the shell command and will receive
+# a single argument containing a shell script to run on the remote end. The
+# command should forward its stdio channels to the remote shell.
+#
+# Example: vscodium-server listen "docker exec -i my-container bash -c"
+# @arg		command+						Command to get a shell on the remote machine
+# @option	--extra-args*					Additional arguments to codium-server
+# @option	--vscodium-version=`version`	Version to start
+# @option	--prefix						<DIR> Install prefix on the remote machine
+# @option	-P --port=4444					Port to listen on
+# @option	--remote-name=remote			Name of the Remote-OSS remote
+# @option	--remote-path=/					Path in the remote to open
+# @flag		--use-existing					Assume the server is already running
+# @flag		--no-open						Don't open VSCodium
+# @flag		-v --verbose					Increase logging
 listen() {
-	socat tcp-listen:"$argc_port",reuseaddr,fork system:"$argc_command"
+	url=vscodium://vscode-remote/remote-oss+${argc_remote_name}${argc_remote_path}
+	if [[ ! ${argc_use_existing:+1} ]]; then
+		argc_detach=1
+		start
+	fi
+	if [[ ! ${argc_no_open+1} ]]; then
+		open "$url"
+	fi
+	one_word_command=\'${argc_command//\'/\'\\\'\'}\'
+	# socat treats some characters specially address specifications, and these
+	# need to be escaped with a backslash.
+	# shellcheck disable=SC2001
+	socat tcp-listen:"$argc_port",reuseaddr,fork system:"$0 connect $(echo "$one_word_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')"
+}
+
+_exec_with() {
+	one_word_command=\'${2//\'/\'\\\'\'}\'
+	exec sh -c "$1 $one_word_command"
+}
+
+_run_with() {
+	one_word_command=\'${2//\'/\'\\\'\'}\'
+	sh -c "$1 $one_word_command"
 }
 
 if ! command -v argc >/dev/null; then
