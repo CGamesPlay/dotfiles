@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# @version 1.0.0
+# @describe CLI for working for devcontainers
+#
+# Extends the official devcontainers CLI with useful commands and defaults.
+#
+# Commands with modified behavior are listed here.
+# @arg	command*	Passed directly to devcontainer CLI
+# @flag	--base-help	Show documentation for original CLI
+
+set -eu
+
+tool=$(npm -g config get prefix)/bin/devcontainer
+if ! command -v "$tool" >/dev/null; then
+	echo "Install @devcontainers/cli globally before using" >&2
+	echo "npm install -g @devcontainers/cli"
+	exit 100
+fi
+
+if [[ "${DEVCONTAINER_ID+1}" ]]; then
+	echo "$0: refusing to nest devcontainers" >&2
+	exit 1
+fi
+
+main() {
+	if [[ ${argc_base_help+1} ]]; then
+		exec "${tool[@]}" --help
+	fi
+	args=(--workspace-folder=.)
+	# shellcheck disable=SC2154
+	if [[ ${#argc__positionals} -eq 0 ]]; then
+		"$0" --help
+		exit 1
+	else
+		# shellcheck disable=SC2154
+		"${tool[@]}" "${argc__positionals[0]}" "${args[@]}" "${argc__positionals[@]:1}"
+	fi
+}
+
+# @cmd Create and run a devcontainer
+#
+# Differences from original:
+# - Automatically installs my dotfiles
+# - Enables SSH agent forwarding
+# @flag	--rebuild		Rebuild the existing container if it exists
+# @flag	--no-dotfiles	Do not include dotfiles
+# @flag	--no-ssh-agent	Do not forward the SSH agent
+up() {
+	args=(--workspace-folder=.)
+	if [[ ${argc_rebuild+1} ]]; then
+		args=("${args[@]}" --remove-existing-container)
+	fi
+	if [[ ! ${argc_no_dotfiles+1} ]]; then
+		args=("${args[@]}" --dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git)
+	fi
+	if [[ ! ${argc_no_ssh_agent+1} ]]; then
+		if docker version | grep 'Docker Desktop' >/dev/null; then
+			args=("${args[@]}"
+				"--mount=type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent/ssh-auth.sock"
+				"--remote-env=SSH_AUTH_SOCK=/run/ssh-agent/ssh-auth.sock"
+			)
+		elif [[ "${SSH_AUTH_SOCK:-}" ]]; then
+			args=("${args[@]}"
+				"--mount=type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock"
+				"--remote-env=SSH_AUTH_SOCK=/run/ssh-agent/ssh-auth.sock"
+			)
+		fi
+	fi
+	"${tool[@]}" up "${args[@]}"
+}
+
+# @cmd Run a shell in the devcontainer
+shell() {
+	args=(--workspace-folder=.)
+	exec "${tool[@]}" exec "${args[@]}" fish
+}
+
+# @cmd Stop a running devcontainer
+stop() {
+	container_id=$(_locate_container)
+	if [[ ${container_id:+1} ]]; then
+		docker stop "$container_id"
+	fi
+}
+
+# @cmd Remove the devcontainer
+down() {
+	container_id=$(_locate_container)
+	if [[ ${container_id:+1} ]]; then
+		docker stop "$container_id"
+		docker rm "$container_id"
+	fi
+}
+
+_locate_container() {
+	docker ps -a -f "label=devcontainer.local_folder=$(pwd)" --format '{{.ID}}'
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

@@ -20,8 +20,7 @@
   // "customizations": {},
   // Environment variables hard-coded into the container at build-time.
   "containerEnv": {
-    "DEVCONTAINER_ID": "${devcontainerId}",
-    "SSH_AUTH_SOCK": "/run/ssh-agent/ssh-auth.sock"
+    "DEVCONTAINER_ID": "${devcontainerId}"
   },
   // Additional mounts beyond the workspace directory.
   "mounts": [
@@ -30,5 +29,5 @@
   ],
   // Expose ports outside of the container. This works for local services that
   // bind on all interfaces as well as dind exposed ports.
-  "appPort": ["8000:8000"]
+  //"appPort": ["8000:8000"]
 }

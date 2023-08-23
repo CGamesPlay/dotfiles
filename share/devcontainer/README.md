@@ -9,9 +9,9 @@ npm install -g @devcontainers/cli
 ln -s $(npm -g config get prefix)/bin/devcontainer ~/.local/bin/devcontainer
 ```
 
-Then use `argc devcontainer up` to build and start the container. Finally, use `argc devcontainer shell` to open a shell in the container.
+Then use `devcontainer up` to build and start the container. Finally, use `devcontainer exec bash` to open a shell in the container.
 
-Once inside the container, docker is available using docker-in-docker, and git is configured with SSH agent forwarding.
+Once inside the container, docker is available using docker-in-docker and the current project is mounted in /workspaces.
 
 ## Modifying the devcontainer setup
 
@@ -22,11 +22,9 @@ Once inside the container, docker is available using docker-in-docker, and git i
 
 ## Connecting with VSCodium
 
-Use the [Remote (OSS)](https://open-vsx.org/extension/xaberus/remote-oss) extension and the `vscodium-server` helper script included in my dotfiles to start a listening server. For example:
+Use the [Remote (OSS)](https://open-vsx.org/extension/xaberus/remote-oss) extension and the `vscodium-server` helper script included in my dotfiles. For example:
 
 ```bash
-VSCODIUM_VERSION=$(vscodium-server version)
-argc devcontainer shell vscodium-server start $VSCODIUM_VERSION
-vscodum-server listen "argc devcontainer shell /home/vscode/.local/bin/vscodium-server connect $VSCODIUM_VERSION"
+vscodium-server listen "devcontainer exec -- sh -c"
 ```
 
