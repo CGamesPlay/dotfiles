@@ -90,5 +90,10 @@
   "window.restoreWindows": "none",
   "workbench.editor.navigationScope": "editor",
   "workbench.startupEditor": "none",
-  "explorer.confirmDelete": false
+  "explorer.confirmDelete": false,
+  "[shellscript]": {
+    "editor.insertSpaces": false,
+    "files.eol": "\n"
+  },
+  "workbench.colorTheme": "Default Light Modern"
 }

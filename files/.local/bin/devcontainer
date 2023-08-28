@@ -10,6 +10,11 @@
 
 set -eu
 
+dotfiles_root() {
+	path=${BASH_SOURCE[0]}
+	realpath -m "$path"/../../../..
+}
+
 tool=$(npm -g config get prefix)/bin/devcontainer
 if ! command -v "$tool" >/dev/null; then
 	echo "Install @devcontainers/cli globally before using" >&2
@@ -17,7 +22,7 @@ if ! command -v "$tool" >/dev/null; then
 	exit 100
 fi
 
-if [[ "${DEVCONTAINER_ID+1}" ]]; then
+if command -v devcontainer-info >/dev/null; then
 	echo "$0: refusing to nest devcontainers" >&2
 	exit 1
 fi
@@ -40,7 +45,8 @@ main() {
 # @cmd Create and run a devcontainer
 #
 # Differences from original:
-# - Automatically installs my dotfiles
+# - Installs my dotfiles
+# - Preserves fish history in the .devcontainer directory
 # - Enables SSH agent forwarding
 # @flag	--rebuild		Rebuild the existing container if it exists
 # @flag	--no-dotfiles	Do not include dotfiles
@@ -50,21 +56,27 @@ up() {
 	if [[ ${argc_rebuild+1} ]]; then
 		args=("${args[@]}" --remove-existing-container)
 	fi
+	features=(x)
+	rsync -a --delete "$(dotfiles_root)/share/devcontainer-ssh-auth/" .devcontainer/ssh-auth/
 	if [[ ! ${argc_no_dotfiles+1} ]]; then
-		args=("${args[@]}" --dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git)
+		[ ! -d .devcontainer/fish ] && mkdir .devcontainer/fish
+		features=("${features[@]}" '"ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {}')
+		args=("${args[@]}"
+			--dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git
+			--mount="type=bind,source=$(pwd)/.devcontainer/fish,target=/home/vscode/.local/share/fish"
+		)
 	fi
 	if [[ ! ${argc_no_ssh_agent+1} ]]; then
+		features=("${features[@]}" '"./ssh-auth": {}')
 		if docker version | grep 'Docker Desktop' >/dev/null; then
-			args=("${args[@]}"
-				"--mount=type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent/ssh-auth.sock"
-				"--remote-env=SSH_AUTH_SOCK=/run/ssh-agent/ssh-auth.sock"
-			)
+			args=("${args[@]}" --mount="type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent/ssh-auth.sock")
 		elif [[ "${SSH_AUTH_SOCK:-}" ]]; then
-			args=("${args[@]}"
-				"--mount=type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock"
-				"--remote-env=SSH_AUTH_SOCK=/run/ssh-agent/ssh-auth.sock"
-			)
+			args=("${args[@]}" --mount="type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock")
 		fi
+	fi
+	if [[ ${#features[@]} -gt 1 ]]; then
+		features="{$(printf ", %s" "${features[@]:1}") }"
+		args=("${args[@]}" "--additional-features=${features/,}")
 	fi
 	"${tool[@]}" up "${args[@]}"
 }
