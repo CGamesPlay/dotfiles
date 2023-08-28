@@ -228,7 +228,7 @@ listen() {
 	# socat treats some characters specially address specifications, and these
 	# need to be escaped with a backslash.
 	# shellcheck disable=SC2001
-	socat tcp-listen:"$argc_port",reuseaddr,fork system:"$0 connect $(echo "$one_word_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')"
+	exec socat tcp-listen:"$argc_port",reuseaddr,fork system:"$0 connect --use-existing $(echo "$one_word_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')"
 }
 
 _exec_with() {
