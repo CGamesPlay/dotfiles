@@ -21,11 +21,3 @@ end
 if ! set -q XDG_RUNTIME_DIR
   set -x XDG_RUNTIME_DIR $TMPDIR
 end
-
-# When inside of an SSH connection, establish a well-known location for
-# SSH_AUTH_SOCK, so that sessions in tmux can keep using the same socket address
-# even through reconnections.
-if set -q SSH_CONNECTION && set -q SSH_AUTH_SOCK && test $SSH_AUTH_SOCK != ~/.ssh/latest_auth_sock
-  ln -sf $SSH_AUTH_SOCK ~/.ssh/latest_auth_sock
-  set -x SSH_AUTH_SOCK ~/.ssh/latest_auth_sock
-end
