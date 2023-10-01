@@ -150,3 +150,5 @@
 
 [include]
 	path = ~/.config/git/config.local
+[advice]
+	skippedCherryPicks = false

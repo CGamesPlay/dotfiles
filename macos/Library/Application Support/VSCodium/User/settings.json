@@ -95,5 +95,15 @@
     "editor.insertSpaces": false,
     "files.eol": "\n"
   },
-  "workbench.colorTheme": "Default Light Modern"
+  "[terraform]": {
+    "editor.formatOnSave": false
+  },
+  "[terraform-vars]": {
+    "editor.formatOnSave": false
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "workbench.colorTheme": "Default Light Modern",
+  "terraform.languageServer.enable": false
 }

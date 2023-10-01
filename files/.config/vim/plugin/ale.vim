@@ -29,6 +29,10 @@ let g:ale_linters = {
       \}
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
 let g:ale_floating_preview = 1 " Show docs in a floating window instead of split
+" Show problems in virtualtext on current line only. Virtualtext doesn't work
+" well in vim and causes following lines to render the cursor in the incorrect
+" location.
+let g:ale_virtualtext_cursor = 1
 let g:ale_python_ruff_options = '--unfixable F401,F841'
 let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1

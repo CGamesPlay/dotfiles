@@ -36,6 +36,7 @@ Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
 Plugin 'tpope/vim-eunuch'
 Plugin 'itchyny/lightline.vim'
+Plugin 'github/copilot.vim'
 
 " Language syntaxes
 Plugin 'GutenYe/json5.vim'
