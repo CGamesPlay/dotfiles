@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# @describe CLI Command Palette
+# Execute a command from launcherrc.
+
+set -eu
+
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/launcherrc"
+mkdir -p "$(basename "$CONFIG_FILE")"
+if [[ ! -e "$CONFIG_FILE" ]]; then
+	cat <<-EOF > "$CONFIG_FILE"
+	# Launcher configuration file
+	# Entries should be in the form NAME:SCRIPT
+	# Example:
+	# Start program:cd dir; pwd
+	EOF
+fi
+
+main() {
+	exec fzf -d '\t' --with-nth 1 \
+		--bind 'start:reload:grep -Ev "^#" "'"$CONFIG_FILE"'"' \
+		--bind 'enter:become(sh -c {2})'
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"
