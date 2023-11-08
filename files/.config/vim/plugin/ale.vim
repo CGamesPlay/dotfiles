@@ -28,7 +28,12 @@ let g:ale_linters = {
       \'python': ['pyright', 'ruff'],
       \}
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
-let g:ale_floating_preview = 1 " Show docs in a floating window instead of split
+" Show docs in a floating window instead of split
+let g:ale_floating_preview = 1
+" It would be nice to use the "minwidth" setting to have wider floating
+" preview windows, but "fixed" only applies when wrap is off. This leads to
+" very long lines running off the screen.
+let g:ale_floating_preview_popup_opts = {'wrap': v:false}
 " Show problems in virtualtext on current line only. Virtualtext doesn't work
 " well in vim and causes following lines to render the cursor in the incorrect
 " location.
@@ -41,8 +46,8 @@ let g:ale_rust_analyzer_config = {
       \'procMacro': { 'enable': 1 },
       \}
 let g:ale_rust_rustfmt_options = '--edition 2021'
+let g:ale_sh_shellcheck_options = '-e SC2002'
 set omnifunc=ale#completion#OmniFunc
-
 
 " ALE Tags fallback {{{
 " Coppied from https://github.com/liskin/dotfiles/blob/home/.vim/plugin/ale_tags_fallback.vim

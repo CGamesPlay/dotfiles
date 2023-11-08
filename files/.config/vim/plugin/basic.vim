@@ -194,8 +194,8 @@ augroup setup_gui
     \   exe "normal! g`\"" |
     \ endif
 
-  " Automatically open the location list after performing an grep.
-  autocmd QuickFixCmdPost *grep* botright cwindow
+  " Automatically open the location list after performing a grep or make
+  autocmd QuickFixCmdPost * botright cwindow
 
   " Close the location list when closing the parent window
   autocmd BufWinLeave * lclose
