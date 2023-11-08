@@ -4,7 +4,7 @@
 # subcommands.
 #
 # For more information about argc, see https://github.com/sigoden/argc
-# @option	--name	Name to greet
+# @option    --name  Name to greet
 
 set -eu
 
@@ -14,9 +14,9 @@ main() {
 
 # @cmd Example command
 # Additional documentation about the command goes here.
-# @arg		filename=foo.txt	Positional argument
-# @flag		-f --flag			Optional flag
-# @option	-p --port=80 <PORT>	Named argument with default value
+# @arg    filename=foo.txt    Positional argument
+# @flag   -f --flag           Optional flag
+# @option -p --port=80 <PORT> Named argument with default value
 example() {
 	echo "Filename: $argc_filename"
 	if [[ "${argc_flag+1}" ]]; then
@@ -34,21 +34,21 @@ example() {
 # the shell completions. To generate completions:
 #
 #   argc --argc-completions fish mycmd1 mycmd2 | source
-# @arg		source* <PATH>	Filename argument
-# @arg		dest! <DIR>		Directory argument
-# @option	--required!		Must be provided
-# @option	--multiple*		Zero or more (alternatively use +)
-# @option	--choice[=a|b]	Choice with default value
-# @alias	args-info
+# @arg       source* <PATH>  Filename argument
+# @arg       dest! <DIR>     Directory argument
+# @option    --required!     Must be provided
+# @option    --multiple*     Zero or more (alternatively use +)
+# @option    --choice[=a|b]  Choice with default value
+# @alias args-info
 complex-args() {
 	# Show all received arguments.
 	(set -o posix; set | grep ^argc)
 	# Syntax for properly quoting the variable number of arguments:
-	echo source: ${argc_source[@]+"${argc_source[@]}"}
+	echo source: ${argc_source+"${argc_source[@]}"}
 }
 
 # @cmd Pass arguments to another command with a default
-# @arg	args*	Arguments
+# @arg       args~  Arguments
 pass-args() {
 	if [[ ${argc_args:+1} ]]; then
 		wrapped-command "${argc_args[@]}"
