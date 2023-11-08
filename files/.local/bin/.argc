@@ -17,16 +17,25 @@ codium() {
 	fi
 	product=vs${binary}
 	if type -P $binary &>/dev/null; then
-		command $binary .
+		exec command $binary .
+	fi
+	dir=$(pwd)
+	if [ -e /.dockerenv ]; then
+		# Inside of docker, assume devcontainer
+		if ! [[ "${VSCODE_REMOTE+1}" ]]; then
+			echo "There is no \$VSCODE_REMOTE set." >&2
+			echo "set -Ux VSCODE_REMOTE myremote" >&2
+			exit 1
+		fi
+		url="${product}://vscode-remote/remote-oss+${VSCODE_REMOTE}${dir}"
 	else
-		dir=$(pwd)
 		hostname=$(hostname -s)
 		url="${product}://vscode-remote/ssh-remote+${hostname}${dir}"
-		if which xdg-open >/dev/null; then
-			xdg-open "$url"
-		else
-			echo "$url"
-		fi
+	fi
+	if which xdg-open >/dev/null; then
+		xdg-open "$url"
+	else
+		echo "$url"
 	fi
 }
 
