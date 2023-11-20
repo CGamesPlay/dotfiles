@@ -9,7 +9,11 @@ dotfiles_root() {
 }
 
 # @cmd Open VSCodium in the current directory.
-# @flag --microsoft Open VSCode instead of VSCodium.
+#
+# It is possible to set VSCODE_REMOTE to the name of the Remote-OSS remote to connect to.
+
+# @arg       directory=`pwd` Directory to open
+# @flag      --microsoft Open VSCode instead of VSCodium.
 codium() {
 	binary=codium
 	if [ ${argc_microsoft:-0} -eq 1 ]; then
@@ -19,7 +23,7 @@ codium() {
 	if type -P $binary &>/dev/null; then
 		exec command $binary .
 	fi
-	dir=$(pwd)
+	dir=$(realpath -m ${argc_directory:?})
 	if [ -e /.dockerenv ]; then
 		# Inside of docker, assume devcontainer
 		if ! [[ "${VSCODE_REMOTE+1}" ]]; then
@@ -98,6 +102,10 @@ create::argcfile() {
 create::cachedir-tag() {
 	echo "Signature: 8a477f597d28d172789f06886806bc55" > ${argc_target}/CACHEDIR.TAG
 	echo "${argc_target}/CACHEDIR.TAG: created"
+}
+
+pwd() {
+	command pwd
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
