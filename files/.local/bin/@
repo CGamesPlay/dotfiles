@@ -5,7 +5,7 @@
 set -eu
 
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/launcherrc"
-mkdir -p "$(basename "$CONFIG_FILE")"
+mkdir -p "$(dirname "$CONFIG_FILE")"
 if [[ ! -e "$CONFIG_FILE" ]]; then
 	cat <<-EOF > "$CONFIG_FILE"
 	# Launcher configuration file
@@ -16,9 +16,10 @@ if [[ ! -e "$CONFIG_FILE" ]]; then
 fi
 
 main() {
-	exec fzf -d '\t' --with-nth 1 \
-		--bind 'start:reload:grep -Ev "^#" "'"$CONFIG_FILE"'"' \
-		--bind 'enter:become(sh -c {2})'
+	cmd=$(grep -Ev "^#" "$CONFIG_FILE" | \
+		fzf -d '\t' --with-nth 1 | \
+		cut -d $'\t' -f 2-)
+	eval "$cmd"
 }
 
 if ! command -v argc >/dev/null; then
