@@ -31,7 +31,7 @@
   "editor.matchBrackets": "near",
   "editor.minimap.enabled": false,
   "editor.multiCursorModifier": "ctrlCmd",
-  "editor.occurrencesHighlight": false,
+  "editor.occurrencesHighlight": "off",
   "editor.parameterHints.enabled": false,
   "editor.quickSuggestions": {
     "other": "inline"
@@ -102,8 +102,10 @@
     "editor.formatOnSave": false
   },
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.python"
   },
   "workbench.colorTheme": "Default Light Modern",
-  "terraform.languageServer.enable": false
+  "terraform.languageServer.enable": false,
+  "go.toolsManagement.autoUpdate": true,
+  "security.promptForRemoteFileProtocolHandling": false
 }

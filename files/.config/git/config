@@ -100,6 +100,7 @@
 [diff]
 	renames = copies
 	mnemonicprefix = true
+	colorMoved = default
 [apply]
 	whitespace = strip
 [merge]
