@@ -57,7 +57,7 @@ up() {
 		args=("${args[@]}" --remove-existing-container)
 	fi
 	features=(x)
-	rsync -a --delete "$(dotfiles_root)/share/devcontainer-ssh-auth/" .devcontainer/ssh-auth/
+
 	if [[ ! ${argc_no_dotfiles+1} ]]; then
 		[ ! -d .devcontainer/fish ] && mkdir .devcontainer/fish
 		features=("${features[@]}" '"ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {}')
@@ -66,14 +66,19 @@ up() {
 			--mount="type=bind,source=$(pwd)/.devcontainer/fish,target=/home/vscode/.local/share/fish"
 		)
 	fi
+
 	if [[ ! ${argc_no_ssh_agent+1} ]]; then
-		features=("${features[@]}" '"./ssh-auth": {}')
+		# The SSH_AUTH_SOCK available locally is not the one used in the Docker Desktop virtual machine.
 		if docker version | grep 'Docker Desktop' >/dev/null; then
-			args=("${args[@]}" --mount="type=bind,source=/run/host-services/ssh-auth.sock,target=/run/ssh-agent/ssh-auth.sock")
-		elif [[ "${SSH_AUTH_SOCK:-}" ]]; then
+			SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
+		fi
+		rsync -a --delete "$(dotfiles_root)/share/devcontainer-ssh-auth/" .devcontainer/ssh-auth/
+		features=("${features[@]}" '"./ssh-auth": {}')
+		if [[ "${SSH_AUTH_SOCK:-}" ]]; then
 			args=("${args[@]}" --mount="type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock")
 		fi
 	fi
+
 	if [[ ${#features[@]} -gt 1 ]]; then
 		features="{$(printf ", %s" "${features[@]:1}") }"
 		args=("${args[@]}" "--additional-features=${features/,}")
