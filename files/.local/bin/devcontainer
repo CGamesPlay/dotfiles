@@ -5,15 +5,10 @@
 # Extends the official devcontainers CLI with useful commands and defaults.
 #
 # Commands with modified behavior are listed here.
-# @arg	command*	Passed directly to devcontainer CLI
+# @arg	command~	Passed directly to devcontainer CLI
 # @flag	--base-help	Show documentation for original CLI
 
 set -eu
-
-dotfiles_root() {
-	path=${BASH_SOURCE[0]}
-	realpath -m "$path"/../../../..
-}
 
 tool=$(npm -g config get prefix)/bin/devcontainer
 if ! command -v "$tool" >/dev/null; then
@@ -40,56 +35,6 @@ main() {
 		# shellcheck disable=SC2154
 		"${tool[@]}" "${argc__positionals[0]}" "${args[@]}" "${argc__positionals[@]:1}"
 	fi
-}
-
-# @cmd Create and run a devcontainer
-#
-# Differences from original:
-# - Installs my dotfiles
-# - Preserves fish history in the .devcontainer directory
-# - Enables SSH agent forwarding
-# @flag	--rebuild		Rebuild the existing container if it exists
-# @flag	--no-dotfiles	Do not include dotfiles
-# @flag	--no-ssh-agent	Do not forward the SSH agent
-up() {
-	args=(--workspace-folder=.)
-	if [[ ${argc_rebuild+1} ]]; then
-		args=("${args[@]}" --remove-existing-container)
-	fi
-	features=(x)
-
-	if [[ ! ${argc_no_dotfiles+1} ]]; then
-		[ ! -d .devcontainer/fish ] && mkdir .devcontainer/fish
-		features=("${features[@]}" '"ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {}')
-		args=("${args[@]}"
-			--dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git
-			--mount="type=bind,source=$(pwd)/.devcontainer/fish,target=/home/vscode/.local/share/fish"
-		)
-	fi
-
-	if [[ ! ${argc_no_ssh_agent+1} ]]; then
-		# The SSH_AUTH_SOCK available locally is not the one used in the Docker Desktop virtual machine.
-		if docker version | grep 'Docker Desktop' >/dev/null; then
-			SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
-		fi
-		rsync -a --delete "$(dotfiles_root)/share/devcontainer-ssh-auth/" .devcontainer/ssh-auth/
-		features=("${features[@]}" '"./ssh-auth": {}')
-		if [[ "${SSH_AUTH_SOCK:-}" ]]; then
-			args=("${args[@]}" --mount="type=bind,source=$SSH_AUTH_SOCK,target=/run/ssh-agent/ssh-auth.sock")
-		fi
-	fi
-
-	if [[ ${#features[@]} -gt 1 ]]; then
-		features="{$(printf ", %s" "${features[@]:1}") }"
-		args=("${args[@]}" "--additional-features=${features/,}")
-	fi
-	"${tool[@]}" up "${args[@]}"
-}
-
-# @cmd Run a shell in the devcontainer
-shell() {
-	args=(--workspace-folder=.)
-	exec "${tool[@]}" exec "${args[@]}" fish
 }
 
 # @cmd Stop a running devcontainer

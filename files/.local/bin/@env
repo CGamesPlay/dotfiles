@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# @describe Spin up and access isolated development environments.
+#
+# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment
+# should define shell functions to start, stop, and access the environment, as
+# well as specify which ports should be forwarded into the container.
+#
+# Environment-defined functions
+# =============================
+#
+# `environment_up` - start the environment in response to the `up` subcommand.
+# This function should be idempotent, and silently succeed if the environment
+# is already running.
+#
+# `environment_exec` - execute a shell script in the running environment. The
+# function receives a single argument containing the shell script to execute.
+# If standard input is a tty, the function should allocate a tty in the
+# environment.
+#
+# `environment_ports` - print the port forwarding configuration to use with the
+# `ports` subcommand. See the "Ports DSL" section below for more information.
+#
+# Helper functions
+# ================
+#
+# The following helper functions are available for use in environment files.
+#
+# `shelljoin` - quote each argument to escape shell special characters and join
+# the result with spaces. This function is essential to use when passing
+# commands over SSH, since SSH does not escape its arguments on its own. For
+# example, instead of `ssh host "$cmd"`, use
+# `ssh host "exec sh -c $(shelljoin "$cmd")"`.
+#
+# `ssh` - shadows the normal ssh command to automatically allocate a tty if
+# necessary. To bypass this behavior, use `command ssh` instead.
+#
+# Ports DSL
+# =========
+#
+# The `environment_ports` function is used to generate a list of port forwards
+# that should be created into and out of the environment. It has access to the
+# following functions:
+#
+# None.
+set -eu
+
+CONFIG_DIR=${ATENV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/@env}
+
+_list_environments() {
+	if [ -d "$CONFIG_DIR" ]; then
+		(cd "$CONFIG_DIR" && find . -name "*.sh") | sort | while IFS= read -r file; do
+			file="${file#./}"  # Remove leading "./"
+			file="${file%.sh}" # Remove trailing ".sh"
+			echo "$file"
+		done
+	fi
+}
+
+_load_function() {
+	# shellcheck disable=SC1090
+	. "$CONFIG_DIR/${argc_environment:?}.sh"
+	if ! type "$1" &>/dev/null; then
+		echo "$CONFIG_DIR/${argc_environment:?}.sh: no $1 function defined" >&2
+		exit 1
+	fi
+}
+
+# shellcheck disable=SC2317
+_load_ports_dsl() {
+	ssh_agent() {
+		local environment_exec listen_script remote_command
+		environment_exec="$0 execute ${argc_environment:?}"
+		# The listener script will kill any old listeners on the socket and
+		# then run socat in a loop. The loop prevents requests from becoming
+		# interleaved (concurrent requests are not possible).
+		listen_script="SOCKET_PATH=\"/tmp/ssh-\$(id -u)/ssh-auth.sock\"; if [ -e \$SOCKET_PATH ]; then fuser -k \$SOCKET_PATH >/dev/null 2>&1; fi; mkdir -p \"\$(dirname \"\$SOCKET_PATH\")\" && chmod 700 \"\$(dirname \"\$SOCKET_PATH\")\" && while socat UNIX-LISTEN:\$SOCKET_PATH,unlink-early -; do :; done"
+		remote_command="$environment_exec exec sh -c $(shelljoin "$listen_script")"
+		echo "# Forward SSH agent"
+		# shellcheck disable=SC2001
+		printf "ssh-agent: socat EXEC:%s UNIX-CONNECT:%s\n" \
+			"$(shelljoin "$(echo "$remote_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")" \
+			"$SSH_AUTH_SOCK"
+	}
+
+	vscodium_server() {
+		echo "# Expose vscodium on local port $1"
+		local environment_exec start_script connect_script
+		environment_exec="$0 execute ${argc_environment:?}"
+		start_script="$environment_exec exec sh -c \"\$(vscodium-server get-start-script -d)\" < /dev/null"
+		connect_script="$environment_exec exec sh -c \"\$(vscodium-server get-connect-script --use-existing)\""
+		# shellcheck disable=SC2001
+		printf "vscodium: %s && socat TCP-LISTEN:%s,reuseaddr,fork SYSTEM:%s\n" \
+			"$start_script" \
+			"$1" \
+			"$(shelljoin "$(echo "$connect_script" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")"
+	}
+
+	forward_tcp() {
+		local environment_exec="$0 execute ${argc_environment:?}"
+		local remote_command="$environment_exec exec socat - TCP:$2"
+		echo "# Forward local $1 to remote $2"
+		# shellcheck disable=SC2001
+		printf "port-%s: socat TCP-LISTEN:%s,reuseaddr,fork EXEC:%s\n" \
+			"$1" \
+			"$1" \
+			"$(shelljoin "$(echo "$remote_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")"
+	}
+}
+
+shelljoin() {
+	local xtrace
+	[[ $- == *x* ]] && xtrace=1 || xtrace=0
+	set +x
+	payload=""
+	for arg in "$@"; do
+		if [[ $arg =~ [^a-zA-Z0-9_] ]]; then
+			# Can't use printf %q because it produces strings that are not
+			# interpretable by dash. We can't use the POSIX-compliant way to
+			# escape with single quotes either because fish interprets them
+			# differently (which breaks double-quoted strings). So, we replace
+			# quotes with '\'' as normal but additionally replace backslash
+			# with '\\'.
+			# We will use `a` as a temporary escape character. `aa` will
+			# produce `a`, `a'` will produce `'\''` and `a\` will produce
+			# `'\\'`.
+			# 1. Quote special characters.
+			arg=${arg//a/aa}
+			arg=${arg//\'/a\'}
+			arg=${arg//\\/a\\}
+			# 2. Unquote.
+			arg=${arg//a\\/\'\\\\\'}
+			arg=${arg//a\'/\'\\\'\'}
+			arg=${arg//aa/a}
+			arg=\'$arg\'
+		fi
+		payload+="$arg "
+	done
+	[[ $xtrace -eq 1 ]] && set -x
+	echo "${payload% }"
+}
+
+ssh() {
+	cmd=(ssh)
+	if [ -t 0 ]; then cmd+=(-t); fi
+	cmd+=("$@")
+	command "${cmd[@]}"
+}
+
+# @cmd List the available environments
+list() {
+	environments=()
+	if [ -d "$CONFIG_DIR" ]; then
+		while IFS= read -r file; do
+			file="${file#./}"  # Remove leading "./"
+			file="${file%.sh}" # Remove trailing ".sh"
+			environments+=("${file}")
+		done < <(_list_environments)
+	fi
+
+	if [ "${#environments[@]}" -eq 0 ]; then
+		echo "No environments configured in $CONFIG_DIR" >&2
+	else
+		for env in "${environments[@]}"; do
+			echo "$env"
+		done
+	fi
+}
+
+# @cmd Start an environment
+# @arg       environment![`_list_environments`] Name of the environment
+# @flag   -v --verbose                          Turn on debugging output
+up() {
+	_load_function environment_up
+	echo "Starting environment ${argc_environment:?}."
+	if [[ "${argc_verbose:+1}" ]]; then
+		set -x
+	fi
+	environment_up
+}
+
+# @cmd Run a shell script in the environment
+#
+# Note that the command will be run with the default shell for the environment.
+# @alias exec
+# @arg       environment![`_list_environments`] Name of the environment
+# @arg       command~                           Command to run
+# @flag   -v --verbose                          Turn on debugging output
+execute() {
+	_load_function environment_exec
+	command=$(shelljoin "${argc_command[@]:?}")
+	if [[ "${argc_verbose:+1}" ]]; then
+		set -x
+	fi
+	environment_exec "$command"
+}
+
+# @cmd Open a shell in the environment
+# @arg       environment![`_list_environments`] Name of the environment
+shell() {
+	_load_function environment_exec
+	environment_exec "exec sh -c $(shelljoin "exec \$(getent passwd \$(id -u) | cut -d: -f7)")"
+}
+
+# @cmd Run tmux with iTerm integration in the environment
+# @arg       environment![`_list_environments`] Name of the environment
+tmux() {
+	_load_function environment_exec
+	environment_exec "tmux -CC new -As0"
+}
+
+# @cmd Open VSCodium in the environment
+#
+# The ports subcommand must already be running with vscodium enabled.
+# @arg       environment![`_list_environments`] Name of the environment
+# @option    --remote=remote  Name of the Remote-OSS remote
+# @option    --path           Path in the remote to open
+codium() {
+	if [[ ${argc_path:+1} ]]; then
+		path=${argc_path}
+	else
+		path=$($0 execute "${argc_environment:?}" pwd)
+	fi
+	url=vscodium://vscode-remote/remote-oss+${argc_remote:?}${path}
+	open "$url"
+}
+
+# @cmd Forward ports into/out of the environment.
+#
+# This command runs in the foreground and is responsible for keeping all of the
+# port forwards alive.
+# @arg       environment![`_list_environments`] Name of the environment
+# @flag   -v --verbose                          Turn on debugging output
+# @flag      --dump-procfile                    Show the generated Procfile instead of running it.
+ports() {
+	local procfile
+	_load_function environment_ports
+	_load_ports_dsl
+	if [[ "${argc_verbose:+1}" ]]; then set -x; fi
+	procfile=$(environment_ports)
+	set +x
+	if [[ "${argc_dump_procfile:+1}" ]]; then
+		echo "$procfile"
+	else
+		echo "$procfile" | hivemind -
+	fi
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

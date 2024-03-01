@@ -1,9 +1,0 @@
-{
-  "id": "ssh-auth",
-  "version": "1.0.0",
-  "name": "Expose SSH_AUTH_SOCK in the devcontainer",
-  "description": "This feature requires a corresponding --mount option to be provided on the CLI. This feature is only necessary because the devcontainer CLI does not allow including environment variables via the CLI (remote-env only applies to the single command being run; it is not persistent).",
-  "containerEnv": {
-    "SSH_AUTH_SOCK": "/run/ssh-agent/ssh-auth.sock"
-  }
-}

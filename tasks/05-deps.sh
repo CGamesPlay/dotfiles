@@ -11,6 +11,7 @@ type vim >/dev/null || packages+=(vim)
 type tmux >/dev/null || packages+=(tmux)
 type fish >/dev/null || packages+=(fish)
 type direnv >/dev/null || packages+=(direnv)
+type socat >/dev/null || packages+=(socat)
 
 if [[ "${#packages[@]}" -gt 0 ]]; then
 	if is_installed apt-get 2>/dev/null; then

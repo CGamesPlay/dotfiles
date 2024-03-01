@@ -107,5 +107,6 @@
   "workbench.colorTheme": "Default Light Modern",
   "terraform.languageServer.enable": false,
   "go.toolsManagement.autoUpdate": true,
-  "security.promptForRemoteFileProtocolHandling": false
+  "security.promptForRemoteFileProtocolHandling": false,
+  "remote.autoForwardPortsSource": "hybrid"
 }
