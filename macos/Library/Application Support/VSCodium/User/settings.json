@@ -91,6 +91,16 @@
   "workbench.editor.navigationScope": "editor",
   "workbench.startupEditor": "none",
   "explorer.confirmDelete": false,
+  "remote.OSS.hosts": [
+    {
+      "type": "manual",
+      "name": "remote",
+      "host": "127.0.0.1",
+      "port": 4444,
+      "connectionToken": false,
+      "folders": ["/home/vscode"]
+    },
+  ],
   "[shellscript]": {
     "editor.insertSpaces": false,
     "files.eol": "\n"

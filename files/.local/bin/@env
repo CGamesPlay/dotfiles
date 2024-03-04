@@ -226,11 +226,12 @@ codium() {
 
 # @cmd Forward ports into/out of the environment.
 #
-# This command runs in the foreground and is responsible for keeping all of the
-# port forwards alive.
+# This command starts a new tmux session to run the processes.
 # @arg       environment![`_list_environments`] Name of the environment
 # @flag   -v --verbose                          Turn on debugging output
-# @flag      --dump-procfile                    Show the generated Procfile instead of running it.
+# @flag   -d --detach                           Run in a background tmux session
+# @flag      --dump-procfile                    Show the generated Procfile instead of running it
+# @env       SESSION_NAME=0                     Session name for tmux
 ports() {
 	local procfile
 	_load_function environment_ports
@@ -241,8 +242,24 @@ ports() {
 	if [[ "${argc_dump_procfile:+1}" ]]; then
 		echo "$procfile"
 	else
-		echo "$procfile" | hivemind -
+		cmd=(command tmux new-session -s "${SESSION_NAME:?}")
+		if [[ "${argc_detach:+1}" ]]; then
+			cmd+=(-d)
+		fi
+		cmd+=(sh -c "$(shelljoin "$0" ports --dump-procfile "${argc_environment:?}") | hivemind -")
+		"${cmd[@]}"
 	fi
+}
+
+# @cmd Start everything.
+# @arg       environment![`_list_environments`] Name of the environment
+start-working() {
+	"$0" up "${argc_environment:?}"
+	"$0" ports --detach "${argc_environment:?}"
+	if "$0" ports --dump-procfile "${argc_environment:?}" 2>&1 | grep -q '^vscodium'; then
+		"$0" codium "${argc_environment:?}"
+	fi
+	exec "$0" tmux "${argc_environment:?}"
 }
 
 if ! command -v argc >/dev/null; then
