@@ -141,7 +141,7 @@ shelljoin() {
 
 ssh() {
 	cmd=(ssh)
-	if [ -t 0 ]; then cmd+=(-t); fi
+	if [ -t 1 ]; then cmd+=(-t); fi
 	cmd+=("$@")
 	command "${cmd[@]}"
 }
@@ -257,6 +257,8 @@ start-working() {
 	"$0" up "${argc_environment:?}"
 	"$0" ports --detach "${argc_environment:?}"
 	if "$0" ports --dump-procfile "${argc_environment:?}" 2>&1 | grep -q '^vscodium'; then
+		# Wait for ports
+		sleep 5
 		"$0" codium "${argc_environment:?}"
 	fi
 	exec "$0" tmux "${argc_environment:?}"
