@@ -101,6 +101,8 @@
 	renames = copies
 	mnemonicprefix = true
 	colorMoved = default
+	algorithm = histogram
+	submodule = log
 [apply]
 	whitespace = strip
 [merge]
@@ -109,6 +111,7 @@
 	conflictStyle = merge
 [status]
 	relativePaths = true
+	submoduleSummary = true
 [web]
 	browser = lynx
 [rebase]
