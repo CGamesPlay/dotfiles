@@ -49,6 +49,7 @@ Plugin 'leafgarland/typescript-vim'
 Plugin 'nathangrigg/vim-beancount'
 Plugin 'pantharshit00/vim-prisma'
 Plugin 'wuelnerdotexe/vim-astro'
+Plugin 'vim-python/python-syntax'
 
 if !has('patch-8.2.3519')
   " Now included in vim mainline.
@@ -87,6 +88,12 @@ if version >= 801
   let g:go_fmt_autosave = 0
   let g:go_imports_autosave = 0
 end
+" }}}
+" vim-python {{{
+
+" Unclear why this syntax plugin requires configuration.
+let g:python_highlight_all = 1
+
 " }}}
 
 " Color schemes

@@ -4,7 +4,7 @@ set -e
 . "$(dirname "$0")/helpers"
 
 TARGET=~/.local/bin/sgpt
-VERSION=2.12.0
+VERSION=2.13.0
 
 if [ -x $TARGET ] && [ "$($TARGET version)" = "v$VERSION" ]; then
 	exit 0
