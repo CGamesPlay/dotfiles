@@ -85,8 +85,10 @@ command! VimRuntime call fzf#run(fzf#wrap({
 
 let g:dotfiles_dir = simplify(fnamemodify(resolve(expand('<sfile>')), ':h').'/../../../..')
 
-" Choose a particular file from my dotfiles.
+" Edit a particular file from my dotfiles.
 command! -nargs=? Dotfile call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': g:dotfiles_dir })
+" Open my dotfiles in mvim
+command! Dotfiles call system('open mvim://open?url=file://'.shellescape(g:dotfiles_dir).'/README.md')
 " Run dfm
 exe 'command! -nargs=* Dfm !'.shellescape(g:dotfiles_dir).'/bin/dfm -d '.shellescape(g:dotfiles_dir).' <args>'
 

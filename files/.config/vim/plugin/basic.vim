@@ -24,8 +24,8 @@ set backspace=indent,eol,start
 set listchars=tab:\ \ ,trail:\  list
 " Ensure there's some context around search results
 set scrolloff=5
-" For omnifunc completion, the preview window is distracting.
-set completeopt-=preview
+" For omnifunc completion
+set completeopt=menu,menuone,popup,noinsert
 " Wrap long lines by showing a symbol at the beginning of the next line.
 set linebreak breakindent breakindentopt=shift:0
 let &showbreak = " \u21b3  "

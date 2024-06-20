@@ -45,6 +45,17 @@ nnoremap <silent> N ?<cr>
 " code with * or #. May be less good for prose.
 nnoremap <silent> * /\C\<<C-R>=expand('<cword>')<CR>\><CR>
 nnoremap <silent> # ?\C\<<C-R>=expand('<cword>')<CR>\><CR>
+" Remap * and # in visual mode to search for the selected text
+vnoremap <silent> * :<C-U>
+  \let old_reg=getreg('"')<Bar>let old_regtype=getregtype('"')<CR>
+  \gvy/<C-R>=&ic?'\c':'\C'<CR><C-R><C-R>=substitute(
+  \escape(@", '/\.*$^~['), '\_s\+', '\\_s\\+', 'g')<CR><CR>
+  \gVzv:call setreg('"', old_reg, old_regtype)<CR>
+vnoremap <silent> # :<C-U>
+  \let old_reg=getreg('"')<Bar>let old_regtype=getregtype('"')<CR>
+  \gvy?<C-R>=&ic?'\c':'\C'<CR><C-R><C-R>=substitute(
+  \escape(@", '?\.*$^~['), '\_s\+', '\\_s\\+', 'g')<CR><CR>
+  \gVzv:call setreg('"', old_reg, old_regtype)<CR>
 " ,/ will turn off search highlighting until you search again.
 noremap <silent> <leader>/ :nohlsearch<CR>
 

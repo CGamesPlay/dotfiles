@@ -120,6 +120,10 @@ nmap <C-W><C-]> <Plug>(ale_tags_fallback_go_to_definition_in_vsplit)
 nmap <C-W>gd <Plug>(ale_go_to_definition_in_vsplit)
 nmap <C-W>gt <Plug>(ale_go_to_type_definition_in_vsplit)
 
+" The language servers need to be restarted frequently enough that it makes
+" sense to make this a shortcut.
+nmap <silent> <F5> :ALEStopAllLSPs<CR>
+
 " Set up a prettier sign for warnings/errors
 let g:ale_sign_error = ' ✖'
 let g:ale_sign_warning = ' •'
