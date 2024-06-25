@@ -47,22 +47,28 @@ complex-args() {
 	echo source: ${argc_source+"${argc_source[@]}"}
 }
 
-# @cmd Pass arguments to another command with a default
+# @cmd Pass arguments to another command
 # @arg       args~  Arguments
 pass-args() {
-	if [[ ${argc_args:+1} ]]; then
-		wrapped-command "${argc_args[@]}"
-	else
-		wrapped-command default-arguments
-	fi
+	echo "With no default argument:"
+	wrapped-command ${argc_args+"${argc_args[@]}"}
+
+	echo "With a single default argument:"
+	wrapped-command "${argc_args[@]:-one default argument}"
+
+	echo "With multiple default arguments:"
+	default=(default arguments)
+	wrapped-command "${argc_args[@]:-${default[@]}}"
 }
 
 wrapped-command() {
+	echo "Received $# arguments"
 	index=1
 	for arg in "$@"; do
 		echo "Arg #$index = $arg"
 		(( index+=1 ))
 	done
+	echo
 }
 
 if ! command -v argc >/dev/null; then

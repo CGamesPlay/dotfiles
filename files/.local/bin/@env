@@ -242,9 +242,9 @@ ports() {
 	if [[ "${argc_dump_procfile:+1}" ]]; then
 		echo "$procfile"
 	else
-		cmd=(command tmux new-session -s "${SESSION_NAME:?}")
+		cmd=()
 		if [[ "${argc_detach:+1}" ]]; then
-			cmd+=(-d)
+			cmd+=(command tmux new-session -s "${SESSION_NAME:?}" -d)
 		fi
 		cmd+=(sh -c "$(shelljoin "$0" ports --dump-procfile "${argc_environment:?}") | hivemind -")
 		"${cmd[@]}"

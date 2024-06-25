@@ -13,9 +13,6 @@ end
 if [ -d /opt/homebrew/bin ]
   fish_add_path -g /opt/homebrew/bin
 end
-if [ -d /opt/pkg/bin ]
-  fish_add_path -g /opt/pkg/bin
-end
 if [ -d ~/.cargo/bin ]
   fish_add_path -g ~/.cargo/bin
 end

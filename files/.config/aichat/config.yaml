@@ -1,0 +1,3 @@
+model: openai
+clients:
+- type: openai

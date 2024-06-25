@@ -73,7 +73,8 @@
     { "before": ["<leader>", "/"], "commands": [":nohlsearch"] },
     { "before": ["n"], "after": ["/", "<CR>"] },
     { "before": ["N"], "after": ["?", "<CR>"] },
-    { "before": ["<C-j>"], "commands": ["workbench.action.focusPanel"] }
+    { "before": ["<C-j>"], "commands": ["workbench.action.focusPanel"] },
+    { "before": ["<leader>", "g"], "commands": ["editor.action.addSelectionToNextFindMatch", "workbench.action.findInFiles", "workbench.action.focusActiveEditorGroup", "extension.vim_escape"] },
     // I have these disabled because gj and gk do not remember the column they were on
     //{ "before": ["j"], "after": ["g", "j"] },
     //{ "before": ["k"], "after": ["g", "k"] },
@@ -81,7 +82,8 @@
     //{ "before": ["g", "k"], "after": ["k"] }
   ],
   "vim.visualModeKeyBindingsNonRecursive": [
-    { "before": ["Q"], "after": ["g", "q"] }
+    { "before": ["Q"], "after": ["g", "q"] },
+    { "before": ["<leader>", "g"], "commands": ["workbench.action.findInFiles", "workbench.action.focusActiveEditorGroup", "extension.vim_escape"] },
   ],
   "vim.whichwrap": "b,s",
   "window.autoDetectColorScheme": true,
@@ -99,7 +101,7 @@
       "port": 4444,
       "connectionToken": false,
       "folders": ["/home/vscode"]
-    },
+    }
   ],
   "[shellscript]": {
     "editor.insertSpaces": false,
@@ -114,9 +116,9 @@
   "[python]": {
     "editor.defaultFormatter": "ms-python.python"
   },
-  "workbench.colorTheme": "Default Light Modern",
   "terraform.languageServer.enable": false,
   "go.toolsManagement.autoUpdate": true,
   "security.promptForRemoteFileProtocolHandling": false,
-  "remote.autoForwardPortsSource": "hybrid"
+  "remote.autoForwardPortsSource": "hybrid",
+  "workbench.colorTheme": "Default Light Modern",
 }
