@@ -1,0 +1,4 @@
+fork = true
+[font]
+normal = ["JetBrains Mono NL"]
+size = 13.0

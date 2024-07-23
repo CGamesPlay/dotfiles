@@ -44,10 +44,6 @@ augroup folding
   " screwing up folding when switching between windows.
   autocmd InsertEnter * if !exists('w:last_fdm') | let w:last_fdm=&foldmethod | setlocal foldmethod=manual | endif
   autocmd InsertLeave,WinLeave * if exists('w:last_fdm') | let &l:foldmethod=w:last_fdm | unlet w:last_fdm | endif
-
-  " Set up preferred folding for these filetypes in bulk. Disabled to see if
-  " the defaults are suitable.
-  "autocmd FileType javascript,java,c,php,css setlocal foldmethod=marker foldmarker={,} foldlevel=999
 augroup END
 
 " }}}
@@ -82,7 +78,6 @@ end
 set laststatus=2
 " Lightline configuration.
 let g:lightline = {
-  \   'colorscheme': 'solarized',
   \   'active': {
   \     'left': [['mode', 'paste'], ['relativepath', 'modified']],
   \     'right': [['percent', 'lineinfo'], [], ['filetype', 'readonly', 'fileformat']]
@@ -105,30 +100,6 @@ let g:lightline = {
   \     't': 'TRM',
   \   },
   \}
-" Lightline has a strangely complex and undocumented process to reload the
-" config.
-function! s:lightline_update()
-  if !exists('g:loaded_lightline')
-    return
-  endif
-  try
-    if g:colors_name == 'solarized'
-      " Forcibly reload the color scheme file
-      execute 'source' globpath(&rtp, 'autoload/lightline/colorscheme/' . g:lightline.colorscheme . '.vim')
-      call lightline#init()
-      call lightline#colorscheme()
-      call lightline#update()
-      call lightline#highlight()
-    endif
-  catch
-  endtry
-endfunction
-if !has('vim_starting')
-  " Call when re-sourcing the vimrc. For some reason doing this before vim has
-  " started also causes lightline to break.
-  call s:lightline_update()
-end
-
 " }}}
 " Last line of the screen {{{
 
@@ -142,8 +113,6 @@ set noshowmode
 " }}}
 " The overall GUI {{{
 
-let g:solarized_termtrans=1
-colorscheme solarized
 set guioptions=egk
 set lazyredraw
 set linespace=2
@@ -165,7 +134,7 @@ set tags^=./.git/tags;
 
 if has("gui_macvim")
   " Set background to 98% opacity
-  set transparency=2
+  set transparency=5 blurradius=30
   " Fullscreen fills entire screen, retains transparency setting
   set fuoptions+=maxhorz,background:Normal
 endif
@@ -180,9 +149,9 @@ augroup END
 
 augroup setup_gui
   " Set preferred window size on startup
-  autocmd GUIEnter * :2Cols
-  " Have lightline follow my main color scheme
-  autocmd ColorScheme * call s:lightline_update()
+  if has("gui_macvim")
+    autocmd GUIEnter * :2Cols
+  end
 
   " When editing a file, always jump to the last known cursor position.
   " Don't do it when the position is invalid or when inside an event handler
@@ -201,26 +170,4 @@ augroup setup_gui
   autocmd BufWinLeave * lclose
 augroup END
 
-" }}}
-" Dark mode support {{{
-" If supported, have vim track the system dark mode setting.
-if exists('v:os_appearance')
-  function! s:sync_os_appearance()
-    if v:os_appearance % 2 == 0
-      set background=light
-    else
-      set background=dark
-    endif
-    redraw!
-  endfunction
-
-  augroup dark_mode
-    autocmd GUIEnter * call s:sync_os_appearance()
-    autocmd OSAppearanceChanged * call s:sync_os_appearance()
-    autocmd OSAppearanceChanged * call s:lightline_update()
-  augroup END
-elseif get(environ(), 'DARK_MODE', '') != ''
-  " Any non-empty string means use dark mode.
-  set bg=dark
-endif
 " }}}

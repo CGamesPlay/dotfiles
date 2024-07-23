@@ -52,7 +52,10 @@ function! s:jump_to_file() abort
       " Outside of the git repo, search from the repo root.
       let dir = git_worktree
     endif
-    call fzf#vim#gitfiles('-co --exclude-standard', { 'dir': dir })
+    " You can't use both --others and --recurse-submodules at the same time,
+    " for some reason.
+    call fzf#vim#gitfiles('--cached --others --exclude-standard', { 'dir': dir })
+    "call fzf#vim#gitfiles('--cached --exclude-standard --recurse-submodules', { 'dir': dir })
   end
 
 endfunction

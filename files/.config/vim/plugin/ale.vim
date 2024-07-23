@@ -23,10 +23,14 @@ let g:ale_fixers = {
       \}
 let g:ale_linters = {
       \'beancount': [],
+      \'c': ['clangd'],
+      \'cpp': ['clangd'],
       \'graphql': ['gqlint'],
       \'rust': ['analyzer'],
       \'python': ['pyright', 'ruff'],
       \}
+let g:ale_c_clangd_options = '--enable-config'
+let g:ale_cpp_clangd_options = '--enable-config'
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
 " Show docs in a floating window instead of split
 let g:ale_floating_preview = 1
@@ -38,7 +42,7 @@ let g:ale_floating_preview_popup_opts = {'wrap': v:false}
 " well in vim and causes following lines to render the cursor in the incorrect
 " location.
 let g:ale_virtualtext_cursor = 1
-let g:ale_python_ruff_options = '--unfixable F401,F841'
+let g:ale_python_ruff_options = '--unfixable F401,F504,F522,F523,F601,F602,F811,F841'
 let g:ale_javascript_eslint_suppress_eslintignore = 1
 let g:ale_javascript_eslint_suppress_missing_config = 1
 let g:ale_rust_analyzer_config = {
