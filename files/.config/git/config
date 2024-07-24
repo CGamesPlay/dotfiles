@@ -34,13 +34,6 @@
 	hunk-header-decoration-style = none
 	pager = less -+F
 
-### colors are meant for a dark terminal
-[color]
-	ui = true
-	diff = auto
-	status = auto
-	branch = auto
-	interactive = auto
 [color "branch"]
 	current = white blue bold
 	local  = blue
@@ -54,9 +47,10 @@
 	whitespace = red reverse
 	commit = yellow bold
 [color "status"]
-	added = yellow
-	changed = green
-	untracked = cyan
+	added = green
+	updated = green
+	changed = blue
+	untracked = black
 
 [alias]
 	# Most common aliases

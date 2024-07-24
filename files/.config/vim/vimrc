@@ -29,8 +29,6 @@ end
 " necessary to run fzf#install() after updating.
 Plugin 'junegunn/fzf'
 Plugin 'junegunn/fzf.vim'
-Plugin 'nelstrom/vim-textobj-rubyblock'
-Plugin 'rizzatti/dash.vim'
 Plugin 'qpkorr/vim-bufkill'
 Plugin 'editorconfig/editorconfig-vim'
 Plugin 'chrisbra/Recover.vim'
@@ -98,6 +96,7 @@ let g:python_highlight_all = 1
 
 " Color schemes
 Plugin 'altercation/vim-colors-solarized'
+Plugin 'rose-pine/vim', { 'name': 'rose-pine' }
 
 call vundle#end()
 " Vundle has reapplied the vim-default config directory to the rtp, so we

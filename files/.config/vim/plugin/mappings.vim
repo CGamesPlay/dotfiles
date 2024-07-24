@@ -105,7 +105,7 @@ vnoremap <leader>g y:Ggrep! '<C-r>"'<CR>
 
 " Instead of closing the window, wipe out the current buffer, but switch to the
 " previous buffer before doing so to preserve window splits.
-if has("gui_macvim")
+if has("gui_macvim") || exists('g:neovide')
     noremap <D-w> :BD<CR>
 else
     noremap <A-w> :BD<CR>

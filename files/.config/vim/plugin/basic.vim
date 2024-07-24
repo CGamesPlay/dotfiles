@@ -83,7 +83,7 @@ let g:lightline = {
   \     'right': [['percent', 'lineinfo'], [], ['filetype', 'readonly', 'fileformat']]
   \   },
   \   'inactive': {
-  \     'left': [['relativepath', 'modified']],
+  \     'left': [['mode'], ['relativepath', 'modified']],
   \     'right': [['percent', 'lineinfo'], ['filetype', 'readonly', 'fileformat']]
   \   },
   \   'mode_map': {

@@ -17,17 +17,26 @@ vim.g.neovide_padding_top = 10
 vim.g.neovide_padding_bottom = 0
 vim.g.neovide_padding_right = 10
 vim.g.neovide_padding_left = 10
+
 --------------------------------------------------------------------------------
 --- Set up key bindings for normal GUI app integration
 --------------------------------------------------------------------------------
-vim.keymap.set('n', '<D-s>', ':w<CR>', { silent = true }) -- Save
-vim.keymap.set('v', '<D-c>', '"+y') -- Copy
+-- Save
+vim.keymap.set('n', '<D-s>', ':w<CR>', { silent = true })
+-- Copy/paste
+vim.keymap.set('v', '<D-c>', '"+y')
 vim.keymap.set(
   {'n', 'v', 's', 'x', 'o', 'i', 'l', 'c', 't'},
   '<D-v>',
   function() vim.api.nvim_paste(vim.fn.getreg('+'), true, -1) end,
   { noremap = true, silent = true }
 )
+-- New tab, tab navigation
+vim.keymap.set("n", "<D-t>", ":tabnew<CR>", { noremap = true, silent = true })
+vim.keymap.set("n", "<D-{>", ":tabprev<CR>", { noremap = true, silent = true })
+vim.keymap.set("n", "<D-}>", ":tabnext<CR>", { noremap = true, silent = true })
+
+-- Command -/0/= to adjust zoom
 vim.g.neovide_scale_factor = 1.0
 local change_scale_factor = function(delta)
   vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
@@ -36,3 +45,5 @@ vim.keymap.set("n", "<D-0>", function() vim.g.neovide_scale_factor = 1 end)
 vim.keymap.set("n", "<D-=>", function() change_scale_factor(1.25) end)
 vim.keymap.set("n", "<D-->", function() change_scale_factor(1/1.25) end)
 
+-- Common editing keybindings
+vim.keymap.set({'i', 'c'}, "<M-BS>", "<C-W>")
