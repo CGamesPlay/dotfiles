@@ -56,7 +56,6 @@ end
 
 " Language-specific tools
 Plugin 'dense-analysis/ale'
-Plugin 'ambv/black' " Python formatter
 
 " fugitive {{{
 Plugin 'tpope/vim-fugitive'
@@ -95,7 +94,6 @@ let g:python_highlight_all = 1
 " }}}
 
 " Color schemes
-Plugin 'altercation/vim-colors-solarized'
 Plugin 'rose-pine/vim', { 'name': 'rose-pine' }
 
 call vundle#end()
@@ -122,17 +120,13 @@ let g:loaded_netrw = 1
 " }}}
 " Configuration variables for plugins {{{
 
-let g:javascript_plugin_flow = 1
 " Prevent editorconfig from touching these buffers
 let g:EditorConfig_exclude_patterns = ['fugitive://.\*']
 let g:RecoverPlugin_Delete_Unmodified_Swapfile = 1
-let g:solarized_menu=0
 
 let g:fzf_action = {
       \ 'ctrl-t': 'tab split',
       \ 'ctrl-x': 'split',
       \ 'ctrl-v': 'botright vsplit' }
-
-let g:black_virtualenv = "~/.local/share/black"
 
 " }}}
