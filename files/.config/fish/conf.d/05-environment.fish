@@ -1,5 +1,9 @@
 # These need to be set up before 50-direnv, or else they will get lost.
-set -x EDITOR vim
+if command -q nvim
+  set -x EDITOR nvim
+else
+  set -x EDITOR vim
+end
 set -x LESS "-RSF"
 
 if ! set -q XDG_CACHE_HOME

@@ -124,7 +124,7 @@ end
 " Use the tab-completion (for files) that I'm used to in bash.
 set wildmode=list:longest
 " Enable the mouse in normal mode
-set mouse=n
+set mouse=nv
 " Allow vim to keep buffers open even when they aren't displayed.
 set hidden
 " smartcase is case-sensitive iff your search includes a capital letter

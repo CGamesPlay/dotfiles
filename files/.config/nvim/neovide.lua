@@ -23,6 +23,7 @@ vim.g.neovide_padding_left = 10
 --------------------------------------------------------------------------------
 -- Save
 vim.keymap.set('n', '<D-s>', ':w<CR>', { silent = true })
+vim.keymap.set('i', '<D-s>', '<Esc>:w<CR>', { silent = true })
 -- Copy/paste
 vim.keymap.set('v', '<D-c>', '"+y')
 vim.keymap.set(
