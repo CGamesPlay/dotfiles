@@ -6,6 +6,14 @@
 	name = Ryan Patterson
 	email = cgamesplay@cgamesplay.com
 
+# Use SSH keys for commit signing. Not enabled by default, but configured.
+# To enable for a commit, use git commit -S.
+# To enable for a repository, use git config commit.gpgsign true
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	defaultKeyCommand = sh -c 'echo key::$(ssh-add -L)'
+
 [core]
 	excludesfile = ~/.config/git/ignore
 	attributesfile = ~/.config/git/attributes
