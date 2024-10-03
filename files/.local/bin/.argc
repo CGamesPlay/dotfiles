@@ -79,8 +79,8 @@ traefik() {
 create() { :; }
 
 # @cmd Copy the devcontainer workspace root template to the named directory.
-# @arg      target!            Location of the new workspace.
-# @option   -n --name <NAME>   Human-readable name for the workspace.
+# @arg       target!        Location of the new workspace.
+# @option -n --name <NAME>  Human-readable name for the workspace.
 create::devcontainer() {
 	template_dir="$(dotfiles_root)/share/devcontainer"
 	argc_name=${argc_name:-$argc_target}
@@ -89,7 +89,7 @@ create::devcontainer() {
 }
 
 # @cmd Create a sample Argcfile.
-# @arg      target=Argcfile.sh            Target filename.
+# @arg       target=Argcfile.sh            Target filename.
 create::argcfile() {
 	template_file="$(dotfiles_root)/share/Argcfile-template.sh"
 	cp -i "$template_file" "$argc_target"
@@ -98,7 +98,7 @@ create::argcfile() {
 
 # @cmd Create a CACHEDIR.TAG file in the target directory.
 # https://bford.info/cachedir/
-# @arg      target=. <DIR>              Target directory.
+# @arg       target=. <DIR>  Target directory.
 create::cachedir-tag() {
 	echo "Signature: 8a477f597d28d172789f06886806bc55" > ${argc_target}/CACHEDIR.TAG
 	echo "${argc_target}/CACHEDIR.TAG: created"
