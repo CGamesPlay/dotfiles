@@ -1,0 +1,12 @@
+#!/bin/sh
+# Immediately destroy this server
+set -e
+if [ "$(systemctl show --property=Job poweroff.target)" = "Job=" ]; then
+    echo "Aborting self destruct because system is not powering off" >&2
+    exit 0
+fi
+
+# Just allow the system to cool down
+sleep 5
+sync
+hcloud server delete "$(cat /var/run/cloud-init/.instance-id)"

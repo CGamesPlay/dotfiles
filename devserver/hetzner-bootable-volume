@@ -1,0 +1,364 @@
+#!/usr/bin/env bash
+# @describe Use a Hetzner cloud volume as a root volume.
+
+# Argc docs: https://github.com/sigoden/argc
+
+set -eu
+
+# @cmd Boot the specified cloud volume.
+# @arg    volume!                         Name or ID of bootable volume
+# @option -n --name <NAME>                Name of server to create (default: same as volume)
+# @option    --boot-image=ubuntu-22.04    <ID> ID of image to use for booting
+# @option -t --type=cpx51 <TYPE>          Type of machine to use
+# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @meta default-subcommand
+boot() {
+	server_name=${argc_name:-$argc_volume}
+
+	set +e
+	volume_json=$(hcloud volume describe -o json "$argc_volume" 2>/dev/null)
+	volume_status=$?
+	ip=$(hcloud server ip "$server_name" 2>/dev/null)
+	ip_status=$?
+	set -e
+
+	if [[ $volume_status -ne 0 ]]; then
+		echo "$argc_volume: Volume does not exist"
+		return 1
+	fi
+
+	location=$(echo "$volume_json" | jq -r '.location.name')
+	volume_id=$(echo "$volume_json" | jq -r '.id')
+
+	if [[ $ip_status -eq 0 ]]; then
+		# TODO - verify that the volume we want is actually attached to this
+		# server.
+		echo "$server_name is already running"
+		echo "$server_name is available at $ip"
+		return 0
+	fi
+
+	user_data=$(mktemp)
+	sed 's/\t/  /' <<-EOF > "$user_data"
+	#cloud-config
+	bootcmd:
+	 - |
+	  set -uex
+	  grub-editenv /boot/grub/grubenv unset recordfail
+	  mount /dev/disk/by-id/scsi-0HC_Volume_${volume_id}-part1 /mnt -o ro
+	  cd /mnt
+	  ./boot/hbv-kexec
+	EOF
+
+	create_args=(
+		--location "$location"
+		--volume "$argc_volume"
+		--image "${argc_boot_image:?}"
+		--name "$server_name"
+		--type "${argc_type:?}"
+		--ssh-key "${argc_ssh_key:?}"
+		--user-data-from-file "$user_data"
+	)
+	hcloud server create "${create_args[@]}"
+	rm "$user_data"
+	ip=$(hcloud server ip "$server_name")
+	echo "Created $server_name with IP $ip"
+
+	# Wait for the server to become available
+	echo "Waiting for server to boot"
+	if ! wait_for_ssh "$ip"; then
+		echo "Timed out while waiting for server" >&2
+		exit 1
+	fi
+	echo "$server_name is available at $ip"
+}
+
+# @cmd Prepare a cloud volume to boot from.
+#
+# This command will erase the volume! Only use on newly-created volumes.
+#
+# Example:
+#   hcloud volume create --name myvol --size 50 --location nbg1
+#   hetzner-bootable-volume prepare-volume myvol
+# @arg    volume!                         Name or ID of volume to be formatted
+# @option    --image=ubuntu-22.04         Image to use for the volume
+# @option    --server-name                Preparation server name (default: same as volume)
+# @option    --server-type=cpx11          Preparation server type
+# @option    --user-data-from-file        <FILE> Filename containing user-data
+# @option    --login-user=root            <USERNAME> Username to log in with
+# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+prepare-volume() {
+	set +e
+	volume_json=$(hcloud volume describe -o json "$argc_volume" 2>/dev/null)
+	volume_status=$?
+	set -e
+
+	if [[ $volume_status -ne 0 ]]; then
+		echo "$argc_volume: Volume does not exist" >&2
+		return 1
+	fi
+
+	location=$(echo "$volume_json" | jq -r '.location.name')
+	volume_id=$(echo "$volume_json" | jq -r '.id')
+	volume_name=$(echo "$volume_json" | jq -r '.name')
+	argc_server_name=${argc_server_name:-$volume_name}
+
+	if hcloud server describe "${argc_server_name:?}" >/dev/null 2>&1; then
+		echo "$argc_server_name: server name in use" >&2
+		return 1
+	fi
+
+	create_args=(
+		--location "$location"
+		--volume "$argc_volume"
+		--image "${argc_image:?}"
+		--name "$argc_server_name"
+		--type "${argc_server_type:?}"
+		--ssh-key "${argc_ssh_key:?}"
+		--start-after-create=false
+	)
+	if [[ ${argc_user_data_from_file+1} ]]; then
+		create_args+=(--user-data-from-file="$argc_user_data_from_file")
+	fi
+	hcloud server create "${create_args[@]}"
+	# shellcheck disable=SC2317
+	cleanup() {
+		if [[ $? -eq 0 ]] || user_confirmation "Delete server $argc_server_name?'"; then
+			hcloud server delete "$argc_server_name"
+		fi
+	}
+	trap cleanup EXIT
+
+	hcloud server enable-rescue --ssh-key "$argc_ssh_key" "$argc_server_name"
+	hcloud server poweron "$argc_server_name"
+	ip=$(hcloud server ip "$argc_server_name")
+
+	# Wait for server to come up
+	echo "Waiting for server to boot into rescue mode"
+	if ! wait_for_ssh "$ip"; then
+		echo "Timed out while waiting for server (rescue mode)" >&2
+		exit 1
+	fi
+
+	"$0" show-prepare-script "$volume_id" | ssh_once -l root "$ip"
+
+	# Perform initial boot
+	hcloud server reboot "$argc_server_name"
+	echo "Waiting for server to boot into normal mode"
+	if ! wait_for_ssh "$ip"; then
+		echo "Timed out while waiting for server" >&2
+		exit 1
+	fi
+
+	# Wait for initial cloud-init to finish and shut down
+	echo "Waiting for cloud-init to finish"
+	ssh_once -l "${argc_login_user:?}" "$ip" <<-END_SCRIPT
+	set -uexo pipefail
+	exec sudo su
+	cloud-init status --wait
+
+	cat <<EOF >/etc/cloud/cloud.cfg.d/91-hetzner-bootable-volume.cfg
+	# Hetzner Bootable Volume cloud-config
+	# Disable user data changes from now on.
+	allow_userdata: false
+	EOF
+
+	nohup sh -c 'sleep 1; poweroff' & exit 0
+	END_SCRIPT
+
+	echo "Volume $argc_volume is now a bootable version of $argc_image"
+	echo "To boot, use: $0 boot $argc_volume"
+}
+
+# @cmd Show the script to prepare a bootable volume
+# @arg    volume_id! ID (not name) of volume to be formatted
+show-prepare-script() {
+	echo 'set -uexo pipefail'
+	echo 'export IMAGE_ROOT=/dev/sda1'
+	echo 'export TARGET_DISK="/dev/disk/by-id/scsi-0HC_Volume_'"${argc_volume_id:?}"'"'
+	echo 'export TARGET_PARTITION="/dev/disk/by-id/scsi-0HC_Volume_'"${argc_volume_id:?}"'-part1"'
+	echo
+	cat <<-'END_INSTALL'
+	# Install kexec tools in base image
+	mount "$IMAGE_ROOT" /mnt
+	# This always fails with an error about resolv.conf which isn't relevant.
+	chroot-prepare /mnt || true
+	chroot /mnt /bin/bash
+	set -uexo pipefail
+	apt-get update
+	DEBIAN_FRONTEND=noninteractive apt-get install kexec-tools
+	exit
+	umount -R /mnt
+
+	# Partition target disk
+	sgdisk "$TARGET_DISK" -Z
+	sgdisk "$TARGET_DISK" -n -t 0:8200 -c 0:root
+	e2fsck -fp "$IMAGE_ROOT"
+	cp "$IMAGE_ROOT" "$TARGET_PARTITION"
+	tune2fs -U random "$TARGET_PARTITION"
+	resize2fs "$TARGET_PARTITION"
+
+	mount "$TARGET_PARTITION" /mnt
+
+	cat <<'EOF' > /mnt/etc/fstab
+	# /etc/fstab: static file system information.
+	#
+	# Use 'blkid' to print the universally unique identifier for a
+	# device; this may be used with UUID= as a more robust way to
+	# name devices that works even if disks are added and removed.
+	# See fstab(5).
+	#
+	# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+	PARTLABEL=root / ext4 defaults,errors=remount-ro 0 1
+	EOF
+
+	cat <<'EOF' > /mnt/boot/hbv-kexec
+	#!/bin/sh
+	# Hetzner Bootable Volume Kexec trampoline
+	# Expects to be run from the target root directory (e.g. /mnt)
+	set -eux
+	./usr/sbin/kexec ./boot/vmlinuz --initrd ./boot/initrd.img \
+		--command-line "root=UUID=$ROOT_UUID ro consoleblank=0 systemd.show_status=true console=tty1 console=ttyS0"
+	EOF
+	chmod +x /mnt/boot/hbv-kexec
+	sed -i s@\$ROOT_UUID@$(lsblk -no uuid $TARGET_PARTITION)@ /mnt/boot/hbv-kexec
+
+	cat <<'EOF' > /mnt/usr/local/sbin/hbv-ephemeral-drive
+	#!/bin/sh
+	# Hetzner Bootable Volume ephemeral drive formatter
+	set -eux
+
+	if [ ! -b /dev/sda2 ]; then
+		sgdisk /dev/sda -e
+		sgdisk /dev/sda -n 0:0:+4G -t 0:8200 -c 0:swap -n 0:0:0 -t 0:8300 -c 0:ephemeral
+		udevadm settle
+
+		mkswap /dev/disk/by-partlabel/swap
+		mkfs.ext4 /dev/disk/by-partlabel/ephemeral
+	fi
+
+	swapon /dev/disk/by-partlabel/swap
+
+	mkdir -p /mnt/media/ephemeral
+	chmod 01777 /mnt/media/ephemeral
+	mount /dev/disk/by-partlabel/ephemeral /mnt/media/ephemeral
+	EOF
+	chmod +x /mnt/usr/local/sbin/hbv-ephemeral-drive
+
+	cat <<EOF >/mnt/etc/systemd/system/hbv-ephemeral-drive.service
+	[Unit]
+	Description=Ephemeral drive formatter
+	
+	[Service]
+	ExecStart=/usr/local/sbin/hbv-ephemeral-drive
+	Type=oneshot
+
+	[Install]
+	WantedBy=multi-user.target
+	EOF
+
+	chroot-prepare /mnt || true
+	chroot /mnt /bin/bash
+	set -uexo pipefail
+	cloud-init clean --machine-id --configs all
+	systemctl enable hbv-ephemeral-drive.service
+	exit
+	umount -R /mnt
+
+	# Change the base image to trampoline without cloud-init for initial boot.
+	mount "$IMAGE_ROOT" /mnt
+	touch /mnt/etc/cloud/cloud-init.disabled
+
+	cat <<EOF >/mnt/etc/systemd/system/hbv-kexec.service
+	[Unit]
+	Description=kexec on boot
+	
+	[Service]
+	ExecStart=mount "$TARGET_PARTITION" /mnt
+	ExecStart=/mnt/boot/hbv-kexec
+	Type=oneshot
+
+	[Install]
+	WantedBy=basic.target
+	EOF
+
+	chroot-prepare /mnt || true
+	chroot /mnt /bin/bash
+	set -uexo pipefail
+	systemctl enable hbv-kexec.service
+	exit
+	umount -R /mnt
+
+	END_INSTALL
+}
+
+# Find any SSH key which is loaded in the local ssh-agent.
+default_ssh_key() {
+	patterns=()
+	for key in $(ssh-add -lE md5 | cut -d: -f2- | awk '{ print $1 }'); do
+		patterns+=(-e "$key")
+	done
+	hcloud ssh-key list | grep "${patterns[@]}" | awk '{ print $1 }'
+	if [[ "${PIPESTATUS[1]}" -ne 0 ]]; then
+		echo "No suitable ssh key found and none specified" >&2
+		return 1
+	fi
+}
+
+wait_for_ssh() {
+	local deadline=$((SECONDS + 300))
+	while [[ $SECONDS -lt $deadline ]]; do
+		if timeout $((deadline - SECONDS)) nc -z "$1" 22
+		then return 0
+		else sleep 1
+		fi
+	done
+	return 1
+}
+
+ssh_once() {
+	ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$@"
+}
+
+user_confirmation() {
+    read -rp "$1 (enter to confirm, anything else to abort): "
+	[[ -z $REPLY ]]
+}
+
+# @cmd Basic integration test
+# @option  -n --name=hbv-test <NAME>       Name of volume/server to use for test
+# @option     --location=nbg1 <LOCATION>   Location to run test in
+integration-test() {
+	hcloud volume create --name "${argc_name:?}" --location "${argc_location:?}" --size 10
+	# shellcheck disable=SC2317
+	cleanup() {
+		hcloud server delete "$argc_name"
+		hcloud volume delete "$argc_name"
+	}
+	trap cleanup EXIT
+
+	"$0" prepare-volume "$argc_name"
+	echo "Bootable volume is created, performing test boot."
+	"$0" boot "$argc_name"
+	ip=$(hcloud server ip "$argc_name")
+
+	ssh_once -l root "$ip" <<-'END_SCRIPT'
+	set -uex
+	findmnt /mnt/media/ephemeral
+	nohup "sleep 1; reboot" & exit 0
+	END_SCRIPT
+
+	echo "Testing reboot behavior"
+	if ! wait_for_ssh "$ip"; then
+		echo "Timed out while waiting for server" >&2
+		exit 1
+	fi
+	ssh_once -l root "$ip" <<-'END_SCRIPT'
+	set -uex
+	findmnt /mnt/media/ephemeral
+	END_SCRIPT
+
+	echo "All tests succeeded!"
+}
+
+eval "$(argc --argc-eval "$0" "$@")"

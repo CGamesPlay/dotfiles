@@ -36,6 +36,7 @@ I also have a collection of custom scripts available in this repository:
 
 - `files/.local/bin/*` are all of my custom scripts which I keep installed by default.
 - `files/.local/bin/.argc` is of special note. I keep high-level scripts in this file, it's like a documented collection of snippets. It is built on [argc](https://github.com/sigoden/argc) which is installed by the bootstrap script.
+- `devserver/` contains a script that creates a scale-to-zero server on Hetzner with auto-shutdown capabilities.
 
 And finally, the "share" directory contains files that are also generally useful to have.
 
