@@ -11,7 +11,6 @@ set -eu
 # @option    --boot-image=ubuntu-22.04    <ID> ID of image to use for booting
 # @option -t --type=cpx51 <TYPE>          Type of machine to use
 # @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
-# @meta default-subcommand
 boot() {
 	server_name=${argc_name:-$argc_volume}
 
@@ -28,6 +27,7 @@ boot() {
 	fi
 
 	location=$(echo "$volume_json" | jq -r '.location.name')
+	volume_name=$(echo "$volume_json" | jq -r '.name')
 	volume_id=$(echo "$volume_json" | jq -r '.id')
 
 	if [[ $ip_status -eq 0 ]]; then
@@ -46,8 +46,8 @@ boot() {
 	  set -uex
 	  grub-editenv /boot/grub/grubenv unset recordfail
 	  mount /dev/disk/by-id/scsi-0HC_Volume_${volume_id}-part1 /mnt -o ro
-	  cd /mnt
-	  ./boot/hbv-kexec
+	  for i in dev sys tmp run proc; do mount --rbind /\$i /mnt/\$i; done
+	  chroot /mnt /boot/hbv-kexec
 	EOF
 
 	create_args=(
@@ -64,13 +64,41 @@ boot() {
 	ip=$(hcloud server ip "$server_name")
 	echo "Created $server_name with IP $ip"
 
+	update_ssh_config "$volume_name" "$ip"
+
 	# Wait for the server to become available
 	echo "Waiting for server to boot"
 	if ! wait_for_ssh "$ip"; then
 		echo "Timed out while waiting for server" >&2
 		exit 1
 	fi
+
 	echo "$server_name is available at $ip"
+}
+
+update_ssh_config() {
+	volume_name=${1:?}
+	ip=${2:?}
+	if ! grep -q "# hetzner-bootable-config include" ~/.ssh/config; then
+		existing_config=$(cat ~/.ssh/config)
+		cat <<-EOF >~/.ssh/config
+		Include "hbv-config" # hetzner-bootable-config include
+		$existing_config
+		EOF
+	fi
+	if [[ ! -e ~/.ssh/hbv-config ]]; then
+		cat >~/.ssh/hbv-config <<-EOF
+		# Hetzner Bootable Volume SSH configuration
+		# Do not modify. To customize SSH for these hosts, add a Host block
+		# with desired options to your main SSH configuration.
+		EOF
+	fi
+	sed -i -e "/^Host $volume_name/,/^Host/{/^Host/!d; /^Host $volume_name/d;}" ~/.ssh/hbv-config
+	cat >>~/.ssh/hbv-config <<-EOF
+	Host $volume_name
+	  HostKeyAlias $volume_name
+	  Hostname $ip
+	EOF
 }
 
 # @cmd Prepare a cloud volume to boot from.
@@ -161,6 +189,49 @@ prepare-volume() {
 	# Hetzner Bootable Volume cloud-config
 	# Disable user data changes from now on.
 	allow_userdata: false
+
+	# User data is disabled on subsequent boots, but vendor data can still
+	# execute. This modified list tries to remove once-per-instance modules
+	# where it doesn't make sense to run on a persistent volume.
+	# The modules that run in the 'init' stage
+	cloud_init_modules:
+	 - migrator
+	 - seed_random
+	 - growpart
+	 - resizefs
+	 - disk_setup
+	 - mounts
+	 - set_hostname
+	 - update_hostname
+	 - [ update_etc_hosts, once-per-instance ]
+	 - ca-certs
+	 - rsyslog
+
+	# The modules that run in the 'config' stage
+	cloud_config_modules:
+	# Emit the cloud config ready event
+	# this can be used by upstart jobs for 'start on cloud-config'.
+	 - emit_upstart
+	 - keyboard
+	 - locale
+	 - disable-ec2-metadata
+
+	# The modules that run in the 'final' stage
+	cloud_final_modules:
+	 - fan
+	 - ubuntu-drivers
+	 - reset_rmc
+	 - refresh_rmc_and_interface
+	 - rightscale_userdata
+	 - scripts-vendor
+	 - scripts-per-once
+	 - scripts-per-boot
+	 - scripts-per-instance
+	 - scripts-user
+	 - ssh-authkey-fingerprints
+	 - keys-to-console
+	 - install-hotplug
+	 - final-message
 	EOF
 
 	nohup sh -c 'sleep 1; poweroff' & exit 0
@@ -215,9 +286,9 @@ show-prepare-script() {
 	cat <<'EOF' > /mnt/boot/hbv-kexec
 	#!/bin/sh
 	# Hetzner Bootable Volume Kexec trampoline
-	# Expects to be run from the target root directory (e.g. /mnt)
+	# Expects to be run in a chroot of the target filesystem.
 	set -eux
-	./usr/sbin/kexec ./boot/vmlinuz --initrd ./boot/initrd.img \
+	/usr/sbin/kexec --force /boot/vmlinuz --initrd /boot/initrd.img \
 		--command-line "root=UUID=$ROOT_UUID ro consoleblank=0 systemd.show_status=true console=tty1 console=ttyS0"
 	EOF
 	chmod +x /mnt/boot/hbv-kexec

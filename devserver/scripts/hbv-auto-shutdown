@@ -22,10 +22,12 @@ def file_atimes(pattern):
 
 
 def most_active_pty():
+    "Returns a list of active PTYs as [(filename, datetime)]."
     return file_atimes("/dev/pts/*")
 
 
 def keepalive_time():
+    "Returns a [(keepalive_file, datetime)]."
     return file_atimes("/tmp/auto-shutdown-keepalive-*")
 
 
@@ -55,6 +57,7 @@ def xprintidle(user, display):
 
 
 def x_time():
+    "Return [(DISPLAY, time)]."
     ps = subprocess.check_output(("ps", "-A", "ue")).decode("utf-8")
     displays = set(
         re.findall(r"^(\w+).*(?<=\bDISPLAY=)(:\d+(?:\.\d+)?)\b", ps, flags=re.M)
@@ -74,8 +77,7 @@ def touch_keepalive(value):
         except FileNotFoundError:
             pass
     else:
-        with open(keepalive_file, "a") as f:
-            os.utime(keepalive_file, (value.timestamp(), value.timestamp()))
+        os.utime(keepalive_file, (value.timestamp(), value.timestamp()))
 
 
 def get_activity():
@@ -116,7 +118,7 @@ def daemon(args):
         shutdown_time = last_activity + idle_timeout
         if now >= shutdown_time:
             shutdown()
-            return
+            time.sleep(60)
         else:
             time.sleep((shutdown_time - now).total_seconds())
 

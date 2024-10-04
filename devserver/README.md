@@ -49,3 +49,21 @@ We create a persistent cloud storage volume and install Linux on it. To boot int
 
 - **Why not just snapshot the server and restore from snapshot?** Snapshots are not preferred in general because they are immutable. This would require managing rolling snapshots of the volumes and clean dangling snapshots. Also, restoring a snapshot is significantly slower than booting from a stock image with an attached cloud volume.
 - **Why not just boot directly from the cloud volume?** This would require a (very small) snapshot that contained just the Grub boot loader. However, Grub is unable to see the Hetzner cloud volume, for unknown reasons.
+
+## Migrating Hetzner Cloud Volumes
+
+Hetzner does not provide any built-in facility to migrate cloud volumes between datacenters. It is possible to manually clone a volume into a new region.
+
+```bash
+# Step 1. Create the destination volume
+hcloud volume create --name dst --size $SAME_SIZE_OR_LARGER --location hil
+# Step 2. Create a server in each region with the volume attached
+hcloud server create --name transfer-src --type cpx21 --location nbg --image ubuntu-22.04 --volume src
+hcloud server create --name transfer-dst --type cpx21 --location hil --image ubuntu-22.04 --volume hil
+# Step 3. On the source machine, send the file (ideally in screen)
+pv /dev/sdb | gzip -c | age --passphrase | socat -u STDIN TCP-LISTEN:32456,reuseaddr
+# Step 4. On the destination machine, receive the file (ideally in screen)
+socat -u TCP:$SOURCE_IP:32456 STDOUT | age --decrypt | gunzip -c | pv > /dev/sdb
+```
+
+When I revisit this, I will probably simplify to just use SSH to do the transfer instead of socat. The bandwidth will be limited by the cloud volume throughput, in any case. It may be worth investigating something that is designed for file transfers and supports resume, as well.
