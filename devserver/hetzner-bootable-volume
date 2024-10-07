@@ -38,6 +38,8 @@ boot() {
 		return 0
 	fi
 
+	echo "Booting ${argc_volume} on ${argc_type:?} in ${location}..."
+
 	user_data=$(mktemp)
 	sed 's/\t/  /' <<-EOF > "$user_data"
 	#cloud-config
