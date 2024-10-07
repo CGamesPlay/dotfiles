@@ -17,6 +17,20 @@ install_fish() {
       return 0
     fi
   fi
+  if [ -f /etc/lsb-release ]; then
+    # https://launchpad.net/~fish-shell/+archive/ubuntu/release-3
+    release=$(grep DISTRIB_CODENAME /etc/lsb-release | cut -d= -f2)
+    cat <<-EOF | sudo tee /etc/apt/sources.list.d/ppa-fish-shell.list
+	deb https://ppa.launchpadcontent.net/fish-shell/release-3/ubuntu $release main
+	deb-src https://ppa.launchpadcontent.net/fish-shell/release-3/ubuntu $release main
+	EOF
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 88421E703EDC7AF54967DED473C9FCC9E2BB48DA
+    sudo apt-get update
+    sudo apt-get install fish
+  else
+	echo "Don't know how to install fish on this platform." >&2
+	return 1
+  fi
 }
 
 set_shell() {
@@ -28,7 +42,7 @@ set_shell() {
     shell=$(getent passwd "$user" | awk -F : '{print $NF}')
   fi
   fish=$(which fish)
-  if [ $shell != $fish ]; then
+  if [ "$shell" != "$fish" ]; then
     echo "Changing shell to fish"
     sudo chsh -s "$fish" "$user"
   fi
