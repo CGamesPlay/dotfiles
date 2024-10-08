@@ -31,7 +31,9 @@ codium() {
 			echo "set -Ux VSCODE_REMOTE myremote" >&2
 			exit 1
 		fi
-		url="${product}://vscode-remote/remote-oss+${VSCODE_REMOTE}${dir}"
+		local remote_encoded
+		remote_encoded=$(echo -n "${VSCODE_REMOTE}" | xxd -ps)
+		url="${product}://vscode-remote/remote-oss+--${remote_encoded}${dir}"
 	else
 		hostname=$(hostname -s)
 		url="${product}://vscode-remote/ssh-remote+${hostname}${dir}"

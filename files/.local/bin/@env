@@ -77,7 +77,7 @@ _load_ports_dsl() {
 		remote_command="$environment_exec exec sh -c $(shelljoin "$listen_script")"
 		echo "# Forward SSH agent"
 		# shellcheck disable=SC2001
-		printf "ssh-agent: socat EXEC:%s UNIX-CONNECT:%s\n" \
+		printf "ssh-agent: while true; do socat EXEC:%s UNIX-CONNECT:%s; sleep 1; done\n" \
 			"$(shelljoin "$(echo "$remote_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")" \
 			"$SSH_AUTH_SOCK"
 	}
@@ -89,7 +89,7 @@ _load_ports_dsl() {
 		start_script="$environment_exec exec sh -c \"\$(vscodium-server get-start-script -d)\" < /dev/null"
 		connect_script="$environment_exec exec sh -c \"\$(vscodium-server get-connect-script --use-existing)\""
 		# shellcheck disable=SC2001
-		printf "vscodium: %s && socat TCP-LISTEN:%s,reuseaddr,fork SYSTEM:%s\n" \
+		printf "vscodium: %s && lsof -i:'$1' | xargs -r kill && socat TCP-LISTEN:%s,reuseaddr,fork SYSTEM:%s\n" \
 			"$start_script" \
 			"$1" \
 			"$(shelljoin "$(echo "$connect_script" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")"
@@ -97,10 +97,10 @@ _load_ports_dsl() {
 
 	forward_tcp() {
 		local environment_exec="$0 execute ${argc_environment:?}"
-		local remote_command="$environment_exec exec socat - TCP:$2"
+		local remote_command="$environment_exec exec socat -c 'TCP:$2'"
 		echo "# Forward local $1 to remote $2"
 		# shellcheck disable=SC2001
-		printf "port-%s: socat TCP-LISTEN:%s,reuseaddr,fork EXEC:%s\n" \
+		printf "port-%s: lsof -i:'$1' -t | xargs -r kill && socat TCP-LISTEN:%s,reuseaddr,fork EXEC:%s\n" \
 			"$1" \
 			"$1" \
 			"$(shelljoin "$(echo "$remote_command" | sed 's/[:,!"'\''\\(\[{]/\\&/g')")"
@@ -140,7 +140,7 @@ shelljoin() {
 }
 
 ssh() {
-	cmd=(ssh)
+	local cmd=(ssh)
 	if [ -t 1 ]; then cmd+=(-t); fi
 	cmd+=("$@")
 	command "${cmd[@]}"
@@ -220,7 +220,9 @@ codium() {
 	else
 		path=$($0 execute "${argc_environment:?}" pwd)
 	fi
-	url=vscodium://vscode-remote/remote-oss+${argc_remote:?}${path}
+	local remote_encoded
+	remote_encoded=$(echo -n "${argc_remote:?}" | xxd -ps)
+	url=vscodium://vscode-remote/remote-oss+--${remote_encoded}${path}
 	open "$url"
 }
 
@@ -229,9 +231,9 @@ codium() {
 # This command starts a new tmux session to run the processes.
 # @arg       environment![`_list_environments`] Name of the environment
 # @flag   -v --verbose                          Turn on debugging output
-# @flag   -d --detach                           Run in a background tmux session
+# @flag   -b --background                       Run in a background iTerm tab
+# @flag      --no-bury                          Don't bury the calling iTerm session
 # @flag      --dump-procfile                    Show the generated Procfile instead of running it
-# @env       SESSION_NAME=0                     Session name for tmux
 ports() {
 	local procfile
 	_load_function environment_ports
@@ -241,21 +243,39 @@ ports() {
 	set +x
 	if [[ "${argc_dump_procfile:+1}" ]]; then
 		echo "$procfile"
-	else
-		cmd=()
-		if [[ "${argc_detach:+1}" ]]; then
-			cmd+=(command tmux new-session -s "${SESSION_NAME:?}" -d)
-		fi
-		cmd+=(sh -c "$(shelljoin "$0" ports --dump-procfile "${argc_environment:?}") | hivemind -")
-		"${cmd[@]}"
+		return 0
 	fi
+
+	if [[ "${argc_background:+1}" ]]; then
+		local args eval_str
+		args=()
+		if [[ "${argc_no_bury:+1}" ]]; then
+			args+=(--no-bury)
+		fi
+		args+=("${argc_environment:?}")
+		eval_str="$(shelljoin "$0") ports $(shelljoin "${args[@]}")"
+		local cmd_str="$SHELL -lC \"$eval_str\""
+		local cmd_str=${cmd_str//\\/\\\\}
+		local cmd_str=${cmd_str//\"/\\\"}
+		local script="tell application \"iTerm\" to tell current window to create tab with default profile command \"$cmd_str\""
+		osascript -e "$script"
+		return 0
+	fi
+
+	if [[ ! "${argc_no_bury:+1}" ]]; then
+		iterm_set_buried.py 1
+		trap 'iterm_set_buried.py 0' EXIT
+	fi
+
+	echo "$procfile" | hivemind -
+
 }
 
 # @cmd Start everything.
 # @arg       environment![`_list_environments`] Name of the environment
 start-working() {
 	"$0" up "${argc_environment:?}"
-	"$0" ports --detach "${argc_environment:?}"
+	"$0" ports --background "${argc_environment:?}"
 	if "$0" ports --dump-procfile "${argc_environment:?}" 2>&1 | grep -q '^vscodium'; then
 		# Wait for ports
 		sleep 5
