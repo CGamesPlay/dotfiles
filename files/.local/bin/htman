@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+dotfiles_root() {
+	path=${BASH_SOURCE[0]}
+	realpath -m "$path"/../../../..
+}
+
+TMPDIR=${TMPDIR:-/tmp}
+path=$(man --path "$1")
+formatter=(mandoc -Thtml -O "toc,style=$(dotfiles_root)/share/mandoc.css")
+if [[ $path == *.gz ]]; then
+	cat "$path" | gunzip | "${formatter[@]}" > "$TMPDIR/$1.html"
+else
+	cat "$path" | "${formatter[@]}" > "$TMPDIR/$1.html"
+fi
+open "$TMPDIR/$1.html"
