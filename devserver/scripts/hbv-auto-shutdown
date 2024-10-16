@@ -9,8 +9,8 @@ import subprocess
 import sys
 import time
 
+IDLE_TIMEOUT = timedelta(hours=2)
 keepalive_file = f"/tmp/auto-shutdown-keepalive-{os.getpid()}"
-idle_timeout = timedelta(hours=2)
 
 
 def file_atimes(pattern):
@@ -95,7 +95,7 @@ def get_activity():
 
 
 def shutdown():
-    subprocess.run("poweroff", check=True)
+    subprocess.run("systemctl poweroff --when=+10m", check=True, shell=True)
 
 
 def status(args):
@@ -106,21 +106,22 @@ def status(args):
         age = now - value
         print(f"{key:30}  {age} ago")
     overall = max((x[1] for x in activity.items()))
-    shutdown_time = overall + idle_timeout
+    shutdown_time = overall + IDLE_TIMEOUT
     print("")
     print(f"Machine will auto-shutdown at {shutdown_time} (in {shutdown_time - now})")
 
 
 def daemon(args):
+    # We keep a snapshot of the last activity because sources can disappear,
+    # but this should not cause the timer to skip forward.
+    last_activity = datetime.now()
     while True:
-        last_activity = max((x[1] for x in get_activity().items()))
+        last_activity = max(last_activity, *(x[1] for x in get_activity().items()))
         now = datetime.now()
-        shutdown_time = last_activity + idle_timeout
+        shutdown_time = last_activity + IDLE_TIMEOUT
         if now >= shutdown_time:
             shutdown()
-            time.sleep(60)
-        else:
-            time.sleep((shutdown_time - now).total_seconds())
+        time.sleep(30)
 
 
 def caffeinate(args):
@@ -128,7 +129,7 @@ def caffeinate(args):
     process = subprocess.Popen(command, shell=True)
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-    poll_period = idle_timeout / 2
+    poll_period = IDLE_TIMEOUT / 2
     while True:
         touch_keepalive(datetime.now())
         try:
