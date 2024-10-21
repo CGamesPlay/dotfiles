@@ -9,7 +9,7 @@ fi
 
 case `uname -s` in
   Darwin)
-    sudo pkgin -y install git-delta less
+    sudo port -y install git-delta less
     ;;
   Linux)
     VERSION=0.13.0
