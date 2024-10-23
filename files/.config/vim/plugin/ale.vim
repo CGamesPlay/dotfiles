@@ -26,7 +26,7 @@ let g:ale_linters = {
       \'c': ['clangd'],
       \'cpp': ['clangd'],
       \'graphql': ['gqlint'],
-      \'rust': ['analyzer'],
+      \'rust': ['analyzer', 'cargo'],
       \'python': ['pyright', 'ruff'],
       \}
 let g:ale_c_clangd_options = '--enable-config'
@@ -57,6 +57,10 @@ let g:ale_rust_analyzer_config = {
       \'procMacro': { 'enable': 1 },
       \}
 let g:ale_rust_rustfmt_options = '--edition 2021'
+let g:ale_rust_cargo_check_all_targets = 1
+let g:ale_rust_cargo_check_examples = 1
+let g:ale_rust_cargo_check_tests = 1
+let g:ale_rust_cargo_use_clippy = 1
 let g:ale_sh_shellcheck_options = '-e SC2002'
 set omnifunc=ale#completion#OmniFunc
 

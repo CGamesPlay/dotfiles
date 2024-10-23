@@ -1,0 +1,10 @@
+{
+  "id": "lobechat",
+  "name": "LobeChat",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://gitlab.com/CGamesPlay/dotfiles",
+  "config": {
+    "serviceURL": "https://lobechat.cluster.cgamesplay.com/chat"
+  }
+}
