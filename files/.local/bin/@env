@@ -226,6 +226,20 @@ codium() {
 	open "$url"
 }
 
+# @cmd Open Neovide in the environment
+# @arg       environment![`_list_environments`] Name of the environment
+# @option    --path           Path in the remote to open
+neovide() {
+	if [[ ${argc_path:+1} ]]; then
+		path=${argc_path}
+	else
+		path=$($0 execute "${argc_environment:?}" pwd)
+	fi
+	local embed_command
+	embed_command=("$0" execute "${argc_environment:?}" nvim)
+	exec neovide --neovim-bin="$(shelljoin "${embed_command[@]}")"
+}
+
 # @cmd Forward ports into/out of the environment.
 #
 # This command starts a new tmux session to run the processes.
@@ -273,14 +287,18 @@ ports() {
 
 # @cmd Start everything.
 # @arg       environment![`_list_environments`] Name of the environment
+# @option    --editor[=neovide|vscodium]        Which editor to launch
 start-working() {
 	"$0" up "${argc_environment:?}"
 	"$0" ports --background "${argc_environment:?}"
-	if "$0" ports --dump-procfile "${argc_environment:?}" 2>&1 | grep -q '^vscodium'; then
-		# Wait for ports
-		sleep 5
+	case "${argc_editor:?}" in
+	neovide)
+		"$0" neovide "${argc_environment:?}"
+		;;
+	vscodium)
 		"$0" codium "${argc_environment:?}"
-	fi
+		;;
+	esac
 	exec "$0" tmux "${argc_environment:?}"
 }
 
