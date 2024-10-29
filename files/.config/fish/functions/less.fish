@@ -1,7 +1,9 @@
-function less
-  if command -qs bat
+if command -qs bat
+  function less --wraps="bat"
     bat $argv
-  else
+  end
+else
+  function less --wraps="less"
     command less $argv
   end
 end

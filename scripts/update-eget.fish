@@ -1,8 +1,8 @@
 #!/usr/bin/env fish
-# This script generates 06-eget.sh from the latest on github.
+# This script generates 05-eget.sh from the latest on github.
 
 cd (dirname (status -f))/..
-set target tasks/06-eget.sh
+set target tasks/05-eget.sh
 
 echo "#!/bin/bash
 # This script is generated using "(status -f)"

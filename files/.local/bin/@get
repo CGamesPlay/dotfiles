@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# @describe User-local package installers
+# Contains install scripts for packages that are installed by downloading
+# binaries from GitHub.
+# @option   --target=~/.local Root directory to install
+
+set -eu
+export EGET_BIN=$TMPDIR
+
+# @cmd Install ripgrep
+# Modern/faster grep alternative
+# @alias rg
+BurntSushi/ripgrep() {
+	setup_env
+	eget BurntSushi/ripgrep --file="*" --to=ripgrep
+
+	cp ripgrep/rg "$BINDIR/"
+	cp ripgrep/doc/rg.1 "$MANDIR/man1/"
+	cp ripgrep/complete/rg.fish "$HOME/.config/fish/completions/"
+
+	rm -rf ripgrep
+}
+
+# @cmd Install cargo-binstall
+# Binary installer for rust. Mostly replaced by eget.
+# @alias cargo-binstall
+cargo-bins/cargo-binstall() {
+	setup_env
+	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
+}
+
+# @cmd Install dfm
+# My dotfile manager
+# @alias dfm
+CGamesPlay/dfm() {
+	setup_env
+	eget CGamesPlay/dfm --to="$BINDIR"
+}
+
+# @cmd Install sd
+# Modern sed replacement
+# @alias sd
+chmln/sd() {
+	setup_env
+	eget chmln/sd --file="*" --to=sd
+
+	cp sd/sd "$BINDIR/"
+	cp sd/sd.1 "$MANDIR/man1/"
+	cp sd/completions/sd.fish "$HOME/.config/fish/completions/"
+
+	rm -rf sd
+}
+
+# @cmd Install argc
+# Procfile runner.
+# @alias hivemind
+DarthSim/hivemind() {
+	setup_env
+	eget DarthSim/hivemind --to="$BINDIR"
+}
+
+# @cmd Install delta
+# Git output filter.
+# @alias delta
+dandavision/delta() {
+	setup_env
+	eget dandavison/delta --to="$BINDIR"
+}
+
+# @cmd Install eza
+# Modern ls replacement
+# @alias eza
+eza-community/eza() {
+	setup_env
+	eget -a '^sig' cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
+	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
+	eget -a 'man' eza-community/eza --file='*' --to=eza
+
+	cp -rv eza/*.1 "$MANDIR/man1/"
+	cp -rv eza/*.5 "$MANDIR/man5/"
+
+	rm -rf eza
+}
+
+# @cmd Install migrate
+# Framework-agnostic database migration tool.
+# @alias migrate
+golang-migrate/migrate() {
+	setup_env
+	eget golang-migrate/migrate --to="$BINDIR"
+}
+
+# @cmd Install lazygit
+# Friendly interface to git
+# @alias lazygit
+jesseduffield/lazygit() {
+	setup_env
+	eget jesseduffield/lazygit --to="$BINDIR"
+}
+
+# @cmd Install fzf
+# Fuzzy file finder
+# @alias fzf
+junegunn/fzf() {
+	setup_env
+	eget junegunn/fzf --to="$BINDIR"
+}
+
+# @cmd Install git-filter-repo
+# @alias git-filter-repo
+newren/git-filter-repo() {
+	setup_env
+	eget newren/git-filter-repo --file="*" --to=git-filter-repo
+
+	cp git-filter-repo/git-filter-repo "$BINDIR/"
+	cp -rv git-filter-repo/Documentation/man1 "$MANDIR/man1/"
+
+	rm -rf git-filter-repo
+}
+
+# @cmd Install nvm
+# Node version manager
+# @alias nvm
+nvm-sh/nvm() {
+	setup_env
+	eget nvm-sh/nvm --source --file="*" --to=nvm
+
+	rsync -a --delete nvm/ ~/.config/nvm/
+
+	rm -rf nvm
+}
+
+# @cmd Install bat
+# Modern cat/less replacement.
+# @alias bat
+sharkdp/bat() {
+	setup_env
+	eget sharkdp/bat --file="*" --all --to=bat
+
+	cp bat/bat "$BINDIR/"
+	cp bat/bat.1 "$MANDIR/man1/"
+	cp bat/autocomplete/bat.fish "$HOME/.config/fish/completions/"
+
+	rm -rf bat
+}
+
+# @cmd Install fd
+# Modern find replacement.
+# @alias fd
+sharkdp/fd() {
+	setup_env
+	eget sharkdp/fd --file="*" --all --to=fd
+
+	cp fd/fd "$BINDIR/"
+	cp fd/fd.1 "$MANDIR/man1/"
+	cp fd/autocomplete/fd.fish "$HOME/.config/fish/completions/"
+
+	rm -rf fd
+}
+
+# @cmd Install argc
+# My primary command runner.
+# @alias argc
+sigoden/argc() {
+	setup_env
+	eget sigoden/argc --to="$BINDIR"
+}
+
+# @cmd Install sgpt
+# @alias sgpt
+tbckr/sgpt() {
+	setup_env
+	eget -a '^.json' tbckr/sgpt --file="*" --all --to=sgpt
+
+	cp sgpt/sgpt "$BINDIR/"
+	cp sgpt/sgpt.1.gz "$MANDIR/man1/"
+	cp sgpt/sgpt.fish "$HOME/.config/fish/completions/"
+
+	rm -rf sgpt
+}
+
+# @cmd Install robo
+# The command runner I used before switching to argc.
+# @alias robo
+tj/robo() {
+	setup_env
+	eget tj/robo --to="$BINDIR"
+}
+
+# @cmd Install ecslog
+# @alias ecslog
+trentm/go-ecslog() {
+	setup_env
+	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
+}
+
+# @cmd Install watchexec
+# File monitor and command runner
+# @alias watchexec
+watchexec/watchexec() {
+	setup_env
+	eget -a '^b3' -a '^sha512' watchexec/watchexec --file="*" --to=watchexec
+
+	cp watchexec/watchexec "$BINDIR/"
+	cp watchexec/watchexec.1 "$MANDIR/man1/"
+	cp watchexec/completions/fish "$HOME/.config/fish/completions/watchexec.fish"
+
+	rm -rf watchexec
+}
+
+setup_env() {
+	cd "$TMPDIR"
+	BINDIR="${argc_target:?}/bin"
+	MANDIR="${argc_target:?}/share/man"
+	mkdir -p "$BINDIR" "$MANDIR/man1" "$MANDIR/man5"
+	set -x
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

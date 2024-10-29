@@ -1,7 +1,9 @@
-function ls
-  if command -qs eza
+if command -qs eza
+  function ls --wraps "eza"
     eza -b $argv
-  else
+  end
+else
+  function ls --wraps "ls"
     command ls -G --color=auto $argv
   end
 end
