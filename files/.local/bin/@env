@@ -205,7 +205,7 @@ shell() {
 # @arg       environment![`_list_environments`] Name of the environment
 tmux() {
 	_load_function environment_exec
-	environment_exec "tmux -CC new -As0"
+	environment_exec "tmux -uCC new -As0"
 }
 
 # @cmd Open VSCodium in the environment
@@ -246,7 +246,7 @@ neovide() {
 # @arg       environment![`_list_environments`] Name of the environment
 # @flag   -v --verbose                          Turn on debugging output
 # @flag   -b --background                       Run in a background iTerm tab
-# @flag      --no-bury                          Don't bury the calling iTerm session
+# @flag      --bury                             Bury the calling iTerm session
 # @flag      --dump-procfile                    Show the generated Procfile instead of running it
 ports() {
 	local procfile
@@ -276,12 +276,12 @@ ports() {
 		return 0
 	fi
 
-	if [[ ! "${argc_no_bury:+1}" ]]; then
+	if [[ "${argc_bury:+1}" ]]; then
 		iterm_set_buried.py 1
 		trap 'iterm_set_buried.py 0' EXIT
 	fi
 
-	echo "$procfile" | hivemind -
+	exec hivemind <(echo "$procfile")
 
 }
 
@@ -290,7 +290,8 @@ ports() {
 # @option    --editor[=neovide|vscodium]        Which editor to launch
 start-working() {
 	"$0" up "${argc_environment:?}"
-	"$0" ports --background "${argc_environment:?}"
+	"$0" ports "${argc_environment:?}" & ports_pid=$!
+	trap 'kill "$ports_pid"; wait' EXIT
 	case "${argc_editor:?}" in
 	neovide)
 		"$0" neovide "${argc_environment:?}"
@@ -299,7 +300,7 @@ start-working() {
 		"$0" codium "${argc_environment:?}"
 		;;
 	esac
-	exec "$0" tmux "${argc_environment:?}"
+	"$0" tmux "${argc_environment:?}"
 }
 
 if ! command -v argc >/dev/null; then
