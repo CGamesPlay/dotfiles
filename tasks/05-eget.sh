@@ -3,7 +3,6 @@
 
 if [ -x ~/.local/bin/eget ]; then exit 0; fi
 
-
 # This script installs Eget.
 #
 # Quick install: `curl https://zyedidia.github.io/eget | bash`
@@ -103,5 +102,6 @@ You can run it with:
 ./eget
 EOM
 
+mkdir -p ~/.local/bin
 mv eget ~/.local/bin/
 

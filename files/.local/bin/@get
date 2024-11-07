@@ -5,6 +5,7 @@
 # @option   --target=~/.local Root directory to install
 
 set -eu
+export TMPDIR=${TMPDIR:-/tmp}
 export EGET_BIN=$TMPDIR
 
 # @cmd Install ripgrep
