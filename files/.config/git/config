@@ -40,6 +40,7 @@
 	file-decoration-style = blue ul ol
 	hunk-header-decoration-style = none
 	pager = less -+F
+	max-line-length = 0
 
 [color "branch"]
 	current = white blue bold

@@ -26,7 +26,7 @@ let g:ale_linters = {
       \'c': ['clangd'],
       \'cpp': ['clangd'],
       \'graphql': ['gqlint'],
-      \'rust': ['analyzer', 'cargo'],
+      \'rust': ['analyzer'],
       \'python': ['pyright', 'ruff'],
       \}
 let g:ale_c_clangd_options = '--enable-config'
@@ -55,6 +55,7 @@ let g:ale_javascript_eslint_suppress_missing_config = 1
 let g:ale_rust_analyzer_config = {
       \'diagnostics': { 'disabled': ['inactive-code'] },
       \'procMacro': { 'enable': 1 },
+      \'checkOnSave': { 'command': 'clippy' },
       \}
 let g:ale_rust_rustfmt_options = '--edition 2021'
 let g:ale_rust_cargo_check_all_targets = 1
