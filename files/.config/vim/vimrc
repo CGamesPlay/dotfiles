@@ -94,7 +94,7 @@ let g:python_highlight_all = 1
 " }}}
 
 " Color schemes
-Plugin 'rose-pine/vim', { 'name': 'rose-pine' }
+Plugin 'CGamesPlay/rose-pine-vim', { 'name': 'rose-pine' }
 
 call vundle#end()
 " Vundle has reapplied the vim-default config directory to the rtp, so we
