@@ -68,12 +68,24 @@ dandavision/delta() {
 	eget dandavison/delta --to="$BINDIR"
 }
 
+# @cmd Install direnv
+# @alias direnv
+direnv/direnv() {
+	setup_env
+	eget direnv/direnv --to="$BINDIR"
+
+	version=$(direnv --version)
+	for page in direnv-fetchurl direnv-stdlib direnv direnv.toml; do
+		curl -fsSL "https://github.com/direnv/direnv/raw/v${version}/man/$page.1" -o "$MANDIR/man1/$page.1"
+	done
+}
+
 # @cmd Install eza
 # Modern ls replacement
 # @alias eza
 eza-community/eza() {
 	setup_env
-	eget -a '^sig' cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
+	eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 
@@ -91,6 +103,14 @@ golang-migrate/migrate() {
 	eget golang-migrate/migrate --to="$BINDIR"
 }
 
+# @cmd Install cdebug
+# A swiss army knife of container debugging.
+# @alias cdebug
+iximiuz/cdebug() {
+	setup_env
+	eget iximiuz/cdebug --to="$BINDIR"
+}
+
 # @cmd Install lazygit
 # Friendly interface to git
 # @alias lazygit
@@ -105,6 +125,9 @@ jesseduffield/lazygit() {
 junegunn/fzf() {
 	setup_env
 	eget junegunn/fzf --to="$BINDIR"
+
+	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
+	curl -fsSL "https://github.com/junegunn/fzf/raw/${fzf_version}/man/man1/fzf.1" -o "$MANDIR/man1/fzf.1"
 }
 
 # @cmd Install git-filter-repo
@@ -215,6 +238,15 @@ setup_env() {
 	MANDIR="${argc_target:?}/share/man"
 	mkdir -p "$BINDIR" "$MANDIR/man1" "$MANDIR/man5"
 	set -x
+}
+
+# If this system is musl-based, print "musl". Else print "^musl".
+musl_tag() {
+	if command -v ldd >/dev/null && [[ $(ldd --version || true) != *GLIBC* ]]; then
+		echo -n "musl"
+	else
+		echo -n "^musl"
+	fi
 }
 
 if ! command -v argc >/dev/null; then

@@ -25,7 +25,7 @@ install_fish() {
 	deb-src https://ppa.launchpadcontent.net/fish-shell/release-3/ubuntu $release main
 	EOF
     sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 88421E703EDC7AF54967DED473C9FCC9E2BB48DA
-    sudo apt-get update
+    sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/ppa-fish-shell.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
     sudo apt-get install fish
   else
 	echo "Don't know how to install fish on this platform." >&2
