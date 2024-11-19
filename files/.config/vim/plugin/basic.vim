@@ -113,12 +113,12 @@ set noshowmode
 " }}}
 " The overall GUI {{{
 
-set guioptions=egk
 set lazyredraw
 set linespace=2
 if !has("gui_macvim")
   set guifont="Anonymous Pro":h14
 else
+  set guioptions=egk
   set guifont=JetBrainsMono-Regular:h13,Menlo:h13,Consolas:h14
 end
 " Use the tab-completion (for files) that I'm used to in bash.

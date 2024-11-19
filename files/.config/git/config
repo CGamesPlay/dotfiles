@@ -84,6 +84,8 @@
 	unstage = restore --staged
 	# Open the web repo associated with this repository.
 	web = !sh -c \"git remote get-url \\${1:-origin} | sed -e 's\\$git@gitlab.com:\\$https://gitlab.com/\\$' -e 's\\$git@github.com:\\$https://github.com/\\$' | xargs \\$(which open || which xdg-open)\" git-web
+	# Create a fixup commit using fzf
+	fixup = !git commit --fixup $(git log --oneline | fzf --preview='git show {1} --stat --color=always' | awk '{ print $1 }')
 
 [svn]
 	followparent = true
@@ -120,6 +122,7 @@
 	updateRefs = true
 	missingCommitsCheck = error
 	autoStash = true
+	autoSquash = true
 [rerere]
 	enabled = 1
 [init]

@@ -68,6 +68,21 @@ dandavision/delta() {
 	eget dandavison/delta --to="$BINDIR"
 }
 
+# @cmd Install xh
+# Friendly HTTP client
+# @alias xh
+ducaale/xh() {
+	setup_env
+	eget ducaale/xh --to="$BINDIR"
+	eget ducaale/xh --file="*" --to=xh
+
+	cp xh/xh "$BINDIR/"
+	cp xh/doc/xh.1 "$MANDIR/man1/"
+	cp xh/completions/xh.fish "$HOME/.config/fish/completions/"
+
+	rm -rf xh
+}
+
 # @cmd Install direnv
 # @alias direnv
 direnv/direnv() {

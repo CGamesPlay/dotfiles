@@ -10,7 +10,9 @@ let mapleader=","
 
 " F2 will switch to paste mode, which will disable auto-indent, among other
 " things. Only necessary in terminal vim.
-set pastetoggle=<F2>
+if !has('nvim')
+  set pastetoggle=<F2>
+end
 
 " Unbind arrow keys to force yourself to break that habit when you are just
 " getting started with vim.
