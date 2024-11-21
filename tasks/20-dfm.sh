@@ -4,6 +4,7 @@ set -e
 . "$(dirname "$0")/helpers"
 
 DFM_DIR="$(pwd)"
+export PATH="$PATH:$HOME/.local/bin"
 
 case $(uname -s) in
 	Darwin)

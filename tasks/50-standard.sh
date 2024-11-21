@@ -2,6 +2,7 @@
 # Install packages that I generally want available.
 set -ueo pipefail
 
+export PATH="$PATH:$HOME/.local/bin"
 list=(
 	bat
 	direnv
