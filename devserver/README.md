@@ -2,6 +2,10 @@
 
 This directory contains scripts to create a private development server with automatic shutdown capabilities (a.k.a. scale-to-zero). Basically, we create a persistent cloud volume with Linux installed, which we boot on an ephemeral server which is deleted when not in use.
 
+## Personal usage
+
+If you are me, you probably want to use `argc create-hbv`, which does everything automatically (creates the volume, installs the self-destruct script, and enables RAID1). If not, keep reading.
+
 ## Basic usage
 
 The basic process for creating a bootable volume:
@@ -42,6 +46,18 @@ I recommend creating a new project with a new API key in Hetzner Cloud specifica
 ## Improving performance with RAID1
 
 If you run `scripts/enable-raid1.sh` on a bootable volume, then delete the server and boot on a new one, the image will configure the local drive as a RAID1 mirror of the cloud volume. Benchmarks suggest that cloud volumes can maintain about 300 MiB/s of throughput, while local disks can achieve 700 MiB/s or more. The RAID1 setup allows you to achieve 700 MiB/s read throughput and 300 MiB/s of write throughput. This feature requires that you choose instance types with drives larger than the cloud volume (generally at least 10 GiB larger).
+
+If everything is working, you should see something like the following:
+
+```bash
+$ cat /proc/mdstat
+Personalities : [linear] [multipath] [raid0] [raid1] [raid6] [raid5] [raid4] [raid10]
+md0 : active raid1 sda3[1] sdb1[0](W)
+      157285359 blocks super non-persistent [2/1] [U_]
+      [===>.................]  recovery = 17.7% (27984768/157285359) finish=10.5min speed=203862K/sec
+
+unused devices: <none>
+```
 
 ## How does this work?
 

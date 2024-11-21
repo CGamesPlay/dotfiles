@@ -174,7 +174,7 @@ nvm-sh/nvm() {
 # @alias bat
 sharkdp/bat() {
 	setup_env
-	eget sharkdp/bat --file="*" --all --to=bat
+	eget -a "$(musl_tag)" sharkdp/bat --file="*" --all --to=bat
 
 	cp bat/bat "$BINDIR/"
 	cp bat/bat.1 "$MANDIR/man1/"
