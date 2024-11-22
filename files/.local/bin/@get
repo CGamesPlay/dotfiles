@@ -100,7 +100,12 @@ direnv/direnv() {
 # @alias eza
 eza-community/eza() {
 	setup_env
-	eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
+	# Eza doesn't do their own builds for darwin or musl.
+	if is_darwin || is_musl; then
+		eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
+	else
+		eget -a "^musl" -a "^zip" eza-community/eza --to="$BINDIR/"
+	fi
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 
@@ -255,9 +260,23 @@ setup_env() {
 	set -x
 }
 
+# Check if this system is darwin.
+is_darwin() {
+	[[ $(uname -s) == "Darwin" ]]
+}
+
+# Check if this system is musl-based.
+is_musl() {
+	if command -v ldd >/dev/null && [[ $(ldd --version || true) != *GLIBC* ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 # If this system is musl-based, print "musl". Else print "^musl".
 musl_tag() {
-	if command -v ldd >/dev/null && [[ $(ldd --version || true) != *GLIBC* ]]; then
+	if is_musl; then
 		echo -n "musl"
 	else
 		echo -n "^musl"
