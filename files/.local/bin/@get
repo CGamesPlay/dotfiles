@@ -65,7 +65,7 @@ DarthSim/hivemind() {
 # @alias delta
 dandavision/delta() {
 	setup_env
-	eget dandavison/delta --to="$BINDIR"
+	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
 }
 
 # @cmd Install xh
