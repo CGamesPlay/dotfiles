@@ -48,13 +48,22 @@ _list_environments() {
 	fi
 }
 
+_choice_args() {
+	script=$ATENV_HOME/${argc_environment:?}.sh
+	args=( "${argc__positionals[@]:1:${#argc__positionals[@]}-2}" "${ARGC_LAST_ARG:-}" )
+	if [[ "${argc__cmd_fn:?}" != "env-command" ]]; then
+		args=("${argc__cmd_fn}" "${args[@]}")
+	fi
+    argc --argc-compgen generic "$script" "$script" "${args[@]}"
+}
+
 # @cmd Run an environment-defined command.
 #
 # To run a command inside the environment, use "exec" instead.
 #
 # Specify an environment to see the available commands.
 # @arg       environment![`_list_environments`] Name of the environment
-# @arg       args~                              Arguments to pass forward
+# @arg       args~[?`_choice_args`]             Arguments to pass forward
 # @alias do
 env-command() {
 	script=$ATENV_HOME/${argc_environment:?}.sh
@@ -94,7 +103,7 @@ create() {
 #
 # Specify an environment to see environment-specific options.
 # @arg       environment![`_list_environments`] Name of the environment
-# @arg       args~                              Arguments to pass forward
+# @arg       args~[?`_choice_args`]             Arguments to pass forward
 up() {
 	argc_args=(up ${argc_args+"${argc_args[@]}"})
 	env-command
@@ -102,7 +111,7 @@ up() {
 
 # @cmd Run a shell script in the environment
 # @arg       environment![`_list_environments`] Name of the environment
-# @arg       args~                              Arguments to pass forward
+# @arg       args~[?`_choice_args`]             Arguments to pass forward
 # @alias exec
 run-in-env() {
 	argc_args=(run-in-env "$(shelljoin ${argc_args+"${argc_args[@]}"})")
@@ -118,6 +127,7 @@ run-in-env() {
 # @flag      --dump-procfile                    Show the generated Procfile instead of running it
 ports() {
 	local procfile
+	echo ATENV_PORT_ENV="${argc_environment:?}" "$0" env-command "${argc_environment}" ports ${argc_args+"${argc_args[@]}"}
 	procfile=$(ATENV_PORT_ENV="${argc_environment:?}" "$0" env-command "${argc_environment}" ports ${argc_args+"${argc_args[@]}"})
 	if [[ "${argc_dump_procfile:+1}" ]]; then
 		echo "$procfile"
