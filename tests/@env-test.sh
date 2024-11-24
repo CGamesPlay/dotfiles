@@ -16,24 +16,24 @@ _test_in_env() {
 
 	echo test 1
 	# Test with spaces
-	actual="$(@env execute "$env" sh -c "echo 'a b c'" 2>&1)"
+	actual="$(@env exec "$env" sh -c "echo 'a b c'" 2>&1)"
 	expected="a b c"
 	diff -u <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") || return 1
 
 	echo test 2
 	# Test with newlines
-	actual="$(@env execute "$env" sh -c "echo '$(printf 'a\nb')'" 2>&1)"
+	actual="$(@env exec "$env" sh -c "echo '$(printf 'a\nb')'" 2>&1)"
 	expected="$(printf 'a\nb\n')"
 	diff -u <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") || return 1
 
 	echo test 3
 	# Test with process substitution
-	actual="$(@env execute "$env" sh -c "echo \$(echo 1)" 2>&1)"
+	actual="$(@env exec "$env" sh -c "echo \$(echo 1)" 2>&1)"
 	expected="1"
 	diff -u <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") || return 1
 
 	echo test 4
-	actual="$(@env execute "$env" sh -c "cd /tmp; pwd" 2>&1)"
+	actual="$(@env exec "$env" sh -c "cd /tmp; pwd" 2>&1)"
 	expected="/tmp"
 	diff -u <(printf '%s\n' "$actual") <(printf '%s\n' "$expected") || return 1
 }

@@ -1,14 +1,29 @@
-# Executes in the local devcontainer with the workspace stored at
-# $ATENV_SSH_DEVCONTAINER, which is on the $ATENV_SSH_HOST machine.
-# 
-# shellcheck shell=bash
+# @describe Executes in the remote devcontainer with the workspace stored at
+# $ATENV_SSH_DEVCONTAINER on the remote system named $ATENV_SSH_HOST.
 set -eu
+# shellcheck shell=bash
+# shellcheck disable=SC1090
+. "$ATENV_HELPER_LIB"
 
-environment_up() {
+# @cmd Start the environment
+# @flag --rebuild Delete any existing container and rebuild.
+up() {
 	@env up ssh
-	@env execute ssh npx @devcontainers/cli up --workspace-folder="$ATENV_DEVCONTAINER"
+	@env exec ssh \
+		npx @devcontainers/cli up \
+		--workspace-folder="${ATENV_SSH_DEVCONTAINER:?must be path on remote to devcontainer workspace folder}" \
+		${argc_rebuild+--remove-existing-container}
 }
 
-environment_exec() {
-	@env execute ssh npx @devcontainers/cli exec --workspace-folder="$ATENV_SSH_DEVCONTAINER" sh -c "$1"
+# @cmd Execute a command in the environment
+# @arg command! Command to run
+run-in-env() {
+	# The devcontainer CLI does not automatically start the user's shell. This
+	# case is handled in the "@env shell" subcommand, but here we just use sh.
+	@env exec ssh \
+		npx @devcontainers/cli exec \
+		--workspace-folder="$ATENV_SSH_DEVCONTAINER" \
+		-- sh -c "$1"
 }
+
+eval "$(argc --argc-eval "$0" "$@")"
