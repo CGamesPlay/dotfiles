@@ -11,6 +11,7 @@ set -eu
 # @option    --boot-image=ubuntu-22.04    <ID> ID of image to use for booting
 # @option -t --type=cpx51 <TYPE>          Type of machine to use
 # @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @option    --firewall*                  ID or name of firewall to attach
 boot() {
 	server_name=${argc_name:-$argc_volume}
 
@@ -61,6 +62,9 @@ boot() {
 		--ssh-key "${argc_ssh_key:?}"
 		--user-data-from-file "$user_data"
 	)
+	for id in ${argc_firewall+"${argc_firewall[@]}"}; do
+		create_args+=(--firewall="$id")
+	done
 	hcloud server create "${create_args[@]}"
 	rm "$user_data"
 	ip=$(hcloud server ip "$server_name")
@@ -95,7 +99,7 @@ update_ssh_config() {
 		# with desired options to your main SSH configuration.
 		EOF
 	fi
-	sed -i -e "/^Host $volume_name/,/^Host/{/^Host/!d; /^Host $volume_name/d;}" ~/.ssh/hbv-config
+	sed -i '' -e "/^Host $volume_name/,/^Host/{/^Host/!d; /^Host $volume_name/d;}" ~/.ssh/hbv-config
 	cat >>~/.ssh/hbv-config <<-EOF
 	Host $volume_name
 	  HostKeyAlias $volume_name
