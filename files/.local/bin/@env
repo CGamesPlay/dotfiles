@@ -168,8 +168,13 @@ shell() {
 
 # @cmd Run tmux with iTerm integration in the environment
 # @arg       environment![`_list_environments`] Name of the environment
+# @arg       directory                          Remote directory to start in
 tmux() {
-	argc_args=(run-in-env "tmux -uCC new -As0")
+	cmd="tmux -uCC new -As0"
+	if [ ${argc_directory:+1} ]; then
+		cmd="cd $(shelljoin "$argc_directory") && $cmd"
+	fi
+	argc_args=(run-in-env "$cmd")
 	env-command
 }
 

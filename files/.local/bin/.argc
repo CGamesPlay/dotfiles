@@ -75,6 +75,16 @@ traefik() {
 		--providers.docker.httpClientTimeout=300
 }
 
+# @cmd Open an editor in the dotfiles directory
+dotfiles() {
+	cd "$(dotfiles_root)"
+	if command -v neovide >/dev/null; then
+		neovide
+	else
+		$EDITOR
+	fi
+}
+
 # @cmd Instantiate templates.
 create() { :; }
 

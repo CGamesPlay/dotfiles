@@ -52,6 +52,13 @@ chmln/sd() {
 	rm -rf sd
 }
 
+# @cmd Install cocogitto
+# @alias cocogitto,cog
+cocogitto/cocogitto() {
+	setup_env
+	eget -f 'cog' cocogitto/cocogitto --to="$BINDIR"
+}
+
 # @cmd Install argc
 # Procfile runner.
 # @alias hivemind

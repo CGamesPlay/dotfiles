@@ -33,7 +33,7 @@ async def main(connection):
             match = await mon.async_get()
             try:
                 filename = locate_sound(match.group(0))
-                subprocess.run(["afplay", "-v", "0.75", filename])
+                subprocess.run(["afplay", "-v", "0.5", filename])
             except:
                 traceback.print_tb(sys.exc_info()[2])
 
