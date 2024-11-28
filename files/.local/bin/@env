@@ -162,7 +162,7 @@ ports() {
 # @cmd Open a shell in the environment
 # @arg       environment![`_list_environments`] Name of the environment
 shell() {
-	argc_args=(run-in-env "exec \$SHELL -il")
+	argc_args=(run-in-env "exec sh -c 'exec \"\$(grep \"^\$USER:\" /etc/passwd | cut -d: -f7)\"'")
 	env-command
 }
 
@@ -198,10 +198,25 @@ codium() {
 
 # @cmd Open Neovide in the environment
 # @arg       environment![`_list_environments`] Name of the environment
+# @arg       directory                          Remote directory to start in
 neovide() {
 	local embed_command
-	embed_command=("$0" exec "${argc_environment:?}" nvim)
+	embed_command=("$0" nvim ${argc_directory:+--chdir "$argc_directory"} "${argc_environment:?}")
 	exec neovide --neovim-bin="$(shelljoin "${embed_command[@]}")"
+}
+
+# @cmd Run neovim in the environment
+# @arg       environment![`_list_environments`] Name of the environment
+# @arg       args~                              Additional args
+# @option    --chdir                            Remote directory to change into
+nvim() {
+	local script
+	script="nvim $(shelljoin ${argc_args:+"${argc_args[@]}"})"
+	if [ ${argc_chdir:+1} ]; then
+		script="cd $(shelljoin "$argc_chdir") && $script"
+	fi
+	argc_args=(run-in-env "$script")
+	env-command
 }
 
 # @cmd Start everything.

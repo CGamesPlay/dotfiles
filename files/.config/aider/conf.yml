@@ -1,2 +1,3 @@
 gitignore: false
 auto-commits: false
+check-update: false
