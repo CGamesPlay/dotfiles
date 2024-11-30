@@ -3,7 +3,7 @@
 
 set -e
 
-if [ `uname -s` != "Darwin" ]; then
+if [ "$(uname -s)" != "Darwin" ]; then
     exit
 fi
 
