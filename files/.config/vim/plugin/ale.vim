@@ -34,12 +34,7 @@ let g:ale_cpp_clangd_options = '--enable-config'
 let g:ale_echo_msg_format = '%linter%:%code%: %s'
 " Show docs in a floating window instead of split
 let g:ale_floating_preview = 1
-if exists('g:neovide')
-  " It would be nice to use the "minwidth" setting to have wider floating
-  " preview windows, but "fixed" only applies when wrap is off. This leads to
-  " very long lines running off the screen.
-  let g:ale_floating_preview_popup_opts = {'border': 'none'}
-else
+if has("gui_macvim")
   " It would be nice to use the "minwidth" setting to have wider floating
   " preview windows, but "fixed" only applies when wrap is off. This leads to
   " very long lines running off the screen.
@@ -48,6 +43,11 @@ else
   " well in vim and causes following lines to render the cursor in the incorrect
   " location.
   let g:ale_virtualtext_cursor = 1
+else
+  " It would be nice to use the "minwidth" setting to have wider floating
+  " preview windows, but "fixed" only applies when wrap is off. This leads to
+  " very long lines running off the screen.
+  let g:ale_floating_preview_popup_opts = {'border': 'none'}
 end
 let g:ale_python_ruff_options = '--unfixable F401,F504,F522,F523,F601,F602,F811,F841'
 let g:ale_javascript_eslint_suppress_eslintignore = 1
