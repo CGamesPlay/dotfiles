@@ -2,8 +2,7 @@
 # @describe Spin up and access isolated development environments.
 #
 # Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment
-# should define shell functions to start, stop, and access the environment, as
-# well as specify which ports should be forwarded into the container.
+# should define shell functions to start and access the environment.
 #
 # Environment-defined functions
 # =============================
@@ -16,14 +15,6 @@
 # function receives a single argument containing the shell script to execute.
 # If standard input is a tty, the function should allocate a tty in the
 # environment.
-#
-# `environment_ports` - print the port forwarding configuration to use with the
-# `ports` subcommand. See the "Ports DSL" section below for more information.
-#
-# Helper functions
-# ================
-#
-# The following helper functions are available for use in environment files.
 set -eu
 
 ATENV_HOME=${ATENV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/@env}
@@ -118,47 +109,6 @@ run-in-env() {
 	env-command
 }
 
-# @cmd Forward ports into/out of the environment.
-#
-# This command starts a new tmux session to run the processes.
-# @arg       environment![`_list_environments`] Name of the environment
-# @flag   -b --background                       Run in a background iTerm tab
-# @flag      --bury                             Bury the calling iTerm session
-# @flag      --dump-procfile                    Show the generated Procfile instead of running it
-ports() {
-	local procfile
-	echo ATENV_PORT_ENV="${argc_environment:?}" "$0" env-command "${argc_environment}" ports ${argc_args+"${argc_args[@]}"}
-	procfile=$(ATENV_PORT_ENV="${argc_environment:?}" "$0" env-command "${argc_environment}" ports ${argc_args+"${argc_args[@]}"})
-	if [[ "${argc_dump_procfile:+1}" ]]; then
-		echo "$procfile"
-		return 0
-	fi
-
-	if [[ "${argc_background:+1}" ]]; then
-		local args eval_str
-		args=()
-		if [[ "${argc_no_bury:+1}" ]]; then
-			args+=(--no-bury)
-		fi
-		args+=("${argc_environment:?}")
-		eval_str="$(shelljoin "$0") ports $(shelljoin "${args[@]}")"
-		local cmd_str="$SHELL -lC \"$eval_str\""
-		local cmd_str=${cmd_str//\\/\\\\}
-		local cmd_str=${cmd_str//\"/\\\"}
-		local script="tell application \"iTerm\" to tell current window to create tab with default profile command \"$cmd_str\""
-		osascript -e "$script"
-		return 0
-	fi
-
-	if [[ "${argc_bury:+1}" ]]; then
-		iterm_set_buried.py 1
-		trap 'iterm_set_buried.py 0' EXIT
-	fi
-
-	exec hivemind <(echo "$procfile")
-
-}
-
 # @cmd Open a shell in the environment
 # @arg       environment![`_list_environments`] Name of the environment
 shell() {
@@ -213,7 +163,7 @@ nvim() {
 	local script
 	script="nvim $(shelljoin ${argc_args:+"${argc_args[@]}"})"
 	if [ ${argc_chdir:+1} ]; then
-		script="cd $(shelljoin "$argc_chdir") && $script"
+		script="cd $(shelljoin "$argc_chdir") && direnv exec . $script"
 	fi
 	argc_args=(run-in-env "$script")
 	env-command
@@ -221,20 +171,9 @@ nvim() {
 
 # @cmd Start everything.
 # @arg       environment![`_list_environments`] Name of the environment
-# @option    --editor[=neovide|vscodium]        Which editor to launch
 start-working() {
 	"$0" up "${argc_environment:?}"
-	ports_log=$(mktemp /tmp/portlog-XXXX)
-	"$0" ports "${argc_environment:?}" >"$ports_log" 2>&1 & ports_pid=$!
-	trap 'echo "Shutting down port forwards..."; kill "$ports_pid"; wait; cat "$ports_log"' EXIT
-	case "${argc_editor:?}" in
-	neovide)
-		"$0" neovide "${argc_environment:?}"
-		;;
-	vscodium)
-		"$0" codium "${argc_environment:?}"
-		;;
-	esac
+	"$0" neovide "${argc_environment:?}"
 	"$0" tmux "${argc_environment:?}"
 }
 

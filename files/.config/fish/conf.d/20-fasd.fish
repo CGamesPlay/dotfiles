@@ -38,6 +38,7 @@ function fasd-cd-widget -d "Change directory"
         commandline -r $__fasd_oldcmd
         commandline -C $__fasd_cursor_pos
         functions -e __fasd_restore_cmd
+        set -eg __fasd_oldcmd __fasd_cursor_pos
       end
     end
   end
