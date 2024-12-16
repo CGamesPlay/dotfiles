@@ -90,6 +90,14 @@ create() {
 	echo "$target"
 }
 
+# @cmd Edit the environment file
+# @arg       environment![`_list_environments`] Name of the environment
+edit() {
+	cd "$ATENV_HOME"
+	# shellcheck disable=SC2086
+	exec command $EDITOR "${argc_environment:?}.sh"
+}
+
 # @cmd Start an environment
 #
 # Specify an environment to see environment-specific options.
