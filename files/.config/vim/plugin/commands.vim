@@ -93,6 +93,6 @@ command! -nargs=? Dotfile call fzf#vim#gitfiles('-co --exclude-standard', { 'dir
 " Open my dotfiles in mvim
 command! Dotfiles call system('open mvim://open?url=file://'.shellescape(g:dotfiles_dir).'/README.md')
 " Run dfm
-exe 'command! -nargs=* Dfm !'.shellescape(g:dotfiles_dir).'/bin/dfm -d '.shellescape(g:dotfiles_dir).' <args>'
+exe 'command! -nargs=* Dfm !dfm -d '.shellescape(g:dotfiles_dir).' <args>'
 
 " }}}

@@ -14,6 +14,26 @@ layout_poetry() {
     PATH_add "$VENV"
 }
 
+# Usage: layout uv
+#
+# Requires that the project already has a uv configuration. Creates/activates
+# the virtual env.
+layout_uv() {
+	# I don't think any change to configuration files is actually relevant to
+	# the activation of the venv, so we won't bother watching them.
+	#watch_file .python-version pyproject.toml uv.lock
+
+    if [[ ! -f pyproject.toml ]]; then
+        log_error 'No pyproject.toml found.  Use `uv init` to create one first.'
+        exit 2
+    fi
+
+	uv venv --quiet
+
+	local venv_path="$(expand_path "${UV_PROJECT_ENVIRONMENT:-.venv}")"
+	source "$venv_path/bin/activate"
+}
+
 layout_rust() {
     PATH_add ~/.cargo/bin
 }
