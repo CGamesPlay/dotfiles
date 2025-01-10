@@ -1,0 +1,29 @@
+#!/bin/bash
+# Launch neovide using the iTerm2 extension script.
+
+set -ue
+
+if [ -d /Applications/Neovide.app ]; then
+	# Running locally, run with a trampoline to support direnv
+	if [[ "${NEOVIDE:+1}" ]]; then
+		unset NEOVIDE
+		DIRECTORY=$1
+		shift
+		cd "$DIRECTORY"
+		exec direnv exec "$DIRECTORY" nvim "$@"
+	else
+		NEOVIDE=1 open -na Neovide --args --neovim-bin="$0 $(printf %q "$(pwd)")" "$@"
+	fi
+
+else
+	# Running in a remote environment, open using iTerm2 custom escape sequence.
+	ATENV_NAME=${ATENV_NAME:?}
+	DIRECTORY=$(pwd)
+	FILENAME=$1
+
+	if [[ -z "$FILENAME" ]]; then
+		printf "\033]1337;Custom=id=%s:env=%s:dir=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY"
+	else
+		printf "\033]1337;Custom=id=%s:env=%s:dir=%s:filename=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY" "$FILENAME"
+	fi
+fi
