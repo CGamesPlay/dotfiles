@@ -17,13 +17,13 @@ if [ -d /Applications/Neovide.app ]; then
 
 else
 	# Running in a remote environment, open using iTerm2 custom escape sequence.
-	ATENV_NAME=${ATENV_NAME:?}
-	DIRECTORY=$(pwd)
-	FILENAME=$1
-
-	if [[ -z "$FILENAME" ]]; then
-		printf "\033]1337;Custom=id=%s:env=%s:dir=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY"
-	else
-		printf "\033]1337;Custom=id=%s:env=%s:dir=%s:filename=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY" "$FILENAME"
+	value="id=neovide:env=${ATENV_NAME:?}:dir=$(pwd)"
+	if [[ "${TMUX:+1}" ]]; then
+		value="$value:tmux=$TMUX"
 	fi
+	if [[ "${1:+1}" ]]; then
+		value="$value:filename=$1"
+	fi
+
+	printf "\033]1337;Custom=%s\a" "$value"
 fi

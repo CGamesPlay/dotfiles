@@ -20,6 +20,7 @@ async def main(connection):
                 env = None
                 directory = None
                 filename = None
+                tmux = None
 
                 for part in match.string.split(":"):
                     if part.startswith("env="):
@@ -28,19 +29,25 @@ async def main(connection):
                         directory = part[4:]
                     elif part.startswith("filename="):
                         filename = part[9:]
+                    elif part.startswith("tmux="):
+                        tmux = part[5:]
 
                 if env is None:
                     print("No env name given; skipping")
 
-                nvim_cmd = (
-                    f"@env nvim --chdir={shlex.quote(directory)} {shlex.quote(env)}"
-                )
+                nvim_cmd = ["@env", "nvim"]
+                if tmux:
+                    nvim_cmd.append(f"--tmux={shlex.quote(tmux)}")
+                nvim_cmd += [
+                    f"--chdir={shlex.quote(directory)}",
+                    shlex.quote(env),
+                ]
                 neovide_cmd = [
                     "open",
                     "-na",
                     "Neovide",
                     "--args",
-                    f"--neovim-bin={nvim_cmd}",
+                    f"--neovim-bin={' '.join(nvim_cmd)}",
                 ]
                 if filename:
                     neovide_cmd.append(filename)
