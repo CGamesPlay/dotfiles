@@ -1,0 +1,12 @@
+#!/bin/bash
+# Launch neovide using the iTerm2 extension script.
+
+ATENV_NAME=${ATENV_NAME:?}
+DIRECTORY=$(pwd)
+FILENAME=$1
+
+if [[ -z "$FILENAME" ]]; then
+	printf "\033]1337;Custom=id=%s:env=%s:dir=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY"
+else
+	printf "\033]1337;Custom=id=%s:env=%s:dir=%s:filename=%s\a" "neovide" "$ATENV_NAME" "$DIRECTORY" "$FILENAME"
+fi

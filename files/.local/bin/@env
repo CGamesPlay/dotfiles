@@ -136,33 +136,6 @@ tmux() {
 	env-command
 }
 
-# @cmd Open VSCodium in the environment
-#
-# The ports subcommand must already be running with vscodium enabled.
-# @arg       environment![`_list_environments`] Name of the environment
-# @option    --remote=remote  Name of the Remote-OSS remote
-# @option    --path           Path in the remote to open
-codium() {
-	if [[ ${argc_path:+1} ]]; then
-		path=${argc_path}
-	else
-		path=$($0 exec "${argc_environment:?}" pwd)
-	fi
-	local remote_encoded
-	remote_encoded=$(echo -n "${argc_remote:?}" | xxd -ps)
-	url=vscodium://vscode-remote/remote-oss+--${remote_encoded}${path}
-	open "$url"
-}
-
-# @cmd Open Neovide in the environment
-# @arg       environment![`_list_environments`] Name of the environment
-# @arg       directory                          Remote directory to start in
-neovide() {
-	local embed_command
-	embed_command=("$0" nvim ${argc_directory:+--chdir "$argc_directory"} "${argc_environment:?}")
-	exec neovide --neovim-bin="$(shelljoin "${embed_command[@]}")"
-}
-
 # @cmd Run neovim in the environment
 # @arg       environment![`_list_environments`] Name of the environment
 # @arg       args~                              Additional args
@@ -179,10 +152,10 @@ nvim() {
 
 # @cmd Start everything.
 # @arg       environment![`_list_environments`] Name of the environment
+# @arg       directory                          Remote directory to start in
 start-working() {
 	"$0" up "${argc_environment:?}"
-	"$0" neovide "${argc_environment:?}"
-	"$0" tmux "${argc_environment:?}"
+	"$0" tmux "${argc_environment:?}" ${argc_directory:+"${argc_directory}"}
 }
 
 if ! command -v argc >/dev/null; then

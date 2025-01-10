@@ -20,11 +20,4 @@ run-in-env() {
 	return 1
 }
 
-# @cmd Print the port forwarding specification
-ports() {
-	declare_ports <<-EOF
-	ssh_agent
-	EOF
-}
-
 eval "$(argc --argc-eval "$0" "$@")"
