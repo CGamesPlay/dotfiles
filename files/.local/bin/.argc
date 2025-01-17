@@ -81,8 +81,56 @@ create::cachedir-tag() {
 	echo "${argc_target}/CACHEDIR.TAG: created"
 }
 
-pwd() {
-	command pwd
+# @cmd Commands for working with ruby/rails projects.
+#
+#   And on the pedestal, these words appear:
+#   My name is Ozymandias, King of Kings;
+#   Look on my Works, ye Mighty, and despair!
+#   Nothing beside remains. Round the decay
+#   Of that colossal Wreck, boundless and bare
+#   The lone and level sands stretch far away.
+rails() { :; }
+
+# @cmd Generate offline documentation for all gems in the Gemfile
+# @arg       target=doc <DIR>  Target directory.
+# @flag      --rebuild         Ignore existing documentation
+# @meta require-tools bundle,gem
+rails::rdoc() {
+	if ! gem list rdoc -i >/dev/null; then
+		echo "RDoc is not installed. Installing now."
+		gem install rdoc
+	fi
+	if ! gem list sdoc -i >/dev/null; then
+		echo "SDoc is not installed. Installing now."
+		gem install sdoc
+	fi
+
+	mkdir -p "${argc_target:?}"
+	index_file="${argc_target:?}/index.html"
+	> "$index_file"
+
+	echo "<html><head><title>Gems Documentation Index</title></head><body><h1>Gems Documentation Index</h1><ul>" > "$index_file"
+
+	for gem_path in $(bundle list --paths); do
+		gem_name=$(basename "$gem_path")
+		gem_out_dir="${argc_target:?}/$gem_name"
+		if [ -d "$gem_out_dir" ]; then
+			echo "<li><a href='$gem_name/index.html'>$gem_name</a></li>" >> "$index_file"
+		fi
+
+		if [ -d "$gem_out_dir" -a ! "${argc_rebuild:+1}" ]; then
+			echo "Skipping $gem_name"
+			continue
+		fi
+
+		if ! rdoc --output "$gem_out_dir" --format sdoc -T rails "$gem_path"; then
+			echo "Failed to compile rdocs for $gem_name" >&2
+		fi
+	done
+
+	echo "</ul></body></html>" >> "$index_file"
+
+	echo "RDoc generation complete. Open $index_file to browse the documentation."
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
