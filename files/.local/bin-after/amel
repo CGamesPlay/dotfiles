@@ -1,8 +1,0 @@
-#!/bin/bash
-
-read -p "Amel is not installed. Install using pipx [Yn]? " -r response
-if [[ ! $response || $response =~ ^[Yy]$ ]]; then
-	exec pipx install git+ssh://git@gitlab.com/CGamesPlay/amel-pair.git
-else
-	exit 1
-fi
