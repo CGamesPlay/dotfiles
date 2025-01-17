@@ -51,7 +51,7 @@ augroup END
 
 " Show line numbers in the gutter
 set number
-if has('gui_macvim') && exists('+relativenumber')
+if (has('gui_macvim') && exists('+relativenumber')) || exists("g:neovide")
   " I prefer this, but is really slow to update in the terminal.
   set nonumber relativenumber
 end
@@ -149,7 +149,7 @@ augroup END
 
 augroup setup_gui
   " Set preferred window size on startup
-  if has("gui_macvim")
+  if has("gui_macvim") || exists("g:neovide")
     autocmd GUIEnter * :2Cols
   end
 

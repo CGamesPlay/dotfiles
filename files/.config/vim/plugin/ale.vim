@@ -16,7 +16,7 @@ let g:ale_fixers = {
       \'json': ['prettier'],
       \'jsonc': ['prettier'],
       \'python': ['ruff_format', 'ruff'],
-      \'ruby': ['rubocop'],
+      \'ruby': ['standardrb'],
       \'rust': ['rustfmt'],
       \'typescript': ['prettier'],
       \'typescriptreact': ['prettier'],
