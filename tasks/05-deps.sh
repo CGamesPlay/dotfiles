@@ -5,10 +5,11 @@ set -e
 
 packages=()
 type curl >/dev/null 2>&1 || packages+=(curl)
-type tar >/dev/null 2>&1 || packages+=(tar)
 type git >/dev/null 2>&1 || packages+=(git)
-type vim >/dev/null 2>&1 || packages+=(vim)
+type nvim >/dev/null 2>&1 || packages+=(neovim)
+type tar >/dev/null 2>&1 || packages+=(tar)
 type tmux >/dev/null 2>&1 || packages+=(tmux)
+type vim >/dev/null 2>&1 || packages+=(vim)
 
 if [[ "${#packages[@]}" -gt 0 ]]; then
 	if is_installed apt-get 2>/dev/null; then
