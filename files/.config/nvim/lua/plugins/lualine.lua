@@ -1,4 +1,5 @@
--- A blazing fast and easy to configure neovim statusline plugin written in pure lua.
+-- A blazing fast and easy to configure neovim statusline plugin written in
+-- pure lua.
 
 local function make_theme()
   local Colors = vim.o.background == "light"
@@ -93,23 +94,7 @@ return {
       lualine_a = { my_mode },
       lualine_b = { "diagnostics" },
       lualine_c = { { "filename", path = 1 } },
-      lualine_x = {
-        {
-          "copilot",
-          symbols = {
-            status = {
-              icons = {
-                enabled = "⎈",
-                sleep = "⎈",
-                disabled = "-",
-                warning = "W",
-                unknown = "?",
-              },
-            },
-          },
-        },
-        "filetype",
-      },
+      lualine_x = { "copilot", "filetype" },
       lualine_y = { "progress" },
       lualine_z = { "location" },
     },
@@ -122,13 +107,14 @@ return {
       lualine_z = { "location" },
     },
   },
-  config = function(_, opts)
-    require("lualine").setup(opts)
+  init = function()
+    local augroup = vim.api.nvim_create_augroup("plugins.lualine", { clear = true })
     vim.api.nvim_create_autocmd("OptionSet", {
       pattern = "background",
       callback = function()
         require("lualine").setup({ options = { theme = make_theme() } })
       end,
+      group = augroup,
     })
   end,
 }

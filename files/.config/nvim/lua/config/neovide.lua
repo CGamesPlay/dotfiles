@@ -43,7 +43,7 @@ vim.keymap.set("n", "<D-t>", "<Cmd>tabnew<CR>", { silent = true })
 vim.keymap.set("n", "<D-{>", "<Cmd>tabprev<CR>", { silent = true })
 vim.keymap.set("n", "<D-}>", "<Cmd>tabnext<CR>", { silent = true })
 -- Close buffer, uses a custom command.
-vim.keymap.set("n", "<D-w>", "<Cmd>BufDel<CR>", { silent = true })
+vim.keymap.set("n", "<D-w>", "<Cmd>BW<CR>", { silent = true })
 
 -- Command -/0/= to adjust zoom
 vim.g.neovide_scale_factor = 1.0

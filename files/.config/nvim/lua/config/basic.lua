@@ -6,7 +6,7 @@ vim.g.maplocalleader = ","
 
 -- This is an unofficial but apparently widely-used global variable controlling
 -- the usage of Nerd Font.
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- Show relative line numbers in the gutter (full line number is always in the
 -- status bar). Note that relativenumber can cause lag over slow connections.
@@ -75,6 +75,10 @@ vim.opt.completeopt = "menu,menuone,noinsert,preview"
 -- Set the default tab width to 4 characters. All other tab settings are defined per-filetype and using plugins.
 vim.opt.shiftwidth = 4
 vim.opt.tabstop = 4
+
+-- Format lists inside of comments
+vim.opt.formatoptions:append("n")
+vim.opt.formatlistpat = "^\\s*\\d\\+\\.\\s\\+\\|^\\s*[-*+]\\s\\+\\|^\\[^\\ze[^\\]]\\+\\]:"
 
 -- The path to the dotfiles directory.
 vim.g.dotfiles_dir = vim.fn.fnamemodify(vim.fn.resolve(vim.fn.stdpath("config") .. "/init.lua"), ":h:h:h:h")

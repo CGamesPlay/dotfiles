@@ -25,12 +25,12 @@ The [fish](https://fishshell.com) configuration is probably the most important. 
 - `files/.config/fish/conf.d/*` are run each fish startup, in order. Files here are designed to be short and single-purpose.
 - `files/.config/fish/functions/*` are autoloaded by fish on demand. These can override installed and built-in commands. These commands provide their own help in some cases.
 
-The vim configuration is also worth explaining.
+The Neovim configuration is also worth explaining.
 
-- `files/.vimrc` is the read by vim by default. It ensures that my XDG environment variables are set up, then sources `~/.config/vim/vimrc`.
-- `files/.config/vim/vimrc` is the main entry point for my vim configuration. It is primarily responsible for listing plugins, and the only configuration is does is setting global variables which must be set before the plugins load.
-- `files/.config/vim/plugin/*` are all loaded next, and are generally grouped into broad categories.
-- `files/.config/vim/ftplugin/*` are loaded when a file of the matching type is loaded. This is used to override default settings for the given file type.
+- `files/.config/nvim/init.lua` is the main entry point for my nvim configuration. It is primarily responsible for ensuring the XDG environment variables are set, and then loads other files.
+- `files/.config/nvim/lua/config/basic.lua` sets all of the base configuration that doesn't depend on any plugins.
+- `files/.config/nvim/lua/plugins/*.lua` are all loaded by lazy, and generally each correspond to a single plugin.
+- `files/.config/nvim/ftplugin/*` are loaded when a file of the matching type is loaded. This is used to override default settings for the given file type.
 
 I also have a collection of custom scripts available in this repository:
 
