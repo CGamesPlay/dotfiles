@@ -13,6 +13,9 @@ end
 if [ -d /opt/homebrew/bin ]
   fish_add_path -g /opt/homebrew/bin
 end
+if [ -d /opt/nvim-linux64/bin ]
+  fish_add_path -g /opt/nvim-linux64/bin
+end
 if [ -d ~/.cargo/bin ]
   fish_add_path -g ~/.cargo/bin
 end
