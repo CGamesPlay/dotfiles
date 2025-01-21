@@ -44,13 +44,13 @@ return {
 
     {
       "g*",
-      [[:let @/='\C\V<C-r><C-w>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>' | botright cwindow<CR>]],
+      [[:let @/='\C\V<C-r><C-w>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>'<CR>]],
       silent = true,
       desc = "Grep for word with git",
     },
     {
       "g*",
-      [[y:let @/='\C\V<C-r>"' | set hlsearch | silent Ggrep! '<C-r>"' | botright cwindow<CR>]],
+      [[y:let @/='\C\V<C-r>"' | set hlsearch | silent Ggrep! '<C-r>"'<CR>]],
       silent = true,
       mode = "v",
       desc = "Grep for selection with git",
@@ -58,5 +58,10 @@ return {
   },
   init = function()
     vim.g.fugitive_legacy_commands = 0
+
+    vim.api.nvim_create_autocmd("QuickFixCmdPost", {
+      desc = "Open the quickfix window after a grep",
+      command = "botright cwindow",
+    })
   end,
 }

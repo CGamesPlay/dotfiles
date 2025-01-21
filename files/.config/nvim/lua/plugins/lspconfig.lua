@@ -12,8 +12,8 @@ return {
     opts = {
       -- See `:help lspconfig-all` for a list of all the pre-configured LSPs
       servers = {
-        pyright = {},
         clangd = {},
+        pyright = {},
       },
     },
     config = function(_, opts)

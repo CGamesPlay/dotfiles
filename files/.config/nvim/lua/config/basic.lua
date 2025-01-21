@@ -140,7 +140,7 @@ vim.keymap.set("n", "*", "")
 
 -- Q normally repeats the last recorded macro, but this is the same as @@, so
 -- I map it to line formatting instead.
-vim.keymap.set("", "Q", "gq")
+vim.keymap.set("", "Q", "gw")
 
 -- Use vp to select the most recently pasted text (VP for whole lines)
 vim.keymap.set("v", "p", "`[o`]")
@@ -241,12 +241,6 @@ vim.api.nvim_create_autocmd("VimEnter", {
   group = augroup,
 })
 
-vim.api.nvim_create_autocmd("CursorHold", {
-  desc = "Clear the command line",
-  command = "echon ''",
-  group = augroup,
-})
-
 -- [[ Basic commands ]]
 
 -- Resize my window to fit N columns of 81 columns with 6 gutter columns each
@@ -272,7 +266,8 @@ end, {
   nargs = "*",
 })
 
--- Convenient command to see the difference between the current buffer and the file it was loaded from, thus the changes you made.
+-- Convenient command to see the difference between the current buffer and the
+-- file it was loaded from, thus the changes you made.
 vim.api.nvim_create_user_command("DiffOrig", function()
   vim.cmd("vert new | set bt=nofile | r # | 0d_ | diffthis | wincmd p | diffthis")
 end, { desc = "Show differences between in-memory and on-disk versions of current file" })

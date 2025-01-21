@@ -31,30 +31,37 @@ return {
     },
     format_on_save = function(bufnr)
       -- Disable with a global or buffer-local variable
-      if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
+      if vim.g.conform_disable or vim.b[bufnr].conform_disable then
         return
       end
-      return { timeout_ms = 500 }
+      return { timeout_ms = vim.b[bufnr].conform_timeout or vim.g.conform_timeout }
     end,
   },
   init = function()
-    vim.o.formatexpr = "v:lua.require'conform'.formatexpr()"
+    -- This enables using gq for range formatting
+    vim.o.formatexpr = "v:lua.require'plugins.conform'.formatexpr()"
+    vim.g.conform_timeout = 1000
   end,
   keys = {
     {
       "<leader>tf",
       function()
         local bufnr = vim.api.nvim_get_current_buf()
-        vim.b[bufnr].disable_autoformat = not vim.b[bufnr].disable_autoformat
+        vim.b[bufnr].conform_disable = not vim.b[bufnr].conform_disable
       end,
       desc = "[T]oggle Auto[f]ormat",
     },
     {
       "<leader>tF",
       function()
-        vim.g.disable_autoformat = not vim.g.disable_autoformat
+        vim.g.conform_disable = not vim.g.conform_disable
       end,
       desc = "[T]oggle Auto[f]ormat (all files)",
     },
   },
+
+  formatexpr = function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    return require("conform").formatexpr({ timeout_ms = vim.b[bufnr].conform_timeout or vim.g.conform_timeout })
+  end,
 }
