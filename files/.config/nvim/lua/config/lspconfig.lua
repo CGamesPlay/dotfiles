@@ -1,5 +1,15 @@
 -- nvim-lspconfig is a "data only" repo, providing basic, default Nvim LSP
 -- client configurations for various LSP servers.
+
+--- Configuration to disable an LSP.
+local disabled = {
+  root_dir = function()
+    return nil
+  end,
+  single_file_support = false,
+  filetypes = {},
+}
+
 return {
   {
     "neovim/nvim-lspconfig",
@@ -10,17 +20,23 @@ return {
     },
     event = "VeryLazy",
     opts = {
-      -- See `:help lspconfig-all` for a list of all the pre-configured LSPs
+      -- All installed LSPs are activated by default, use the disabled value to
+      -- explicitly disable one. It's also possible to add extra settings, see
+      -- :help lspconfig-setup. See :help lspconfig-all for a list of all the
+      -- pre-configured LSPs
       servers = {
-        clangd = {},
-        pyright = {},
-        ts_ls = {},
+        --bad_lsp = disabled,
       },
     },
     config = function(_, opts)
+      local lspconfig = require("lspconfig")
+
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       -- Add cmp-nvim-lsp's capabilities
       vim.tbl_deep_extend("force", capabilities, require("cmp_nvim_lsp").default_capabilities())
+
+      lspconfig.util.default_config =
+        vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
 
       local function setup_server(server_name)
         local server = opts.servers[server_name] or {}
@@ -105,7 +121,7 @@ return {
 
       -- Allow the plugin to be unloaded
       require("lspconfig").deactivate = function()
-          vim.cmd("LspStop")
+        vim.lsp.stop_client(vim.lsp.get_clients())
       end
     end,
   },
