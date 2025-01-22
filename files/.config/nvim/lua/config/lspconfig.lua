@@ -14,6 +14,7 @@ return {
       servers = {
         clangd = {},
         pyright = {},
+        ts_ls = {},
       },
     },
     config = function(_, opts)
@@ -101,6 +102,11 @@ return {
 
       -- Start the LSP after lazy-loading
       vim.cmd("LspStart")
+
+      -- Allow the plugin to be unloaded
+      require("lspconfig").deactivate = function()
+          vim.cmd("LspStop")
+      end
     end,
   },
 }

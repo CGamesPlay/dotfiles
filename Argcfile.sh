@@ -2,9 +2,12 @@
 # @describe Helper scripts for managing the dotfiles.
 set -eu
 
-# @cmd Update the git remote URL to point to the canonical one over SSH.
-make-pushable() {
-	git remote set-url origin git@gitlab.com:CGamesPlay/dotfiles.git
+# @cmd Push the changes to the repository.
+#
+# This amends the latest commit to sign it, and uses --force-with-lease
+push() {
+	git commit --amend -C HEAD -S
+	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
 }
 
 # @cmd Find files that maybe should be added to DFM.
