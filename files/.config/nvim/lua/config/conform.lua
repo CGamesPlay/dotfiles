@@ -1,5 +1,15 @@
 -- Lightweight yet powerful formatter plugin for Neovim
 -- Formatter list at :help conform-formatters
+
+local keys = require("keygroup").new("config.conform")
+keys:set("n", "<leader>tf", function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  vim.b[bufnr].conform_disable = not vim.b[bufnr].conform_disable
+end, { desc = "[T]oggle Auto[f]ormat" })
+keys:set("n", "<leader>tF", function()
+  vim.g.conform_disable = not vim.g.conform_disable
+end, { desc = "[T]oggle Auto[f]ormat (all files)" })
+
 return {
   "stevearc/conform.nvim",
   version = "*",
@@ -42,23 +52,7 @@ return {
     vim.o.formatexpr = "v:lua.require'plugins.conform'.formatexpr()"
     vim.g.conform_timeout = 1000
   end,
-  keys = {
-    {
-      "<leader>tf",
-      function()
-        local bufnr = vim.api.nvim_get_current_buf()
-        vim.b[bufnr].conform_disable = not vim.b[bufnr].conform_disable
-      end,
-      desc = "[T]oggle Auto[f]ormat",
-    },
-    {
-      "<leader>tF",
-      function()
-        vim.g.conform_disable = not vim.g.conform_disable
-      end,
-      desc = "[T]oggle Auto[f]ormat (all files)",
-    },
-  },
+  keys = keys:lazy_keys(),
 
   formatexpr = function()
     local bufnr = vim.api.nvim_get_current_buf()

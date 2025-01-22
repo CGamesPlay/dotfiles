@@ -48,7 +48,7 @@ return {
     })
 
     cmp.setup.cmdline(":", {
-      completion = { autocomplete = { "TextChanged" } },
+      completion = { autocomplete = { "TextChanged" }, completeopt = "menu,longest" },
       mapping = cmp.mapping.preset.cmdline(),
       sources = cmp.config.sources({ { name = "path", option = { trailing_slash = true } } }, { { name = "cmdline" } }),
       matching = { disallow_symbol_nonprefix_matching = false },

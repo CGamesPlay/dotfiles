@@ -1,9 +1,5 @@
 -- [[ Basic options ]]
 
--- Lazy requires that this is set before any plugins are loaded.
-vim.g.mapleader = ","
-vim.g.maplocalleader = ","
-
 -- This is an unofficial but apparently widely-used global variable controlling
 -- the usage of Nerd Font.
 vim.g.have_nerd_font = true
@@ -89,86 +85,88 @@ vim.g.dotfiles_dir = vim.fn.fnamemodify(vim.fn.resolve(vim.fn.stdpath("config") 
 -- select), l is not a mode, but applies to "text that would be in the buffer"
 -- like search fields. Empty string is nvo. help :vim.keymap.set()
 
+local keys = require("keygroup").new("config.builtin")
+
 -- Use arrow keys to scroll view in normal mode
-vim.keymap.set("n", "<Up>", "<C-y>")
-vim.keymap.set("n", "<Down>", "<C-e>")
+keys:set("n", "<Up>", "<C-y>")
+keys:set("n", "<Down>", "<C-e>")
 -- TIP: Unbind the arrow keys to force yourself to break that habit when you
 -- are just getting started with vim.
--- vim.keymap.set({'n', 'i'}, '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set({'n', 'i'}, '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set({'n', 'i'}, '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set({'n', 'i'}, '<down>', '<cmd>echo "Use j to move!!"<CR>')
+-- keys:set({'n', 'i'}, '<left>', '<cmd>echo "Use h to move!!"<CR>')
+-- keys:set({'n', 'i'}, '<right>', '<cmd>echo "Use l to move!!"<CR>')
+-- keys:set({'n', 'i'}, '<up>', '<cmd>echo "Use k to move!!"<CR>')
+-- keys:set({'n', 'i'}, '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
 -- Exit insert mode by typing jk. To actually insert "jk", wait 1 second after
 -- typing the j.
-vim.keymap.set("i", "jk", "<Esc>")
+keys:set("i", "jk", "<Esc>")
 
-vim.keymap.set("n", "<leader>/", "<cmd>nohlsearch<CR>", { desc = "Clear search highlights (until next search)" })
-vim.keymap.set("n", "<leader>dl", vim.diagnostic.setloclist, { desc = "Open [d]iagnostic [l]ocation list" })
-vim.keymap.set("n", "<leader>d.", vim.diagnostic.open_float, { desc = "Open [d]iagnostic under cursor" })
+keys:set("n", "<leader>/", "<cmd>nohlsearch<CR>", { desc = "Clear search highlights (until next search)" })
+keys:set("n", "<leader>dl", vim.diagnostic.setloclist, { desc = "Open [d]iagnostic [l]ocation list" })
+keys:set("n", "<leader>d.", vim.diagnostic.open_float, { desc = "Open [d]iagnostic under cursor" })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover.
 --
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
-vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+keys:set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
 --
 --  See `:help wincmd` for a list of all window commands
-vim.keymap.set("n", "<C-h>", "<C-w><C-h>", { desc = "Focus left window" })
-vim.keymap.set("n", "<C-l>", "<C-w><C-l>", { desc = "Focus right window" })
-vim.keymap.set("n", "<C-j>", "<C-w><C-j>", { desc = "Focus lower window" })
-vim.keymap.set("n", "<C-k>", "<C-w><C-k>", { desc = "Focus upper window" })
+keys:set("n", "<C-h>", "<C-w><C-h>", { desc = "Focus left window" })
+keys:set("n", "<C-l>", "<C-w><C-l>", { desc = "Focus right window" })
+keys:set("n", "<C-j>", "<C-w><C-j>", { desc = "Focus lower window" })
+keys:set("n", "<C-k>", "<C-w><C-k>", { desc = "Focus upper window" })
 
 -- Enter command mode without pressing shift!
-vim.keymap.set("", ";", ":")
+keys:set("", ";", ":")
 
 -- Have j/k move screen lines (for the line is wrapped), but only when not
 -- using a count.
-vim.keymap.set({ "n", "x" }, "j", 'v:count == 0 ? "gj" : "j"', { desc = "Down", expr = true, silent = true })
-vim.keymap.set({ "n", "x" }, "k", 'v:count == 0 ? "gk" : "k"', { desc = "Up", expr = true, silent = true })
+keys:set({ "n", "x" }, "j", 'v:count == 0 ? "gj" : "j"', { desc = "Down", expr = true, silent = true })
+keys:set({ "n", "x" }, "k", 'v:count == 0 ? "gk" : "k"', { desc = "Up", expr = true, silent = true })
 
 -- n/N normally follow/reverse the current search direction. I want them to
 -- always move forwards/backwards through the file (even if you start the
 -- search with ? or #).
-vim.keymap.set("n", "n", "'Nn'[v:searchforward].'zv'", { expr = true, desc = "Next search result" })
-vim.keymap.set({ "x", "o" }, "n", "'Nn'[v:searchforward]", { expr = true, desc = "Next search result" })
-vim.keymap.set("n", "N", "'nN'[v:searchforward].'zv'", { expr = true, desc = "Previous search result" })
-vim.keymap.set({ "x", "o" }, "N", "'nN'[v:searchforward]", { expr = true, desc = "Previous search result" })
+keys:set("n", "n", "'Nn'[v:searchforward].'zv'", { expr = true, desc = "Next search result" })
+keys:set({ "x", "o" }, "n", "'Nn'[v:searchforward]", { expr = true, desc = "Next search result" })
+keys:set("n", "N", "'nN'[v:searchforward].'zv'", { expr = true, desc = "Previous search result" })
+keys:set({ "x", "o" }, "N", "'nN'[v:searchforward]", { expr = true, desc = "Previous search result" })
 
 -- Force * and # to search case-sensitive, ignoring smartcase.
-vim.keymap.set("n", "*", "")
+keys:set("n", "*", "")
 
 -- Q normally repeats the last recorded macro, but this is the same as @@, so
 -- I map it to line formatting instead.
-vim.keymap.set("", "Q", "gw")
+keys:set("", "Q", "gw")
 
 -- Use vp to select the most recently pasted text (VP for whole lines)
-vim.keymap.set("v", "p", "`[o`]")
-vim.keymap.set("v", "P", "'[o']")
+keys:set("v", "p", "`[o`]")
+keys:set("v", "P", "'[o']")
 
 -- Disable ignorecase when using * and #. This is usually what you want in
 -- code, but maybe not in prose.
-vim.keymap.set("n", "*", '/\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true })
-vim.keymap.set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true })
+keys:set("n", "*", '/\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true })
+keys:set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true })
 
 -- Use %% in command mode to get the directory of the current buffer.
-vim.keymap.set("c", "%%", '<C-R>=expand("%:h")<CR>/')
+keys:set("c", "%%", '<C-R>=expand("%:h")<CR>/')
 
 -- Stay in visual mode after changing the indent in visual mode
-vim.keymap.set("x", "<", "<gv")
-vim.keymap.set("x", ">", ">gv")
+keys:set("x", "<", "<gv")
+keys:set("x", ">", ">gv")
 
 -- Disable mouse selection for text (because I trigger is accidentally)
-vim.keymap.set("n", "<LeftDrag>", "<Nop>")
-vim.keymap.set("n", "<LeftRelease>", "<Nop>")
+keys:set("n", "<LeftDrag>", "<Nop>")
+keys:set("n", "<LeftRelease>", "<Nop>")
 
 -- Jump between quickfix locations
 local function bracket_map(left, cmd, desc)
-  vim.keymap.set("n", left, "<Cmd>:" .. cmd .. "<CR>", { desc = desc })
+  keys:set("n", left, "<Cmd>:" .. cmd .. "<CR>", { desc = desc })
 end
 bracket_map("[L", "lfirst", "Jump To First [L]ocation item")
 bracket_map("]L", "llast", "Jump To Last [L]ocation item")
@@ -180,15 +178,15 @@ bracket_map("[q", "cprev", "Jump To Previous [Q]uickfix item")
 bracket_map("]q", "cnext", "Jump To Next [Q]uickfix item")
 
 -- Some option toggles
-vim.keymap.set(
+keys:set(
   "n",
   "<leader>tx",
   "<Cmd>setl invcursorcolumn invcursorline<CR>",
   { silent = true, desc = "[T]oggle Crosshair ([x])" }
 )
-vim.keymap.set("n", "<leader>t ", "<Cmd>setl invlist<CR>", { silent = true, desc = "[T]oggle Visible White[space]" })
+keys:set("n", "<leader>t ", "<Cmd>setl invlist<CR>", { silent = true, desc = "[T]oggle Visible White[space]" })
 
-vim.keymap.set("n", "<D-r>", function()
+keys:set("n", "<D-r>", function()
   vim.cmd("wa")
   local handle = io.popen(
     'osascript -e \'tell application "Google Chrome" to set URL of active tab of its first window to "javascript:void(typeof Jupyter !== \\"undefined\\" ? Jupyter.notebook.execute_all_cells() : location.reload())"\''
@@ -245,6 +243,12 @@ vim.api.nvim_create_autocmd("VimEnter", {
   group = augroup,
 })
 
+vim.api.nvim_create_autocmd("QuickFixCmdPost", {
+  desc = "Open the quickfix window after a grep",
+  command = "botright cwindow",
+  group = augroup,
+})
+
 -- [[ Basic commands ]]
 
 -- Resize my window to fit N columns of 81 columns with 6 gutter columns each
@@ -275,3 +279,7 @@ end, {
 vim.api.nvim_create_user_command("DiffOrig", function()
   vim.cmd("vert new | set bt=nofile | r # | 0d_ | diffthis | wincmd p | diffthis")
 end, { desc = "Show differences between in-memory and on-disk versions of current file" })
+
+-- This file is treated as a lazy plugin spec. This means lazy will
+-- automatically reload it for us!
+return {}

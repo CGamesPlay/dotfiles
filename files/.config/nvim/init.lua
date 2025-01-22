@@ -1,3 +1,6 @@
+-- This is the main entry point for my nvim config, but most of the interesting
+-- configuration happens in lua/config/.
+
 -- [[ XDG Environment setup ]]
 -- Set these variables to sane defaults. On Linux they should already be set,
 -- but MacOS doesn't provide them by default.
@@ -13,9 +16,57 @@ if vim.env.XDG_CACHE_HOME == nil or vim.env.XDG_CACHE_HOME == "" then
   end
 end
 
--- [[ Loading config files ]]
--- Config is split into multiple files, the order that these are loaded is
--- important.
-require("config.basic")
-require("config.lazy")
-require("config.neovide")
+-- [[ Install lazy.nvim ]]
+-- Install the plugin manager itself, if it isn't already installed.
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_echo({
+      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
+      { out, "WarningMsg" },
+      { "\nPress any key to exit..." },
+    }, true, {})
+    vim.fn.getchar()
+    os.exit(1)
+  end
+end
+vim.opt.rtp:prepend(lazypath)
+
+-- [[ Set Up lazy.nvim ]]
+
+-- Lazy requires that this is set before any plugins are loaded, and that it is
+-- never changed.
+vim.g.mapleader = ","
+vim.g.maplocalleader = ","
+
+require("lazy").setup({
+  spec = {
+    { import = "config" },
+  },
+  -- Configure any other settings here. See the documentation for more details.
+  -- colorscheme that will be used when installing plugins.
+  install = { colorscheme = { "habamax" } },
+  -- automatically check for plugin updates
+  checker = { enabled = true },
+  -- disable luarocks (consider adding back later)
+  rocks = { enabled = false },
+  ui = {
+    icons = {
+      cmd = "⌘",
+      config = "🛠",
+      event = "📅",
+      ft = "📂",
+      init = "⚙",
+      keys = "🗝",
+      plugin = "🔌",
+      runtime = "💻",
+      require = "🌙",
+      source = "📄",
+      start = "🚀",
+      task = "📌",
+      lazy = "💤 ",
+    },
+  },
+})

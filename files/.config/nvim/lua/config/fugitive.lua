@@ -61,40 +61,32 @@ local function git_delete()
   vim.cmd("GRemove! | BD")
 end
 
+local keys = require("keygroup").new("config.fugitive")
+
+keys:set("n", "<leader>gs", "<Cmd>Git<CR>", { desc = "[G]it [S]tatus" })
+keys:set("n", "<leader>gb", "<Cmd>Git blame<CR>", { desc = "[G]it [B]lame" })
+keys:set("n", "<leader>gd", git_delete, { desc = "[G]it [D]elete" })
+keys:set("n", "<leader>gw", "<Cmd>:Gwrite<CR>", { desc = "[G]it [W]rite (buffer to git index)" })
+keys:set("n", "<leader>gr", "<Cmd>:Gread<CR>", { desc = "[G]it [R]ead (buffer from git index)" })
+
+keys:set(
+  "n",
+  "<leader>g*",
+  [[:let @/='\C\V<C-r><C-w>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>'<CR>]],
+  { silent = true, desc = "[G]it Grep Word ([*])" }
+)
+keys:set(
+  "v",
+  "g*",
+  [[y:let @/='\C\V<C-r>"' | set hlsearch | silent Ggrep! '<C-r>"'<CR>]],
+  { silent = true, desc = "[G]it Grep Selection ([*])" }
+)
+
 return {
   "tpope/vim-fugitive",
   version = "*",
   event = "VeryLazy",
-  keys = {
-    { "<leader>gs", "<Cmd>Git<CR>", desc = "[G]it [S]tatus" },
-    { "<leader>gb", "<Cmd>Git blame<CR>", desc = "[G]it [B]lame" },
-    { "<leader>gd", git_delete, desc = "[G]it [D]elete" },
-    { "<leader>gw", "<Cmd>:Gwrite<CR>", desc = "[G]it [W]rite (buffer to git index)" },
-    { "<leader>gr", "<Cmd>:Gread<CR>", desc = "[G]it [R]ead (buffer from git index)" },
-
-    {
-      "g*",
-      [[:let @/='\C\V<C-r><C-w>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>'<CR>]],
-      silent = true,
-      desc = "Grep for word with git",
-    },
-    {
-      "g*",
-      [[y:let @/='\C\V<C-r>"' | set hlsearch | silent Ggrep! '<C-r>"'<CR>]],
-      silent = true,
-      mode = "v",
-      desc = "Grep for selection with git",
-    },
-  },
   init = function()
     vim.g.fugitive_legacy_commands = 0
-
-    local augroup = vim.api.nvim_create_augroup("Fugitive", { clear = true })
-
-    vim.api.nvim_create_autocmd("QuickFixCmdPost", {
-      desc = "Open the quickfix window after a grep",
-      command = "botright cwindow",
-      group = augroup,
-    })
   end,
 }

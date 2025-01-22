@@ -1,5 +1,5 @@
 if not vim.g.neovide then
-  return
+  return {}
 end
 
 -- [[ Visual options for Neovide ]]
@@ -27,35 +27,41 @@ vim.opt.guifont = "JetBrains Mono NL:h13"
 -- [[ GUI-only keybinds ]]
 -- Set up key bindings for normal GUI app integration
 
+local keys = require("keygroup").new("config.neovide")
+
 -- Allow using Option as meta instead of symbol input
 vim.g.neovide_input_macos_option_key_is_meta = "both"
 
 -- Save
-vim.keymap.set({ "n", "i" }, "<D-s>", "<Cmd>:w<CR>", { silent = true })
+keys:set({ "n", "i" }, "<D-s>", "<Cmd>:w<CR>", { silent = true })
 -- Copy/paste
-vim.keymap.set("v", "<D-c>", '"+y')
-vim.keymap.set("v", "<D-x>", '"+d')
-vim.keymap.set({ "n", "v", "o", "c", "i", "t" }, "<D-v>", function()
+keys:set("v", "<D-c>", '"+y')
+keys:set("v", "<D-x>", '"+d')
+keys:set({ "n", "v", "o", "c", "i", "t" }, "<D-v>", function()
   vim.api.nvim_paste(vim.fn.getreg("+"), true, -1)
 end, { silent = true })
 -- New tab, tab navigation
-vim.keymap.set("n", "<D-t>", "<Cmd>tabnew<CR>", { silent = true })
-vim.keymap.set("n", "<D-{>", "<Cmd>tabprev<CR>", { silent = true })
-vim.keymap.set("n", "<D-}>", "<Cmd>tabnext<CR>", { silent = true })
+keys:set("n", "<D-t>", "<Cmd>tabnew<CR>", { silent = true })
+keys:set("n", "<D-{>", "<Cmd>tabprev<CR>", { silent = true })
+keys:set("n", "<D-}>", "<Cmd>tabnext<CR>", { silent = true })
 -- Close buffer, uses a custom command.
-vim.keymap.set("n", "<D-w>", "<Cmd>BW<CR>", { silent = true })
+keys:set("n", "<D-w>", "<Cmd>BW<CR>", { silent = true })
 
 -- Command -/0/= to adjust zoom
 vim.g.neovide_scale_factor = 1.0
 local change_scale_factor = function(delta)
   vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * delta
 end
-vim.keymap.set("n", "<D-0>", function()
+keys:set("n", "<D-0>", function()
   vim.g.neovide_scale_factor = 1
 end)
-vim.keymap.set("n", "<D-=>", function()
+keys:set("n", "<D-=>", function()
   change_scale_factor(1.25)
 end)
-vim.keymap.set("n", "<D-->", function()
+keys:set("n", "<D-->", function()
   change_scale_factor(1 / 1.25)
 end)
+
+-- This file is treated as a lazy plugin spec. This means lazy will
+-- automatically reload it for us!
+return {}

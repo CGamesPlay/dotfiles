@@ -1,5 +1,10 @@
 -- Neovim file explorer: edit your filesystem like a buffer
+local keys = require("keygroup").new("config.oil")
+
+keys:set("n", "-", "<Cmd>Oil<CR>", { desc = "Open parent directory" })
+
 local detail = false
+
 return {
   "stevearc/oil.nvim",
   version = "*",
@@ -32,9 +37,5 @@ return {
         callback = "actions.preview",
       },
     },
-  },
-  cmd = "Oil",
-  keys = {
-    { "-", "<Cmd>Oil<CR>", { mode = "n", desc = "Open parent directory" } },
   },
 }

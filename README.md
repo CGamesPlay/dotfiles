@@ -28,8 +28,8 @@ The [fish](https://fishshell.com) configuration is probably the most important. 
 The Neovim configuration is also worth explaining.
 
 - `files/.config/nvim/init.lua` is the main entry point for my nvim configuration. It is primarily responsible for ensuring the XDG environment variables are set, and then loads other files.
-- `files/.config/nvim/lua/config/basic.lua` sets all of the base configuration that doesn't depend on any plugins.
-- `files/.config/nvim/lua/plugins/*.lua` are all loaded by lazy, and generally each correspond to a single plugin.
+- `files/.config/nvim/lua/config/builtin.lua` sets all of the base configuration that doesn't depend on any plugins.
+- `files/.config/nvim/lua/config/*.lua` are all loaded by lazy, and generally each correspond to a single plugin.
 - `files/.config/nvim/ftplugin/*` are loaded when a file of the matching type is loaded. This is used to override default settings for the given file type.
 
 I also have a collection of custom scripts available in this repository:

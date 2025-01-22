@@ -1,5 +1,22 @@
 -- WhichKey helps you remember your Neovim keymaps, by showing available
 -- keybindings in a popup as you type.
+
+local keys = require("keygroup").new("config.which-key")
+
+-- Give names and catchall behaviors to our common chord prefixes. This absorbs
+-- the <leader>c$ from <leader>c$, which would otherwise be the same as c$
+-- (modifying the buffer).
+keys:set("n", "<leader>c", "<Nop>", { desc = "[C]ode" })
+keys:set("n", "<leader>d", "<Nop>", { desc = "[D]iagnostics" })
+keys:set("n", "<leader>g", "<Nop>", { desc = "[G]it" })
+keys:set("n", "<leader>r", "<Nop>", { desc = "[R]ename" })
+keys:set("n", "<leader>s", "<Nop>", { desc = "[S]earch" })
+keys:set("n", "<leader>t", "<Nop>", { desc = "[T]oggle Vim Option" })
+
+keys:set("n", "<leader>?", function()
+  require("which-key").show({ global = true })
+end, { desc = "Open which-key" })
+
 return {
   "folke/which-key.nvim",
   event = "VeryLazy",
@@ -42,25 +59,6 @@ return {
         F11 = "<F11>",
         F12 = "<F12>",
       },
-    },
-    -- Name groups of some chord prefixes
-    spec = {},
-  },
-  keys = {
-    -- Give names and catchall behaviors to our common chord prefixes. This absorbs the <leader>c$ from <leader>c$, which would otherwise be the same as c$ (modifying the buffer).
-    { "<leader>c", "<Nop>", desc = "[C]ode" },
-    { "<leader>d", "<Nop>", desc = "[D]iagnostics" },
-    { "<leader>g", "<Nop>", desc = "[G]it" },
-    { "<leader>r", "<Nop>", desc = "[R]ename" },
-    { "<leader>s", "<Nop>", desc = "[S]earch" },
-    { "<leader>t", "<Nop>", desc = "[T]oggle Vim Option" },
-
-    {
-      "<leader>?",
-      function()
-        require("which-key").show({ global = true })
-      end,
-      desc = "Open which-key",
     },
   },
 }
