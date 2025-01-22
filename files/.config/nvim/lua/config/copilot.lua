@@ -7,11 +7,14 @@ return {
   event = "VeryLazy",
   opts = {
     suggestion = {
+      -- This prevents copilot from creating any keymaps. Instead, they get
+      -- configured with blink.cmp. This allows properly handling the
+      -- interaction between the two libraries.
       keymap = {
-        accept = "<Tab>",
-        next = "<C-u>",
+        accept = false,
+        next = false,
         prev = false,
-        dismiss = "<Esc>",
+        dismiss = false,
       },
     },
     panel = { enabled = false },

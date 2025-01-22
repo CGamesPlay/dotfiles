@@ -16,7 +16,7 @@ return {
     dependencies = {
       "williamboman/mason-lspconfig.nvim",
       "nvim-telescope/telescope.nvim",
-      "hrsh7th/cmp-nvim-lsp",
+      "saghen/blink.cmp",
     },
     event = "VeryLazy",
     opts = {
@@ -32,8 +32,8 @@ return {
       local lspconfig = require("lspconfig")
 
       local capabilities = vim.lsp.protocol.make_client_capabilities()
-      -- Add cmp-nvim-lsp's capabilities
-      vim.tbl_deep_extend("force", capabilities, require("cmp_nvim_lsp").default_capabilities())
+      -- Add blink.cmp's capabilities
+      vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 
       lspconfig.util.default_config =
         vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
