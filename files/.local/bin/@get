@@ -8,6 +8,14 @@ set -eu
 export TMPDIR=${TMPDIR:-/tmp}
 export EGET_BIN=$TMPDIR
 
+# @cmd Install fx
+# import { visualizer } from "rollup-plugin-visualizer";
+# @alias fx
+antonmedv/fx() {
+	setup_env
+	eget antonmedv/fx --to="$BINDIR"
+}
+
 # @cmd Install ripgrep
 # Modern/faster grep alternative
 # @alias rg

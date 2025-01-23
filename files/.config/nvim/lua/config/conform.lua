@@ -36,6 +36,7 @@ return {
       eruby = { "erb_format" },
       terraform = { "terraform_fmt" },
       typescript = { "prettier" },
+      typescriptreact = { "prettier" },
     },
     -- formatters = {
     --   stylua = {
