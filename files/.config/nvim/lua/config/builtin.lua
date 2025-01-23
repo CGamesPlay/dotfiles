@@ -62,8 +62,15 @@ vim.opt.scrolloff = 5
 -- Enable lmaps in insert mode and the search pattern.
 vim.opt.iminsert = 1
 
--- Use tab completion that I'm used to
-vim.opt.wildmode = "list:longest"
+-- Fish-style completion for cmdline: pressing Tab will fill the completion as
+-- much as possible and open a menu of completion options. You can cycle
+-- through the options with <Tab>/<S-Tab>, <C-n>/<C-p>, or <Right>/<Left> (?).
+-- You can accept/reject with <C-y>/<C-e>, or accept by <CR>, or by continuing
+-- to type.
+vim.opt.wildmenu = true
+vim.opt.wildmode = "full:longest"
+vim.opt.wildoptions = "pum"
+vim.opt.wildcharm = 9 -- Tab key
 
 -- Require approval for completion options
 vim.opt.completeopt = "menu,menuone,noinsert,preview"
@@ -105,11 +112,11 @@ keys:set("n", "<leader>/", "<cmd>nohlsearch<CR>", { desc = "Clear search highlig
 keys:set("n", "<leader>dl", vim.diagnostic.setloclist, { desc = "Open [d]iagnostic [l]ocation list" })
 keys:set("n", "<leader>d.", vim.diagnostic.open_float, { desc = "Open [d]iagnostic under cursor" })
 
--- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
--- for people to discover.
+-- Exit terminal mode in the builtin terminal with a shortcut that is a bit
+-- easier for people to discover.
 --
--- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
--- or just use <C-\><C-n> to exit terminal mode
+-- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own
+-- mapping or just use <C-\><C-n> to exit terminal mode
 keys:set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 -- Keybinds to make split navigation easier.
@@ -148,6 +155,21 @@ keys:set("", "Q", "gw")
 keys:set("v", "p", "`[o`]")
 keys:set("v", "P", "'[o']")
 
+-- Add readline-style bindings for insert and cmdline modes. Inspired by
+-- https://github.com/tpope/vim-rsi/
+keys:set("i", "<C-a>", "<C-o>^")
+keys:set("i", "<C-e>", [[pumvisible()?"<C-e>":"<End>"]], { expr = true })
+keys:set("i", "<C-d>", [[col('.')>strlen(getline('.'))?"<C-d>":"<Del>"]], { expr = true })
+keys:set("i", "<M-BS>", "<C-w>")
+keys:set("i", "<M-Left>", "<S-Left>")
+keys:set("i", "<M-Right>", "<S-Right>")
+keys:set("c", "<C-a>", "<Home>")
+keys:set("c", "<C-e>", [[pumvisible()?"<C-e>":"<End>"]], { expr = true })
+keys:set("c", "<C-d>", [[getcmdpos()>strlen(getcmdline())?"<C-d>":"<Del>"]], { expr = true })
+keys:set("c", "<M-BS>", "<C-w>")
+keys:set("c", "<M-Left>", "<S-Left>")
+keys:set("c", "<M-Right>", "<S-Right>")
+
 -- Disable ignorecase when using * and #. This is usually what you want in
 -- code, but maybe not in prose.
 keys:set("n", "*", '/\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true })
@@ -155,10 +177,6 @@ keys:set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true 
 
 -- Use %% in command mode to get the directory of the current buffer.
 keys:set("c", "%%", '<C-R>=expand("%:h")<CR>/')
-
--- Stay in visual mode after changing the indent in visual mode
-keys:set("x", "<", "<gv")
-keys:set("x", ">", ">gv")
 
 -- Disable mouse selection for text (because I trigger is accidentally)
 keys:set("n", "<LeftDrag>", "<Nop>")
@@ -177,6 +195,9 @@ bracket_map("]Q", "clast", "Jump To Last [Q]uickfix item")
 bracket_map("[q", "cprev", "Jump To Previous [Q]uickfix item")
 bracket_map("]q", "cnext", "Jump To Next [Q]uickfix item")
 
+-- Select the just-pasted text, works with whole and partial lines.
+keys:set("n", "gp", [['`[' . strpart(getregtype(), 0, 1) . '`]']], { expr = true, desc = "Select last pasted text" })
+
 -- Some option toggles
 keys:set(
   "n",
@@ -185,6 +206,12 @@ keys:set(
   { silent = true, desc = "[T]oggle Crosshair ([x])" }
 )
 keys:set("n", "<leader>t ", "<Cmd>setl invlist<CR>", { silent = true, desc = "[T]oggle Visible White[space]" })
+keys:set("n", "<leader>tB", function()
+  vim.o.background = vim.o.background == "light" and "dark" or "light"
+end, { desc = "[T]oggle [B]ackground" })
+keys:set("n", "<leader>td", function()
+  vim.diagnostic.enable(not vim.diagnostic.is_enabled())
+end, { desc = "[T]oggle [B]ackground" })
 
 keys:set("n", "<D-r>", function()
   vim.cmd("wa")
@@ -201,6 +228,21 @@ keys:set("n", "<D-r>", function()
     print(result)
   end
 end, { desc = "Save all and refresh browser" })
+
+-- Cmdline completion: <Tab> moves through completion options
+keys:set(
+  "c",
+  "<Tab>",
+  [[pumvisible() ? "<C-n>" : nr2char(&wildcharm)]],
+  { expr = true, desc = "Show wildmenu or advance to next option" }
+)
+-- Cmdline completion: <CR> accepts the completion without submitting
+keys:set(
+  "c",
+  "<CR>",
+  [[pumvisible() ? "<C-y>" : "<CR>"]],
+  { expr = true, desc = "Accept the wildmenu choice, or submit" }
+)
 
 -- [[ Basic autocommands ]]
 local augroup = vim.api.nvim_create_augroup("config.basic", { clear = true })

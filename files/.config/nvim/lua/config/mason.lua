@@ -5,5 +5,9 @@ return {
   "williamboman/mason.nvim",
   version = "*",
   lazy = true,
-  opts = {},
+  opts = {
+    -- Append so that project-specific versions of tools alwasy take
+    -- precedence.
+    PATH = "append",
+  },
 }

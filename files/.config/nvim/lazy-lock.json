@@ -1,6 +1,6 @@
 {
   "blink.cmp": { "branch": "main", "commit": "1cc3b1a908fbcfd15451c4772759549724f38524" },
-  "conform.nvim": { "branch": "master", "commit": "339b3e4519ec49312d34fcfa275aa15bfaa67025" },
+  "conform.nvim": { "branch": "master", "commit": "80b57f662b5e13ae8c2c7c38639966084625fa5e" },
   "copilot-lualine": { "branch": "main", "commit": "dc4b8ed0f75bc2557b3158c526624bf04ad233ea" },
   "copilot.lua": { "branch": "master", "commit": "886ee73b6d464b2b3e3e6a7ff55ce87feac423a9" },
   "lazy.nvim": { "branch": "main", "commit": "d8f26efd456190241afd1b0f5235fe6fdba13d4a" },
@@ -23,7 +23,6 @@
   "vim-bufkill": { "branch": "master", "commit": "3113181d0c1bfb8719f3ddcd2e2f35a8d763d1e5" },
   "vim-fugitive": { "branch": "master", "commit": "96c1009fcf8ce60161cc938d149dd5a66d570756" },
   "vim-hcl": { "branch": "main", "commit": "7f4ac507aeaf902cd9fddd65bf0df971e43814d3" },
-  "vim-rsi": { "branch": "master", "commit": "45540637ead22f011e8215f1c90142e49d946a54" },
   "vim-sleuth": { "branch": "master", "commit": "be69bff86754b1aa5adcbb527d7fcd1635a84080" },
   "which-key.nvim": { "branch": "main", "commit": "1f8d414f61e0b05958c342df9b6a4c89ce268766" }
 }

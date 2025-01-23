@@ -8,8 +8,11 @@ dotfiles_root() {
 	realpath -m "$path"/../../../..
 }
 
+# @cmd Commands related to dotfiles.
+dotfiles() { :; }
+
 # @cmd Open an editor in the dotfiles directory
-dotfiles() {
+dotfiles::edit() {
 	cd "$(dotfiles_root)"
 	if command -v neovide >/dev/null; then
 		neovide
@@ -18,8 +21,19 @@ dotfiles() {
 	fi
 }
 
+# @cmd Pull the latest version and sync.
+# @flag      --bootstrap Run the bootstrap script.
+dotfiles::pull() {
+	cd "$(dotfiles_root)"
+	git pull
+	dfm link
+	if [[ "${argc_bootstrap:+1}" ]]; then
+		./bootstrap.sh
+	fi
+}
+
 # @cmd Create a temporary docker container.
-# @arg       image=buildpack-deps:jammy  Base image to use
+# @arg       image=buildpack-deps:noble  Base image to use
 docker-sandbox() {
 	container_id=$(docker run -d --rm "${argc_image:?}" sleep infinity)
 	docker exec -i "$container_id" sh <<-END_SCRIPT

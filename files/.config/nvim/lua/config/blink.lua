@@ -1,11 +1,6 @@
 -- blink.cmp is a completion plugin with support for LSPs and external sources
 -- that updates on every keystroke with minimal overhead (0.5-4ms async).
 
----@return boolean true if the context is cmdline, except for search cmdlines.
-local function only_cmdline(ctx)
-  return ctx.mode == "cmdline" and not vim.tbl_contains({ "/", "?" }, vim.fn.getcmdtype())
-end
-
 local function copilot_activate(cmp)
   cmp.hide()
   require("copilot.suggestion").next()
@@ -68,25 +63,11 @@ return {
       ["<C-d>"] = { "scroll_documentation_down", "fallback" },
       ["<Tab>"] = { copilot_accept, "select_and_accept", "snippet_forward", "fallback" },
       ["<S-Tab>"] = { "snippet_backward", "fallback" },
-
-      cmdline = {
-        preset = "default",
-        ["<Tab>"] = {
-          function(cmp)
-            if not cmp.is_visible() then
-              return cmp.show()
-            end
-          end,
-          "select_next",
-          "fallback",
-        },
-        ["<S-Tab>"] = { "select_prev", "fallback" },
-      },
     },
     completion = {
       accept = { auto_brackets = { enabled = false } },
       menu = {
-        auto_show = only_cmdline,
+        auto_show = false,
         draw = {
           columns = {
             { "label", "label_description", gap = 1 },
@@ -95,10 +76,7 @@ return {
         },
       },
       list = {
-        selection = {
-          preselect = false,
-          auto_insert = only_cmdline,
-        },
+        selection = { preselect = false, auto_insert = false },
       },
       documentation = {
         auto_show = true,
@@ -107,6 +85,9 @@ return {
     },
     sources = {
       default = { "lsp", "path", "snippets", "buffer" },
+      -- Blink supports completing on the cmdline, but I prefer the basic
+      -- interface which feels much more like fish.
+      cmdline = {},
     },
     appearance = {
       nerd_font_variant = "mono",
