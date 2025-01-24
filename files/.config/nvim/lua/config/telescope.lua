@@ -27,8 +27,12 @@ keys:set("n", "<leader>sk", "<Cmd>Telescope keymaps<CR>", { desc = "[S]earch [K]
 keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
 end, { desc = "[S]earch [dot]files" })
+keys:set("n", "<leader>sG", function()
+  require("git_grep").live_grep()
+end, { desc = "[S]earch Git [G]rep" })
 
---  My very-commonly-used shortcuts
+-- This binding intelligently switches between git_files and find_files
+-- depending on the cwd of the current buffer.
 keys:set("n", "<C-p>", function()
   local builtin = require("telescope.builtin")
   local path = vim.fn.getcwd(0)
@@ -43,33 +47,43 @@ end, { desc = "Jump To File" })
 keys:set("n", "<C-b>", "<Cmd>Telescope buffers<CR>", { desc = "Jump To Buffer" })
 
 return {
-  "nvim-telescope/telescope.nvim",
-  version = "*",
-  dependencies = {
-    "nvim-lua/plenary.nvim",
-    "nvim-telescope/telescope-ui-select.nvim",
+  {
+    "nvim-telescope/telescope.nvim",
+    version = "*",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-telescope/telescope-ui-select.nvim",
+    },
+    event = "VeryLazy",
+    config = function()
+      local telescope = require("telescope")
+      telescope.setup({
+        defaults = {
+          mappings = {
+            i = {
+              ["jk"] = false, -- apparently false means "leave insert mode"
+              ["<esc>"] = "close",
+            },
+            n = {
+              ["<C-c>"] = "close",
+            },
+          },
+        },
+        extensions = {
+          ["ui-select"] = {
+            require("telescope.themes").get_dropdown(),
+          },
+        },
+      })
+      pcall(telescope.load_extension, "ui-select")
+    end,
   },
-  event = "VeryLazy",
-  config = function()
-    local telescope = require("telescope")
-    telescope.setup({
-      defaults = {
-        mappings = {
-          i = {
-            ["jk"] = false, -- apparently false means "leave insert mode"
-            ["<esc>"] = "close",
-          },
-          n = {
-            ["<C-c>"] = "close",
-          },
-        },
-      },
-      extensions = {
-        ["ui-select"] = {
-          require("telescope.themes").get_dropdown(),
-        },
-      },
-    })
-    pcall(telescope.load_extension, "ui-select")
-  end,
+  {
+    "https://gitlab.com/CGamesPlay/telescope-git-grep.nvim.git",
+    lazy = true,
+    module = "git_grep",
+    config = function()
+      pcall(require("telescope").load_extension, "git_grep")
+    end,
+  },
 }

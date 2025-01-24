@@ -19,6 +19,7 @@ end, { desc = "Open which-key" })
 
 return {
   "folke/which-key.nvim",
+  version = "*",
   event = "VeryLazy",
   opts = {
     -- Slow down the automatic popup
