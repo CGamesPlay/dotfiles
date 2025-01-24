@@ -1,33 +1,54 @@
 -- nvim-lspconfig is a "data only" repo, providing basic, default Nvim LSP
 -- client configurations for various LSP servers.
 
---- Configuration to disable an LSP.
-local disabled = {
-  root_dir = function()
-    return nil
-  end,
-  single_file_support = false,
-  filetypes = {},
-}
-
 return {
   {
     "neovim/nvim-lspconfig",
     dependencies = {
+      -- mason-lspconfig.nvim closes some gaps that exist between mason.nvim
+      -- and lspconfig. Its main responsibilities are to:
+      -- - register a setup hook with lspconfig that ensures servers installed
+      --   with mason.nvim are set up with the necessary configuration
+      -- - provide extra convenience APIs such as the :LspInstall command
+      -- - allow you to (i) automatically install, and (ii) automatically set
+      --   up a predefined list of servers
+      -- - translate between lspconfig server names and mason.nvim package
+      --   names (e.g. lua_ls <-> lua-language-server)
       "williamboman/mason-lspconfig.nvim",
       "nvim-telescope/telescope.nvim",
       "saghen/blink.cmp",
     },
     event = "VeryLazy",
+
     opts = {
-      -- All installed LSPs are activated by default, use the disabled value to
-      -- explicitly disable one. It's also possible to add extra settings, see
-      -- :help lspconfig-setup. See :help lspconfig-all for a list of all the
+      -- It's possible to add extra settings for each lsp, see :help
+      -- lspconfig-setup. See :help lspconfig-all for a list of all the
       -- pre-configured LSPs
       servers = {
-        --bad_lsp = disabled,
+        lua_ls = {},
+        pyright = {
+          settings = {
+            -- Using Ruff's import organizer
+            disableOrganizeImports = true,
+          },
+          python = {
+            analysis = {
+              -- Ignore all files for analysis to exclusively use Ruff for
+              -- linting
+              ignore = { "*" },
+            },
+          },
+        },
+        ruff = {
+          on_attach = function(client, _)
+            -- Use pyright's hovers
+            client.server_capabilities.hoverProvider = false
+          end,
+        },
+        standardrb = {},
       },
     },
+
     config = function(_, opts)
       local lspconfig = require("lspconfig")
 
@@ -39,12 +60,14 @@ return {
         vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
 
       local function setup_server(server_name)
-        local server = opts.servers[server_name] or {}
-        -- This handles overriding only values explicitly passed
-        -- by the server configuration above. Useful when disabling
-        -- certain features of an LSP (for example, turning off formatting for ts_ls)
-        server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-        require("lspconfig")[server_name].setup(server)
+        local server = opts.servers[server_name]
+        if server ~= nil then
+          -- This handles overriding only values explicitly passed by the
+          -- server configuration above. Useful when disabling certain features
+          -- of an LSP (for example, turning off formatting for ts_ls)
+          server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
+          require("lspconfig")[server_name].setup(server)
+        end
       end
 
       -- Setup all servers (necessary for all servers not handled by mason)
@@ -52,10 +75,12 @@ return {
         setup_server(server_name)
       end
 
-      -- This function will ensure that any LSPs installed with Mason trigger a reload.
+      -- This function will ensure that any LSPs installed with Mason trigger a
+      -- reload.
       require("mason-lspconfig").setup_handlers({ setup_server })
 
-      -- Add the buffer-local keymaps when LSP successfully attaches to a buffer
+      -- Add the buffer-local keymaps when LSP successfully attaches to a
+      -- buffer
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
         callback = function(event)
@@ -76,10 +101,10 @@ return {
           map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")
 
           -- The following two autocommands are used to highlight references of
-          -- the word under your cursor when your cursor rests there for a little
-          -- while. See `:help CursorHold` for information about when this is
-          -- executed When you move your cursor, the highlights will be cleared
-          -- (the second autocommand).
+          -- the word under your cursor when your cursor rests there for a
+          -- little while. See `:help CursorHold` for information about when
+          -- this is executed When you move your cursor, the highlights will be
+          -- cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
           if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
             local highlight_augroup = vim.api.nvim_create_augroup("kickstart-lsp-highlight", { clear = false })
@@ -118,6 +143,7 @@ return {
 
       -- Start the LSP after lazy-loading
       vim.cmd("LspStart")
+      require("lazydev").setup({})
 
       -- Allow the plugin to be unloaded
       require("lspconfig").deactivate = function()

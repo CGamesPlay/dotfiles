@@ -21,6 +21,8 @@ return {
   event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   opts = {
+    -- In general, I prefer lsp formatters since the always-running daemon is
+    -- faster than running a separate program.
     formatters_by_ft = {
       astro = { "prettier" },
       css = { "prettier" },
@@ -30,8 +32,9 @@ return {
       json = { "prettier" },
       jsonc = { "prettier" },
       lua = { "stylua" },
-      python = { "ruff" },
-      --[[ruby = { "standardrb" }, handled via its lsp server]]
+      -- Organize imports automatically.
+      -- https://github.com/astral-sh/ruff-lsp/issues/335
+      python = { "ruff_organize_imports" },
       rust = { "rustfmt" },
       eruby = { "erb_format" },
       terraform = { "terraform_fmt" },
@@ -44,7 +47,7 @@ return {
     --   },
     -- },
     default_format_opts = {
-      lsp_format = "fallback",
+      lsp_format = "first",
     },
     format_on_save = function(bufnr)
       -- Disable with a global or buffer-local variable
