@@ -52,7 +52,7 @@ docker-sandbox() {
 
 # @cmd Install amel
 # @arg       target     Path to install to
-# @meta require-tools python3.11 uv
+# @meta require-tools uv
 install-amel() {
 	target=${argc_target:-~/amel}
 	if [ ! -d "$target" ]; then
