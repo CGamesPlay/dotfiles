@@ -8,6 +8,7 @@ set -eu
 push() {
 	git commit --amend -C HEAD -S
 	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
+	git fetch origin
 }
 
 # @cmd Find files that maybe should be added to DFM.

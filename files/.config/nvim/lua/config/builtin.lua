@@ -1,87 +1,99 @@
 -- [[ Basic options ]]
 
+-- Set options using opt_global, so that reloading this file does not clobber
+-- buffer-local options. However, for historical reasons, files given on the
+-- command line (and, if that is none, the first file opened) to not apply
+-- these settings at all. To work around this, when doing initial setup, we use
+-- opt, which overrides all buffer-local options. This doesn't cause problems,
+-- because in the case of files on the command line, the filetype hasn't been
+-- set yet. More details here: https://github.com/neovim/neovim/issues/21668
+local opt = vim.opt_global
+if vim.fn.has("vim_starting") == 1 then
+  opt = vim.opt
+end
+
 -- This is an unofficial but apparently widely-used global variable controlling
 -- the usage of Nerd Font.
 vim.g.have_nerd_font = true
 
 -- Show relative line numbers in the gutter (full line number is always in the
 -- status bar). Note that relativenumber can cause lag over slow connections.
-vim.opt.number = false
-vim.opt.relativenumber = true
+opt.number = false
+opt.relativenumber = true
 
 -- Enable the mouse in normal and visual modes
-vim.opt.mouse = "nv"
+opt.mouse = "nv"
 
 -- Don't show the mode, since it's already in the status line
-vim.opt.showmode = false
+opt.showmode = false
 
 -- I use fish, but the startup speed is noticably slow, so we default to
 -- standard sh when using ! and :! commands.
-vim.opt.shell = "sh"
+opt.shell = "sh"
 
 -- Dealing with long lines: wrap them, keep them indented the same as the start
 -- of the line, but show a continuation marker.
-vim.opt.linebreak = true
-vim.opt.breakindent = true
-vim.opt.breakindentopt = { shift = 0 }
-vim.opt.showbreak = "↳ "
+opt.linebreak = true
+opt.breakindent = true
+opt.breakindentopt = { shift = 0 }
+opt.showbreak = "↳ "
 
 -- Search case-sensitive, only if the search includes a capital letter. Use \C
 -- in the pattern to disable.
-vim.opt.ignorecase = true
-vim.opt.smartcase = true
+opt.ignorecase = true
+opt.smartcase = true
 
 -- Always make room for the sign columns
-vim.opt.signcolumn = "number"
+opt.signcolumn = "number"
 
 -- Amount of time to wait for for CursorHold events.
-vim.opt.updatetime = 1000
+opt.updatetime = 1000
 
 -- Amount of time to wait for a key chord.
-vim.opt.timeoutlen = 300
+opt.timeoutlen = 300
 
 -- Default location for new splits. Can be overridden per-command with :topleft.
-vim.opt.splitright = true
-vim.opt.splitbelow = false
+opt.splitright = true
+opt.splitbelow = false
 
 -- Highlight tab literals and trailing whitespace.
-vim.opt.list = false
-vim.opt.listchars = { tab = "⇥ ", space = "·" }
+opt.list = false
+opt.listchars = { tab = "⇥ ", space = "·" }
 
 -- Incremental substitution results in the buffer (this is the default already,
 -- shown here to document).
-vim.opt.inccommand = "nosplit"
+opt.inccommand = "nosplit"
 
 -- These are disabled because they are togglable with yox.
-vim.opt.cursorline = false
-vim.opt.cursorcolumn = false
+opt.cursorline = false
+opt.cursorcolumn = false
 
 -- Ensure there's some context around search results
-vim.opt.scrolloff = 5
+opt.scrolloff = 5
 
 -- Enable lmaps in insert mode and the search pattern.
-vim.opt.iminsert = 1
+opt.iminsert = 1
 
 -- Fish-style completion for cmdline: pressing Tab will fill the completion as
 -- much as possible and open a menu of completion options. You can cycle
 -- through the options with <Tab>/<S-Tab>, <C-n>/<C-p>, or <Right>/<Left> (?).
 -- You can accept/reject with <C-y>/<C-e>, or accept by <CR>, or by continuing
 -- to type.
-vim.opt.wildmenu = true
-vim.opt.wildmode = "full:longest"
-vim.opt.wildoptions = "pum"
-vim.opt.wildcharm = 9 -- Tab key
+opt.wildmenu = true
+opt.wildmode = "full:longest"
+opt.wildoptions = "pum"
+opt.wildcharm = 9 -- Tab key
 
 -- Require approval for completion options
-vim.opt.completeopt = "menu,menuone,noinsert,preview"
+opt.completeopt = "menu,menuone,noinsert,preview"
 
 -- Set the default tab width to 4 characters. All other tab settings are defined per-filetype and using plugins.
-vim.opt.shiftwidth = 4
-vim.opt.tabstop = 4
+opt.shiftwidth = 4
+opt.tabstop = 4
 
 -- Format lists inside of comments
-vim.opt.formatoptions:append("n")
-vim.opt.formatlistpat = "^\\s*\\d\\+\\.\\s\\+\\|^\\s*[-*+]\\s\\+\\|^\\[^\\ze[^\\]]\\+\\]:"
+opt.formatoptions:append("n")
+opt.formatlistpat = "^\\s*\\d\\+\\.\\s\\+\\|^\\s*[-*+]\\s\\+\\|^\\[^\\ze[^\\]]\\+\\]:"
 
 -- The path to the dotfiles directory.
 vim.g.dotfiles_dir = vim.fn.fnamemodify(vim.fn.resolve(vim.fn.stdpath("config") .. "/init.lua"), ":h:h:h:h")
@@ -109,8 +121,9 @@ keys:set("n", "<Down>", "<C-e>")
 keys:set("i", "jk", "<Esc>")
 
 keys:set("n", "<leader>/", "<cmd>nohlsearch<CR>", { desc = "Clear search highlights (until next search)" })
-keys:set("n", "<leader>dl", vim.diagnostic.setloclist, { desc = "Open [d]iagnostic [l]ocation list" })
-keys:set("n", "<leader>d.", vim.diagnostic.open_float, { desc = "Open [d]iagnostic under cursor" })
+keys:set("n", "<leader>df", vim.diagnostic.setloclist, { desc = "Open [D]iagnostics For [F]ile" })
+keys:set("n", "<leader>dw", vim.diagnostic.setqflist, { desc = "Open [D]iagnostics For [W]orkspace" })
+keys:set("n", "<leader>d.", vim.diagnostic.open_float, { desc = "Open [D]iagnostic Under Cursor" })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit
 -- easier for people to discover.

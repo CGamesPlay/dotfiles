@@ -81,7 +81,6 @@ return {
   {
     "https://gitlab.com/CGamesPlay/telescope-git-grep.nvim.git",
     lazy = true,
-    module = "git_grep",
     config = function()
       pcall(require("telescope").load_extension, "git_grep")
     end,

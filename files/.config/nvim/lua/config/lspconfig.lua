@@ -1,6 +1,17 @@
 -- nvim-lspconfig is a "data only" repo, providing basic, default Nvim LSP
 -- client configurations for various LSP servers.
 
+--- Rename the active buffer's file.
+local function lsp_rename_file()
+  local current_file = vim.api.nvim_buf_get_name(0)
+  vim.ui.input({ prompt = "New file name: ", default = current_file, completion = "file" }, function(new_name)
+    if not new_name or new_name == "" or new_name == current_file then
+      return
+    end
+    vim.lsp.util.rename(current_file, new_name)
+  end)
+end
+
 return {
   {
     "neovim/nvim-lspconfig",
@@ -40,6 +51,7 @@ return {
           },
         },
         ruff = {
+          ---@param client vim.lsp.Client
           on_attach = function(client, _)
             -- Use pyright's hovers
             client.server_capabilities.hoverProvider = false
@@ -97,7 +109,8 @@ return {
           map("gT", builtin.lsp_type_definitions, "[G]oto [T]ype Definition")
           map("gs", builtin.lsp_document_symbols, "[G]oto [S]ymbol")
           map("<leader>ss", builtin.lsp_dynamic_workspace_symbols, "[S]earch [S]ymbols")
-          map("<leader>rs", vim.lsp.buf.rename, "[R]ename [S]ymbol")
+          map("<leader>r.", vim.lsp.buf.rename, "[R]ename Symbol Under Cursor")
+          map("<leader>rf", lsp_rename_file, "[R]ename [F]ile")
           map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")
 
           -- The following two autocommands are used to highlight references of

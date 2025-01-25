@@ -59,7 +59,7 @@ return {
   },
   init = function()
     -- This enables using gq for range formatting
-    vim.o.formatexpr = "v:lua.require'plugins.conform'.formatexpr()"
+    vim.o.formatexpr = "v:lua.require'config.conform'.formatexpr()"
   end,
   keys = keys:lazy_keys(),
 
