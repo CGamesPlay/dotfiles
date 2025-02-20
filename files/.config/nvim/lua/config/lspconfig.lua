@@ -36,6 +36,7 @@ return {
       -- lspconfig-setup. See :help lspconfig-all for a list of all the
       -- pre-configured LSPs
       servers = {
+        gopls = {},
         lua_ls = {},
         pyright = {
           settings = {
@@ -58,6 +59,7 @@ return {
           end,
         },
         standardrb = {},
+        ts_ls = {},
       },
     },
 
