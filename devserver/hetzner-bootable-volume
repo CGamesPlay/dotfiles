@@ -369,6 +369,66 @@ show-prepare-script() {
 	END_INSTALL
 }
 
+# @cmd Migrate a volume between two Hetzner regions
+# @arg    src!        name or ID of source volume
+# @arg    dst_region! region to create new volume in
+# @option -s --size   size of new volume to create, in GB
+# @option    --target-volume-id  ID of an existing volume to use
+# @option    --image=ubuntu-22.04         Image to use for the volume
+# @option    --server-type=cpx11          Preparation server type
+# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @option    --login-user=root            <USERNAME> Username to log in with
+migrate-volume() {
+	src_json=$(hcloud volume describe "${argc_src:?}" -o json)
+	src_id=$(echo "$src_json" | jq -r .id)
+	src_name=$(echo "$src_json" | jq -r .name)
+	src_loc=$(echo "$src_json" | jq -r .location.name)
+	src_size=$(echo "$src_json" | jq -r .size)
+	if [[ ! ${argc_size:+1} ]]; then
+		argc_size=$src_size
+	fi
+	if [[ "${argc_size:?}" -lt "${src_size:?}" ]]; then
+		echo "Requested size of $argc_size is smaller than current $src_size." 2>&1
+		exit 1
+	fi
+	if [[ ${argc_target_volume_id:+1} ]]; then
+		dst_json=$(hcloud volume describe "${argc_target_volume_id:?}" -o json)
+	else
+		echo "Creating $argc_size GB volume in ${argc_dst_region:?}."
+		dst_json=$(hcloud volume create --name "${src_name}_migrate" --size "$src_size" --location "$argc_dst_region" -o json | jq .volume)
+	fi
+	dst_id=$(echo "$dst_json" | jq -r .id)
+	dst_name=$(echo "$dst_json" | jq -r .name)
+	dst_loc=$(echo "$dst_json" | jq -r .location.name)
+	echo "Mirroring onto $dst_id"
+	shared_args=(
+		--type "${argc_server_type:?}"
+		--ssh-key "${argc_ssh_key:?}"
+		--image "${argc_image:?}"
+	)
+	hcloud server create "${shared_args[@]}" \
+		--name "${src_name}-src" --location "$src_loc" --volume "$src_id"
+	hcloud server create "${shared_args[@]}" \
+		--name "${src_name}-migrate" --location "$dst_loc" --volume "$dst_id"
+	src_ip=$(hcloud server ip "${src_name}-src")
+	dst_ip=$(hcloud server ip "${src_name}-migrate")
+	wait_for_ssh "$src_ip"
+	wait_for_ssh "$dst_ip"
+	ssh_once -l "${argc_login_user:?}" "$dst_ip" -o ForwardAgent=yes <<-END_SCRIPT
+	set -ex
+	apt-get update
+	apt-get install -y pv
+	nohup sh -c 'ssh $src_ip -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "cat /dev/sdb | gzip -c" | gunzip -c > /dev/sdb' &
+	tail -f nohup.out >&2 &
+	pv -d \$(pgrep gzip):1 -s $((150 * 1024 * 1024 * 1024))
+	partprobe
+	e2fsck /dev/sdb1
+	sync
+	END_SCRIPT
+	hcloud server delete "${src_name}-src" "${src_name}-migrate"
+	echo "Volume has been cloned to ${dst_name} in region ${dst_loc}"
+}
+
 # Find any SSH key which is loaded in the local ssh-agent.
 default_ssh_key() {
 	patterns=()
@@ -439,3 +499,5 @@ integration-test() {
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
+
+# vim: tabstop=4
