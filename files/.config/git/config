@@ -15,12 +15,9 @@
 	defaultKeyCommand = sh -c 'echo key::$(ssh-add -L)'
 
 [core]
-	excludesfile = ~/.config/git/ignore
-	attributesfile = ~/.config/git/attributes
 	whitespace = trailing-space,space-before-tab
-	mergeoptions = --no-edit
 	pager = delta
-	askpass = 
+	askPass =
 
 [interactive]
 	diffFilter = delta --color-only
@@ -87,11 +84,6 @@
 	# Create a fixup commit using fzf
 	fixup = !git commit --fixup $(git log --oneline | fzf --preview='git show {1} --stat --color=always' | awk '{ print $1 }')
 
-[svn]
-	followparent = true
-	rmdir = true
-
-[commit]
 [log]
 	date = human-local
 [format]
@@ -102,8 +94,8 @@
 	date = short
 [diff]
 	renames = copies
-	mnemonicprefix = true
-	colorMoved = default
+	mnemonicPrefix = true
+	colorMoved = plain
 	algorithm = histogram
 	submodule = log
 [apply]
@@ -111,7 +103,6 @@
 [merge]
 	ff = false
 	tool = emerge
-	conflictStyle = merge
 [status]
 	relativePaths = true
 	submoduleSummary = true
@@ -124,14 +115,15 @@
 	autoStash = true
 	autoSquash = true
 [rerere]
-	enabled = 1
+	enabled = true
 [init]
 	defaultBranch = main
 [push]
 	default = current
 	recurseSubmodules = on-demand
+	followTags = true
 [branch]
-	autosetuprebase = always
+	autoSetupRebase = always
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
@@ -149,6 +141,8 @@
 	stripLeadingSymbols = false
 [fetch]
 	prune = true
+	pruneTags = true
+	all = true
 [credential]
 	helper = store
 
@@ -160,3 +154,9 @@
 	path = ~/.config/git/config.local
 [advice]
 	skippedCherryPicks = false
+[tag]
+	sort = -version:refname
+[help]
+	autoCorrect = prompt
+[commit]
+	verbose = true

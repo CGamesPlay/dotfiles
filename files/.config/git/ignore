@@ -13,3 +13,4 @@ yarn-error.log
 pyvenv.cfg
 .aider*
 .amelpair.db
+.amelpair.toml

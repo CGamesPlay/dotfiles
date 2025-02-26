@@ -36,6 +36,7 @@ return {
       -- lspconfig-setup. See :help lspconfig-all for a list of all the
       -- pre-configured LSPs
       servers = {
+        astro = {},
         gopls = {},
         lua_ls = {},
         pyright = {
@@ -58,6 +59,7 @@ return {
             client.server_capabilities.hoverProvider = false
           end,
         },
+        rust_analyzer = {},
         standardrb = {},
         ts_ls = {},
       },
