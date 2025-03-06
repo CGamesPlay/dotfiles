@@ -422,7 +422,7 @@ migrate-volume() {
 	tail -f nohup.out >&2 &
 	pv -d \$(pgrep gzip):1 -s $((150 * 1024 * 1024 * 1024))
 	partprobe
-	e2fsck /dev/sdb1
+	e2fsck -n /dev/sdb1
 	sync
 	END_SCRIPT
 	hcloud server delete "${src_name}-src" "${src_name}-migrate"

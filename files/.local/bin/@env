@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 # @describe Spin up and access isolated development environments.
 #
-# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment
-# should define shell functions to start and access the environment.
+# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each
+# environment is an Argcfile which defines subcommands to start and
+# access the environment. Required subcommands:
 #
-# Environment-defined functions
-# =============================
+# - up: start the environment. Arguments are allowed.
+# - run-in-env: runs a shell command in the environment. The single
+#   argument is a shell script to run.
+# - stop: stop the environment. Arguments are allowed.
 #
-# `environment_up` - start the environment in response to the `up` subcommand.
-# This function should be idempotent, and silently succeed if the environment
-# is already running.
-#
-# `environment_exec` - execute a shell script in the running environment. The
-# function receives a single argument containing the shell script to execute.
-# If standard input is a tty, the function should allocate a tty in the
-# environment.
+# Any other commands are allowed and exposed via the env-command
+# subcommand.
 set -eu
 
 ATENV_HOME=${ATENV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/@env}
@@ -100,7 +97,7 @@ edit() {
 
 # @cmd Start an environment
 #
-# Specify an environment to see environment-specific options.
+# To see environment-specific options: @env up ENVIRONMENT --help
 # @arg       environment![`_list_environments`] Name of the environment
 # @arg       args~[?`_choice_args`]             Arguments to pass forward
 up() {
@@ -114,6 +111,16 @@ up() {
 # @alias exec
 run-in-env() {
 	argc_args=(run-in-env "$(shelljoin ${argc_args+"${argc_args[@]}"})")
+	env-command
+}
+
+# @cmd Stop an environment
+#
+# To see environment-specific options: @env stop ENVIRONMENT --help
+# @arg       environment![`_list_environments`] Name of the environment
+# @arg       args~[?`_choice_args`]             Arguments to pass forward
+stop() {
+	argc_args=(stop ${argc_args+"${argc_args[@]}"})
 	env-command
 }
 
