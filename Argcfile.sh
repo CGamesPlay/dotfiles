@@ -6,7 +6,9 @@ set -eu
 #
 # This amends the latest commit to sign it, and uses --force-with-lease
 push() {
-	git commit --amend -C HEAD -S
+	if [ "$(git log -1 --pretty=format:"%G?" 2>/dev/null)" == "N" ]; then
+		git commit --amend -C HEAD -S
+	fi
 	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
 	git fetch origin
 }
