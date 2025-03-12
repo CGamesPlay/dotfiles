@@ -258,7 +258,7 @@ trentm/go-ecslog() {
 # @alias watchexec
 watchexec/watchexec() {
 	setup_env
-	eget -a '^b3' -a '^sha512' watchexec/watchexec --file="*" --to=watchexec
+	eget -a "$(musl_tag)" -a '^b3' -a '^sha512' -a 'tar' watchexec/watchexec --file="*" --to=watchexec
 
 	cp watchexec/watchexec "$BINDIR/"
 	cp watchexec/watchexec.1 "$MANDIR/man1/"
