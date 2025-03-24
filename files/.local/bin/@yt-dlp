@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# @describe Tools for mirroring YouTube videos
+#
+# Workflow for downloading multiple videos in the packground:
+#   $ @yt-dlp bg download (pbpaste) # Repeat for each URL
+#   $ @yt-dlp bg wait # Wait for everything to finish (streams logs)
+#
+# Documentation for yt-dlp:
+#   https://github.com/yt-dlp/yt-dlp
+#
+# Quick reference:
+#   yt-dlp -sF URL -S 'height:720'
+
+# Argc docs: https://github.com/sigoden/argc
+
+set -eu
+set +o posix
+export TS_SOCKET=.socket-ts
+
+# @cmd Download videos
+# @arg      args~               URLs and additional arguments for yt-dlp
+# @flag     --no-sponsorblock   Disable sponsorblock
+download() {
+    args=(-S height:720 -o "%(channel)s/%(title)s - %(id)s.%(ext)s")
+    if [ ${argc_no_sponsorblock+1} ]; then
+        args+=(--sponsorblock-remove sponsor)
+    fi
+    if [ ${argc_args+1} ]; then
+        args+=("${argc_args[@]}")
+    fi
+    echo EXAMPLE JOB START yt-dlp "${args[@]}"
+    for i in $(seq 1 5); do
+	echo "EXAMPLE JOB $i"
+	if [ "$i" == 3 ] && [ "${args[4]}" == "fail" ]; then
+	    exit 1
+	fi
+	sleep 1
+    done
+}
+
+# @cmd Print the URL of all videos in a playlist
+# @arg      url                 URL of the playlist
+dump-playlist() {
+    yt-dlp -J --flat-playlist "${argc_url:?}" | jq -r '.entries[].url'
+}
+
+# @cmd Perform tasks in the background
+bg() { :; }
+
+# @cmd Queue a download in the background.
+# @arg      args~               Arguments passed to download
+bg::download() {
+    ts -i "$(ts @yt-dlp download "${argc_args[@]}")"
+}
+
+# @cmd Wait for all background tasks to finish.
+bg::wait() {
+    while [ "$(ts -s 2>/dev/null)" != "finished" ]; do
+	ts -t || true
+    done
+    failures=$(ts -l | awk '$2 == "finished" && $4 != 0 {print $1}' | wc -l)
+    if [[ $failures -gt 0 ]]; then
+	echo "Failures: $failures. To retry run: @ty-dlp bg retry" >&2
+	exit 1
+    fi
+    ts -K
+}
+
+# @cmd Retry all failed jobs
+bg::retry() {
+    ts -l | awk '$2 == "finished" && $4 != 0 {print $1}' | while read -r id; do
+	# ts does not allow us to actually reproduce the command, because
+	# spaces in arguments are printed unquoted.
+	cmd=$(ts -i "$id" | sed -n 's/.*Command: \(.*\)/\1/p')
+	ts -r "$id"
+	# shellcheck disable=SC2086
+	ts -i "$(ts $cmd)"
+    done
+}
+
+# @cmd Run ts directly
+# @arg      args~               Arguments passed to ts
+bg::ts() {
+    ts "${argc_args[@]}"
+}
+
+eval "$(argc --argc-eval "$0" "$@")"

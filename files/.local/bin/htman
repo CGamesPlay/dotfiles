@@ -7,7 +7,7 @@ dotfiles_root() {
 }
 
 TMPDIR=${TMPDIR:-/tmp}
-path=$(man --path "$1")
+path=$(man -w "$1")
 formatter=(mandoc -Thtml -O "toc,style=$(dotfiles_root)/share/mandoc.css")
 if [[ $path == *.gz ]]; then
 	cat "$path" | gunzip | "${formatter[@]}" > "$TMPDIR/$1.html"
