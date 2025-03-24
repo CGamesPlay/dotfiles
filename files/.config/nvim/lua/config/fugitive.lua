@@ -72,7 +72,7 @@ keys:set("n", "<leader>gr", "<Cmd>:Gread<CR>", { desc = "[G]it [R]ead (buffer fr
 keys:set(
   "n",
   "<leader>g*",
-  [[:let @/='\C\V<C-r><C-w>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>'<CR>]],
+  [[:let @/='\C\V\<<C-r><C-w>\>' | set hlsearch | silent Ggrep! -w '<C-r><C-w>'<CR>]],
   { silent = true, desc = "[G]it Grep Word ([*])" }
 )
 keys:set(

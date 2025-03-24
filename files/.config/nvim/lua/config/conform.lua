@@ -25,6 +25,7 @@ return {
     -- faster than running a separate program.
     formatters_by_ft = {
       astro = { "prettier" },
+      beancount = { "bh_format" },
       css = { "prettier" },
       go = { "gofmt", "goimports" },
       hcl = { "terraform_hclfmt" },
@@ -41,11 +42,16 @@ return {
       typescript = { "prettier" },
       typescriptreact = { "prettier" },
     },
-    -- formatters = {
-    --   stylua = {
-    --     prepend_args = { "--foo=bar" },
-    --   },
-    -- },
+    formatters = {
+      bh_format = {
+        command = "bh",
+        args = { "format", "$FILENAME" },
+        stdin = false,
+      },
+      -- stylua = {
+      --   prepend_args = { "--foo=bar" },
+      -- },
+    },
     default_format_opts = {
       lsp_format = "first",
     },
