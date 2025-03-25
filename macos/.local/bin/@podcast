@@ -1,0 +1,232 @@
+#!/usr/bin/env uv run --script --quiet
+# /// script
+# dependencies = [
+#   "click",
+#   "requests",
+#   "feedparser",
+# ]
+# ///
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from html import unescape
+from pathlib import Path
+
+import click
+import feedparser
+import requests
+
+
+@click.group()
+def cli():
+    """Podcast management CLI tool"""
+    global db
+    db_path = os.environ.get("PODCAST_DATABASE", str(Path.home() / "Documents" / "Podcasts.md"))
+    db = Database(db_path)
+    db.load()
+
+
+@cli.command()
+@click.option(
+    "--before",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Show episodes before this date (YYYY-MM-DD)",
+)
+@click.option(
+    "--after",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Show episodes after this date (YYYY-MM-DD)",
+)
+@click.option("--title", help="Filter episodes by title regex pattern")
+def update_episodes(before, after, title):
+    """Update the list of available episodes with optional filtering"""
+    rss_url = db.current_rss()
+    if not rss_url:
+        print("No RSS URL found in database")
+        sys.exit(1)
+
+    episodes = fetch_episodes(rss_url)
+
+    # Apply filters
+    filtered_episodes = episodes
+    if before or after or title:
+        filtered_episodes = []
+        for ep in episodes:
+            ep_date = datetime.strptime(ep["published"], "%Y-%m-%d")
+
+            if before and ep_date > before:
+                continue
+            if after and ep_date <= after:
+                continue
+            if title and not re.search(title, ep["title"]):
+                continue
+
+            filtered_episodes.append(ep)
+
+    filtered_episodes.reverse()
+
+    n = db.append_episodes(filtered_episodes)
+    db.save()
+    print(f"Added {n} episodes to database")
+
+
+@cli.command()
+@click.option(
+    "--output-dir",
+    type=click.Path(),
+    default=str(Path.home() / "Downloads" / "podcasts"),
+    help="Download directory",
+)
+def download(output_dir):
+    """Download the first unwatched podcast episode"""
+    unwatched = db.find_first_unwatched()
+    if not unwatched:
+        print("No unwatched episodes found")
+        sys.exit(1)
+    mp3_url, guid, title = unwatched
+
+    # Create download directory if it doesn't exist
+    download_dir = Path(output_dir)
+    download_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clean filename from title
+    safe_title = re.sub(r'[<>:"/\\|?*]', "_", title)
+    output_file = download_dir / f"{safe_title}.mp3"
+
+    print(f"Downloading: {title}")
+    print(f"To: {output_file}")
+
+    # Download the file using curl
+    try:
+        subprocess.run(
+            ["curl", "-L", "-C", "-", "-o", str(output_file), mp3_url],
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Download failed: {e}")
+        sys.exit(1)
+
+    print("Download complete")
+    db.mark_watched(guid)
+    db.save()
+
+
+def fetch_episodes(rss_url):
+    """Fetch and parse the RSS feed"""
+    response = requests.get(rss_url)
+    feed = feedparser.parse(response.text)
+
+    episodes = []
+    for entry in feed.entries:
+        episode = {
+            "guid": entry.guid,
+            "title": entry.title,
+            "published": datetime.strptime(
+                entry.published, "%a, %d %b %Y %H:%M:%S %z"
+            ).strftime("%Y-%m-%d"),
+            "duration": entry.itunes_duration
+            if "itunes_duration" in entry
+            else "Unknown",
+            "mp3_url": next(
+                (link.href for link in entry.links if "audio/mpeg" in link.type), None
+            ),
+            "description": re.sub(
+                r"<[^>]+>",
+                "",
+                unescape(entry.description if hasattr(entry, "description") else ""),
+            ).strip(),
+        }
+        episodes.append(episode)
+
+    return episodes
+
+
+class Database:
+    """Handles loading and parsing of markdown database file"""
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.lines = []
+
+    def load(self):
+        """Load and parse the markdown file"""
+        if os.path.exists(self.filename):
+            with open(self.filename, "r") as f:
+                self.lines = f.readlines()
+        return self
+
+    def save(self):
+        """Save the current state back to the file with backup"""
+        if os.path.exists(self.filename):
+            filename_path = Path(self.filename)
+            backup_name = filename_path.parent / f".{filename_path.name}~"
+            shutil.copy2(self.filename, backup_name)
+
+        # Write current state to file
+        with open(self.filename, "w") as f:
+            f.writelines(self.lines)
+
+    def current_rss(self):
+        """Extract the RSS feed URL from the markdown file"""
+        for line in self.lines:
+            # Look for markdown link in the Episode list line
+            match = re.search(r"Episode list: \[RSS\]\((https?://[^\)]+)\)", line)
+            if match:
+                return match.group(1)
+        return None
+
+    def _extract_guid(self, line):
+        """Extract GUID from a markdown line if present"""
+        match = re.search(r"\[MP3\]\([^#]+#([^\)]+)\)", line)
+        return match.group(1) if match else None
+
+    def find_first_unwatched(self):
+        """Find the first unwatched episode and return its MP3 URL, GUID and title"""
+        for line in self.lines:
+            if line.startswith("- [ ]"):  # Unwatched episode
+                url_match = re.search(r"\[MP3\]\(([^#]+)#([^\)]+)\)", line)
+                title_match = re.search(r"\*\*([^\*]+)\*\*", line)
+                if url_match and title_match:
+                    return (
+                        str(url_match.group(1)),
+                        str(url_match.group(2)),
+                        str(title_match.group(1)),
+                    )
+        return None
+
+    def mark_watched(self, guid):
+        """Mark an episode as watched given its GUID"""
+        for i, line in enumerate(self.lines):
+            if line.startswith("- [ ]"):  # Unwatched episode
+                if guid in line:
+                    self.lines[i] = line.replace("- [ ]", "- [x]")
+                    return True
+        return False
+
+    def append_episodes(self, episodes):
+        """Append episode entries to the database if not already present"""
+        n = 0
+        existing_guids = set()
+
+        # First collect all existing GUIDs
+        for line in self.lines:
+            guid = self._extract_guid(line)
+            if guid:
+                existing_guids.add(guid)
+
+        # Only append episodes with new GUIDs
+        for ep in episodes:
+            if ep["guid"] not in existing_guids:
+                title_line = f"- [ ] **{ep['title']}** • [MP3]({ep['mp3_url']}#{ep['guid']}) • {ep['published']} • {ep['duration']}\n"
+                self.lines.append(title_line)
+                existing_guids.add(ep["guid"])
+                n += 1
+        return n
+
+
+if __name__ == "__main__":
+    cli()
