@@ -1,0 +1,10 @@
+{
+  "id": "librechat",
+  "name": "LibreChat",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://gitlab.com/CGamesPlay/dotfiles",
+  "config": {
+    "serviceURL": "https://librechat.cluster.cgamesplay.com/"
+  }
+}
