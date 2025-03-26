@@ -9,4 +9,4 @@ elif ! nvim -u NONE --headless +"if has('nvim-0.8') | quit | else | cquit | endi
 	echo "nvim: version too old; skipping configuration" >&2
 	exit 0
 fi
-nvim --headless "+Lazy! sync" +qa
+nvim --headless "+Lazy! restore" +qa
