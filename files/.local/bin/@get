@@ -184,7 +184,7 @@ nvm-sh/nvm() {
 	setup_env
 	eget nvm-sh/nvm --source --file="*" --to=nvm
 
-	rsync -a --delete nvm/ ~/.config/nvm/
+	rsync -a nvm/ "${NVM_DIR:?}"
 
 	rm -rf nvm
 }
