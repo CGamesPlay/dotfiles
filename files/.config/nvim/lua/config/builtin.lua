@@ -224,7 +224,7 @@ keys:set("n", "<leader>tB", function()
 end, { desc = "[T]oggle [B]ackground" })
 keys:set("n", "<leader>td", function()
   vim.diagnostic.enable(not vim.diagnostic.is_enabled())
-end, { desc = "[T]oggle [B]ackground" })
+end, { desc = "[T]oggle [D]iagnostics" })
 
 keys:set("n", "<D-r>", function()
   vim.cmd("wa")

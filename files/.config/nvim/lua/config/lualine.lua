@@ -1,3 +1,4 @@
+-- https://github.com/nvim-lualine/lualine.nvim
 -- A blazing fast and easy to configure neovim statusline plugin written in
 -- pure lua.
 
@@ -94,17 +95,17 @@ return {
       lualine_a = { my_mode },
       lualine_b = { "diagnostics" },
       lualine_c = { { "filename", path = 1 } },
-      lualine_x = { "copilot", "filetype" },
-      lualine_y = { "progress" },
-      lualine_z = { "location" },
+      lualine_x = { "progress", "location" },
+      lualine_y = { "copilot", { "lsp_status", ignore_lsp = { "copilot" } } },
+      lualine_z = { "filetype" },
     },
     inactive_sections = {
       lualine_a = { my_mode },
       lualine_b = {},
       lualine_c = { { "filename", path = 1 } },
-      lualine_x = { "filetype" },
-      lualine_y = { "progress" },
-      lualine_z = { "location" },
+      lualine_x = { "progress", "location" },
+      lualine_y = {},
+      lualine_z = { "filetype" },
     },
   },
   init = function()

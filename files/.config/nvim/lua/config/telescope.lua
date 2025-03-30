@@ -19,7 +19,12 @@
 local keys = require("keygroup").new("config.telescope")
 
 keys:set("n", "<leader>s?", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin Telescopes" })
-keys:set("n", "<leader>sb", "<Cmd>Telescope buffers<CR>", { desc = "[S]earch [B]uffers" })
+keys:set(
+  "n",
+  "<leader>sb",
+  "<Cmd>Telescope buffers sort_lastused=true sort_mru=true<CR>",
+  { desc = "[S]earch [B]uffers" }
+)
 keys:set("n", "<leader>sc", "<Cmd>Telescope commands<CR>", { desc = "[S]earch [C]ommands" })
 keys:set("n", "<leader>sf", "<Cmd>Telescope find_files<CR>", { desc = "[S]earch [F]iles" })
 keys:set("n", "<leader>sh", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch [H]elp" })
@@ -28,7 +33,7 @@ keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
 end, { desc = "[S]earch [dot]files" })
 keys:set("n", "<leader>sG", function()
-  require("git_grep").live_grep()
+  require("git_grep").workspace_live_grep()
 end, { desc = "[S]earch Git [G]rep" })
 
 -- This binding intelligently switches between git_files and find_files
@@ -49,7 +54,6 @@ keys:set("n", "<C-b>", "<Cmd>Telescope buffers<CR>", { desc = "Jump To Buffer" }
 return {
   {
     "nvim-telescope/telescope.nvim",
-    version = "*",
     dependencies = {
       "nvim-lua/plenary.nvim",
       "nvim-telescope/telescope-ui-select.nvim",
@@ -79,7 +83,8 @@ return {
     end,
   },
   {
-    "https://gitlab.com/CGamesPlay/telescope-git-grep.nvim.git",
+    "https://gitlab.com/davvid/telescope-git-grep.nvim.git",
+    version = "1.3.0",
     lazy = true,
     config = function()
       pcall(require("telescope").load_extension, "git_grep")

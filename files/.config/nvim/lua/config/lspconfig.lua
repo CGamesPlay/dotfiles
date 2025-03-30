@@ -160,7 +160,7 @@ return {
 
       -- Start the LSP after lazy-loading
       vim.cmd("LspStart")
-      require("lazydev").setup({})
+      require("lazydev").setup()
 
       -- Allow the plugin to be unloaded
       require("lspconfig").deactivate = function()

@@ -43,7 +43,7 @@ end
 
 return {
   "saghen/blink.cmp",
-  version = "*",
+  version = "1.0.0",
   opts = {
     -- 'default' for mappings similar to built-in completion
     -- 'super-tab' for mappings similar to vscode (tab to accept, arrow keys to navigate)
@@ -52,11 +52,11 @@ return {
     keymap = {
       preset = "none",
       ["<C-n>"] = { copilot_next, "show", "select_next", "fallback" },
-      ["<Esc>"] = { copilot_dismiss, "hide", "fallback" },
+      ["<Esc>"] = { copilot_dismiss, "cancel", "fallback" },
       ["<C-p>"] = { copilot_prev, "select_prev", "fallback" },
       ["<Up>"] = { "select_prev", "fallback" },
       ["<Down>"] = { "select_next", "fallback" },
-      ["<C-e>"] = { copilot_dismiss, "hide", "fallback" },
+      ["<C-e>"] = { copilot_dismiss, "cancel", "fallback" },
       ["<C-y>"] = { copilot_accept, "accept", "fallback" },
       ["<CR>"] = { copilot_accept, "accept", "fallback" },
       ["<C-u>"] = { copilot_activate, "scroll_documentation_up", "fallback" },
@@ -85,9 +85,30 @@ return {
     },
     sources = {
       default = { "lsp", "path", "snippets", "buffer" },
-      -- Blink supports completing on the cmdline, but I prefer the basic
-      -- interface which feels much more like fish.
-      cmdline = {},
+    },
+    -- Blink supports completing on the cmdline. There are two main problems with this:
+    -- 1. Blink uses fuzzy matching, which is never what I want when
+    --    completing filenames.
+    -- 2. Blink doesn't have an "implicit accept" function. If you type
+    --    `:e fi<Tab>`, then you get `:e files/`, and if you then type
+    --    `.co<Tab>`, you get `:e files/.cargo`, because you pressed tab
+    --    (select_next) while `.config` was selected (so show_and_insert
+    --    was skipped).
+    cmdline = {
+      enabled = false,
+      keymap = {
+        preset = "none",
+        ["<C-n>"] = { "show", "select_next", "fallback" },
+        ["<Esc>"] = { "cancel", "fallback" },
+        ["<C-p>"] = { "select_prev", "fallback" },
+        ["<Up>"] = { "select_prev", "fallback" },
+        ["<Down>"] = { "select_next", "fallback" },
+        ["<C-e>"] = { "cancel", "fallback" },
+        ["<C-y>"] = { "accept", "fallback" },
+        ["<CR>"] = { "accept", "fallback" },
+        ["<Tab>"] = { "show_and_insert", "select_next", "fallback" },
+        ["<S-Tab>"] = { "fallback" },
+      },
     },
     appearance = {
       nerd_font_variant = "mono",

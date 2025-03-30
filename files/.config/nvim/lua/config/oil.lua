@@ -1,3 +1,4 @@
+-- https://github.com/stevearc/oil.nvim
 -- Neovim file explorer: edit your filesystem like a buffer
 local keys = require("keygroup").new("config.oil")
 
@@ -7,7 +8,7 @@ local detail = false
 
 return {
   "stevearc/oil.nvim",
-  version = "*",
+  version = "2.15.0",
   dependencies = { "nvim-tree/nvim-web-devicons" },
   lazy = false, -- Cannot be lazy becuase we want to be able to run `nvim .`
   opts = {
