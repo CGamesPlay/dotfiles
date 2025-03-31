@@ -18,7 +18,7 @@
 -- do as well as how to actually do it!
 local keys = require("keygroup").new("config.telescope")
 
-keys:set("n", "<leader>s?", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin Telescopes" })
+keys:set("n", "<leader>sT", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin [T]elescopes" })
 keys:set(
   "n",
   "<leader>sb",
@@ -27,7 +27,7 @@ keys:set(
 )
 keys:set("n", "<leader>sc", "<Cmd>Telescope commands<CR>", { desc = "[S]earch [C]ommands" })
 keys:set("n", "<leader>sf", "<Cmd>Telescope find_files<CR>", { desc = "[S]earch [F]iles" })
-keys:set("n", "<leader>sh", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch [H]elp" })
+keys:set("n", "<leader>s?", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch Help Tags" })
 keys:set("n", "<leader>sk", "<Cmd>Telescope keymaps<CR>", { desc = "[S]earch [K]eymaps" })
 keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
@@ -80,14 +80,13 @@ return {
         },
       })
       pcall(telescope.load_extension, "ui-select")
+      pcall(telescope.load_extension, "git_grep")
     end,
   },
   {
-    "https://gitlab.com/davvid/telescope-git-grep.nvim.git",
-    version = "1.3.0",
+    "https://gitlab.com/CGamesPlay/telescope-git-grep.nvim.git",
+    -- "https://gitlab.com/davvid/telescope-git-grep.nvim.git",
+    -- version = "1.3.0",
     lazy = true,
-    config = function()
-      pcall(require("telescope").load_extension, "git_grep")
-    end,
   },
 }

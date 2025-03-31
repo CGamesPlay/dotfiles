@@ -15,7 +15,7 @@
   "oil.nvim": { "branch": "master", "commit": "975a77cce3c8cb742bc1b3629f4328f5ca977dad" },
   "plenary.nvim": { "branch": "master", "commit": "857c5ac632080dba10aae49dba902ce3abf91b35" },
   "rose-pine": { "branch": "main", "commit": "a2e8ee6e657235cd1ce00a58b705e063413d6dee" },
-  "telescope-git-grep.nvim": { "branch": "main", "commit": "cdd8215f15843a420b5c8e792395c403136626b6" },
+  "telescope-git-grep.nvim": { "branch": "main", "commit": "ceaa302be671469370b6c7d5e6eee4c2f92235c6" },
   "telescope-ui-select.nvim": { "branch": "master", "commit": "6e51d7da30bd139a6950adf2a47fda6df9fa06d2" },
   "telescope.nvim": { "branch": "master", "commit": "a4ed82509cecc56df1c7138920a1aeaf246c0ac5" },
   "text-case.nvim": { "branch": "main", "commit": "e898cfd46fa6cde0e83abb624a16e67d2ffc6457" },

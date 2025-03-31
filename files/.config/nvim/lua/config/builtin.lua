@@ -225,6 +225,12 @@ end, { desc = "[T]oggle [B]ackground" })
 keys:set("n", "<leader>td", function()
   vim.diagnostic.enable(not vim.diagnostic.is_enabled())
 end, { desc = "[T]oggle [D]iagnostics" })
+keys:set("n", "<leader>t|", function()
+  if vim.o.textwidth == 0 then
+    vim.notify("textwidth is not set", vim.log.levels.INFO)
+  end
+  vim.o.colorcolumn = vim.o.colorcolumn == "" and "+0" or ""
+end, { desc = "[T]oggle Color Column" })
 
 keys:set("n", "<D-r>", function()
   vim.cmd("wa")
