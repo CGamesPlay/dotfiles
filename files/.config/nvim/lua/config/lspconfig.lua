@@ -106,13 +106,15 @@ return {
           end
 
           local builtin = require("telescope.builtin")
+          map("<F5>", "<CMD>LspRestart<CR>", "Restart Servers")
           map("gd", builtin.lsp_definitions, "[G]oto [D]efinition")
           map("gr", builtin.lsp_references, "[G]oto [R]eferences")
           map("gI", builtin.lsp_implementations, "[G]oto [I]mplementation")
           map("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
           map("gT", builtin.lsp_type_definitions, "[G]oto [T]ype Definition")
           map("gs", builtin.lsp_document_symbols, "[G]oto [S]ymbol")
-          map("<leader>ss", builtin.lsp_dynamic_workspace_symbols, "[S]earch [S]ymbols")
+          map("<leader>ss", builtin.lsp_dynamic_workspace_symbols, "[S]earch Workspace [S]ymbols")
+          map("<leader>so", builtin.lsp_document_symbols, "[S]earch File [O]utline")
           map("<leader>r.", vim.lsp.buf.rename, "[R]ename Symbol Under Cursor")
           map("<leader>rf", lsp_rename_file, "[R]ename [F]ile")
           map("<leader>ca", vim.lsp.buf.code_action, "[C]ode [A]ction")

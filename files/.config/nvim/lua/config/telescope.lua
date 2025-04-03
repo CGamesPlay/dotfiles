@@ -18,16 +18,16 @@
 -- do as well as how to actually do it!
 local keys = require("keygroup").new("config.telescope")
 
-keys:set("n", "<leader>sT", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin [T]elescopes" })
 keys:set(
   "n",
   "<leader>sb",
   "<Cmd>Telescope buffers sort_lastused=true sort_mru=true<CR>",
   { desc = "[S]earch [B]uffers" }
 )
+keys:set("n", "<leader>s?", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch Help Tags" })
+keys:set("n", "<leader>sT", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin [T]elescopes" })
 keys:set("n", "<leader>sc", "<Cmd>Telescope commands<CR>", { desc = "[S]earch [C]ommands" })
 keys:set("n", "<leader>sf", "<Cmd>Telescope find_files<CR>", { desc = "[S]earch [F]iles" })
-keys:set("n", "<leader>s?", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch Help Tags" })
 keys:set("n", "<leader>sk", "<Cmd>Telescope keymaps<CR>", { desc = "[S]earch [K]eymaps" })
 keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
