@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import os
+import shlex
 import subprocess
 import sys
 import traceback
-import shlex
 
 import iterm2
 
@@ -34,25 +35,29 @@ async def main(connection):
 
                 if env is None:
                     print("No env name given; skipping")
+                    continue
 
-                nvim_cmd = ["@env", "nvim"]
+                env_cmd = ["@env", "nvim"]
                 if tmux:
-                    nvim_cmd.append(f"--tmux={shlex.quote(tmux)}")
-                nvim_cmd += [
-                    f"--chdir={shlex.quote(directory)}",
-                    shlex.quote(env),
-                ]
-                neovide_cmd = [
+                    env_cmd.append(f"--tmux={tmux}")
+                if directory is not None:
+                    env_cmd.append(f"--chdir={directory}")
+                env_cmd.append(env)
+                cmd = [
                     "open",
                     "-na",
                     "Neovide",
                     "--args",
-                    f"--neovim-bin={' '.join(nvim_cmd)}",
+                    "--neovim-bin=neovide",
                 ]
                 if filename:
-                    neovide_cmd.append(filename)
-                print(neovide_cmd)
-                subprocess.run(neovide_cmd, check=True)
+                    cmd.append(filename)
+                cmd += [
+                    "--",
+                    f"--prefix={shlex.join(env_cmd)}",
+                ]
+                print(cmd)
+                subprocess.run(cmd, check=True, env={"NEOVIDE_LAUNCHER": "1"})
             except Exception:
                 traceback.print_tb(sys.exc_info()[2])
 

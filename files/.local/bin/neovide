@@ -10,14 +10,22 @@ if [ -d /Applications/Neovide.app ]; then
 		exec /Applications/Neovide.app/Contents/MacOS/neovide neovide --help
 	fi
 
-	if [[ "${NEOVIDE:+1}" ]]; then
-		unset NEOVIDE
-		DIRECTORY=$1
-		shift
-		cd "$DIRECTORY"
-		exec direnv exec "$DIRECTORY" nvim "$@"
+	if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
+		args=()
+		for arg in "$@"; do
+			case "$arg" in
+				--prefix=*)
+					prefix=${arg#--prefix=}
+					;;
+				*)
+					args+=("$arg")
+					;;
+			esac
+		done
+		unset NEOVIDE_LAUNCHER
+		exec sh -c "$prefix $(printf '%q ' "${args[@]}")"
 	else
-		NEOVIDE=1 open -na Neovide --args --neovim-bin="$0 $(printf %q "$(pwd)")" "$@"
+		NEOVIDE_LAUNCHER=1 open -na Neovide --args --neovim-bin="$0" -- --prefix="cd $(printf %q "$(pwd)") && exec direnv exec . nvim" "$@"
 	fi
 
 else
