@@ -1,0 +1,13 @@
+{
+  "script_dependencies": {
+    "prefix": ["script"],
+    "body": [
+      "# /// script",
+      "# dependencies = [",
+      "#   \"$0\",",
+      "# ]",
+      "# ///"
+    ],
+    "description": "Inline script metadata (PEP-723)"
+  }
+}

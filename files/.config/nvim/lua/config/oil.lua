@@ -15,9 +15,11 @@ return {
     keymaps = {
       ["g."] = false,
       ["<C-h>"] = false,
+      ["<C-l>"] = false,
       ["<C-p>"] = false,
       ["<C-s>"] = false,
       ["<C-t>"] = false,
+      ["<F5>"] = { callback = "actions.refresh", desc = "Oil: Refresh" },
       ["<leader>t."] = {
         desc = "Oil: [T]oggle Hidden ([.]) files",
         callback = "actions.toggle_hidden",
