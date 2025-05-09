@@ -2,7 +2,7 @@
 -- editor tooling such as LSP servers, DAP servers, linters, and formatters
 -- through a single interface
 return {
-  "williamboman/mason.nvim",
+  "mason-org/mason.nvim",
   version = "*",
   lazy = true,
   opts = {

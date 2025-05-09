@@ -43,7 +43,7 @@ end
 
 return {
   "saghen/blink.cmp",
-  version = "1.0.0",
+  version = "*",
   opts = {
     -- 'default' for mappings similar to built-in completion
     -- 'super-tab' for mappings similar to vscode (tab to accept, arrow keys to navigate)

@@ -8,9 +8,9 @@
 -- - translate between lspconfig server names and mason.nvim package names
 --   (e.g. lua_ls <-> lua-language-server)
 return {
-  "williamboman/mason-lspconfig.nvim",
+  "mason-org/mason-lspconfig.nvim",
   version = "*",
-  dependencies = { "williamboman/mason.nvim" },
+  dependencies = { "mason-org/mason.nvim" },
   lazy = true,
   opts = {},
 }

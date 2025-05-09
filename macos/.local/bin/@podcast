@@ -230,3 +230,5 @@ class Database:
 
 if __name__ == "__main__":
     cli()
+
+# vim: ft=python

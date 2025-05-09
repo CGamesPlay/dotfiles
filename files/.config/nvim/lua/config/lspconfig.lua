@@ -25,7 +25,7 @@ return {
       --   up a predefined list of servers
       -- - translate between lspconfig server names and mason.nvim package
       --   names (e.g. lua_ls <-> lua-language-server)
-      "williamboman/mason-lspconfig.nvim",
+      "mason-org/mason-lspconfig.nvim",
       "nvim-telescope/telescope.nvim",
       "saghen/blink.cmp",
     },
@@ -90,10 +90,6 @@ return {
       for server_name in pairs(opts.servers) do
         setup_server(server_name)
       end
-
-      -- This function will ensure that any LSPs installed with Mason trigger a
-      -- reload.
-      require("mason-lspconfig").setup_handlers({ setup_server })
 
       -- Add the buffer-local keymaps when LSP successfully attaches to a
       -- buffer

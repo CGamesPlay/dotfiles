@@ -48,6 +48,7 @@ async def main(connection):
                     "-na",
                     "Neovide",
                     "--args",
+                    "--wsl",
                     "--neovim-bin=neovide",
                 ]
                 if filename:

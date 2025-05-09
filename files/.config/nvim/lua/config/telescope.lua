@@ -18,12 +18,7 @@
 -- do as well as how to actually do it!
 local keys = require("keygroup").new("config.telescope")
 
-keys:set(
-  "n",
-  "<leader>sb",
-  "<Cmd>Telescope buffers sort_lastused=true sort_mru=true<CR>",
-  { desc = "[S]earch [B]uffers" }
-)
+keys:set("n", "<leader>sb", "<C-b>", { desc = "[S]earch [B]uffers", remap = true })
 keys:set("n", "<leader>s?", "<Cmd>Telescope help_tags<CR>", { desc = "[S]earch Help Tags" })
 keys:set("n", "<leader>sT", "<Cmd>Telescope builtin<CR>", { desc = "[S]earch Builtin [T]elescopes" })
 keys:set("n", "<leader>sc", "<Cmd>Telescope commands<CR>", { desc = "[S]earch [C]ommands" })
@@ -49,7 +44,7 @@ keys:set("n", "<C-p>", function()
     builtin.find_files()
   end
 end, { desc = "Jump To File" })
-keys:set("n", "<C-b>", "<Cmd>Telescope buffers<CR>", { desc = "Jump To Buffer" })
+keys:set("n", "<C-b>", "<Cmd>Telescope buffers sort_mru=true select_current=true<CR>", { desc = "Jump To Buffer" })
 
 return {
   {

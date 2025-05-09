@@ -189,6 +189,13 @@ nvm-sh/nvm() {
 	rm -rf nvm
 }
 
+# @cmd Install goose
+# @alias goose
+pressly/goose() {
+	setup_env
+	eget pressly/goose --to="$BINDIR"
+}
+
 # @cmd Install bat
 # Modern cat/less replacement.
 # @alias bat
