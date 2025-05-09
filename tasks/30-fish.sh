@@ -2,7 +2,7 @@
 # Install fish v3 and set it as the default shell.
 set -e
 
-preferred_version="3.[4-9]"
+preferred_version="4.[0-9]"
 
 is_installed() {
 	command -v "$1" >/dev/null
@@ -20,24 +20,24 @@ install_fish() {
 	if [ -f /etc/lsb-release ]; then
 		# shellcheck disable=SC1091
 		. /etc/lsb-release
-		# https://launchpad.net/~fish-shell/+archive/ubuntu/release-3
+		# https://launchpad.net/~fish-shell/+archive/ubuntu/release-4
 		mkdir -p /etc/apt/keyrings
 		curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x88421E703EDC7AF54967DED473C9FCC9E2BB48DA' | sudo tee /etc/apt/keyrings/ppa-fish-shell.asc >/dev/null
-		sudo tee /etc/apt/sources.list.d/ppa-fish-shell-release-3.sources >/dev/null <<-EOF
+		sudo tee /etc/apt/sources.list.d/ppa-fish-shell-release-4.sources >/dev/null <<-EOF
 		Types: deb
-		URIs: https://ppa.launchpadcontent.net/fish-shell/release-3/ubuntu
+		URIs: https://ppa.launchpadcontent.net/fish-shell/release-4/ubuntu
 		Suites: $DISTRIB_CODENAME
 		Components: main
 		Signed-By: /etc/apt/keyrings/ppa-fish-shell.asc
 
 		Types: deb-src
-		URIs: https://ppa.launchpadcontent.net/fish-shell/release-3/ubuntu
+		URIs: https://ppa.launchpadcontent.net/fish-shell/release-4/ubuntu
 		Suites: $DISTRIB_CODENAME
 		Components: main
 		Signed-By: /etc/apt/keyrings/ppa-fish-shell.asc
 		EOF
 
-		sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/ppa-fish-shell-release-3.sources" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+		sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/ppa-fish-shell-release-4.sources" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
 		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fish
 	else
 		echo "Don't know how to install fish on this platform." >&2
