@@ -25,7 +25,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
       { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-      { out, "WarningMsg" },
+      { out,                            "WarningMsg" },
       { "\nPress any key to exit..." },
     }, true, {})
     vim.fn.getchar()
@@ -68,5 +68,11 @@ require("lazy").setup({
       task = "📌",
       lazy = "💤 ",
     },
+  },
+  performance = {
+    -- Lazy resets the value of rtp by default, I guess for performance
+    -- reasons, but this breaks the Ubuntu PPA of Neovim, which stores
+    -- tree-sitter parsers in a different directory.
+    rtp = { reset = false },
   },
 })
