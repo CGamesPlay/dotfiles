@@ -29,7 +29,6 @@ return {
       "nvim-telescope/telescope.nvim",
       "saghen/blink.cmp",
     },
-    event = "VeryLazy",
 
     opts = {
       -- It's possible to add extra settings for each lsp, see :help
@@ -73,16 +72,17 @@ return {
       vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 
       lspconfig.util.default_config =
-        vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
+          vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
 
       local function setup_server(server_name)
-        local server = opts.servers[server_name]
-        if server ~= nil then
+        local config = opts.servers[server_name]
+        if config ~= nil then
           -- This handles overriding only values explicitly passed by the
           -- server configuration above. Useful when disabling certain features
           -- of an LSP (for example, turning off formatting for ts_ls)
-          server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-          require("lspconfig")[server_name].setup(server)
+          config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, config.capabilities or {})
+          vim.lsp.enable(server_name)
+          vim.lsp.config(server_name, config)
         end
       end
 
@@ -91,10 +91,13 @@ return {
         setup_server(server_name)
       end
 
+      local augroup = vim.api.nvim_create_augroup("lspconfig", { clear = true })
+      local highlight_augroup = vim.api.nvim_create_augroup("kickstart-lsp-highlight", { clear = false })
+
       -- Add the buffer-local keymaps when LSP successfully attaches to a
       -- buffer
       vim.api.nvim_create_autocmd("LspAttach", {
-        group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
+        group = augroup,
         callback = function(event)
           local function map(left, right, desc, mode)
             mode = mode or "n"
@@ -122,7 +125,6 @@ return {
           -- cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
           if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
-            local highlight_augroup = vim.api.nvim_create_augroup("kickstart-lsp-highlight", { clear = false })
             vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
               buffer = event.buf,
               group = highlight_augroup,
@@ -133,14 +135,6 @@ return {
               buffer = event.buf,
               group = highlight_augroup,
               callback = vim.lsp.buf.clear_references,
-            })
-
-            vim.api.nvim_create_autocmd("LspDetach", {
-              group = vim.api.nvim_create_augroup("kickstart-lsp-detach", { clear = true }),
-              callback = function(event2)
-                vim.lsp.buf.clear_references()
-                vim.api.nvim_clear_autocmds({ group = "kickstart-lsp-highlight", buffer = event2.buf })
-              end,
             })
           end
 
@@ -156,14 +150,13 @@ return {
         end,
       })
 
-      -- Start the LSP after lazy-loading
-      vim.cmd("LspStart")
-      require("lazydev").setup()
-
-      -- Allow the plugin to be unloaded
-      require("lspconfig").deactivate = function()
-        vim.lsp.stop_client(vim.lsp.get_clients())
-      end
+      vim.api.nvim_create_autocmd("LspDetach", {
+        group = augroup,
+        callback = function(event2)
+          vim.lsp.buf.clear_references()
+          vim.api.nvim_clear_autocmds({ group = highlight_augroup, buffer = event2.buf })
+        end,
+      })
     end,
   },
 }

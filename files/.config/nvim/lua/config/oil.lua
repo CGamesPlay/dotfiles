@@ -40,5 +40,8 @@ return {
         callback = "actions.preview",
       },
     },
+    lsp_file_options = {
+      autosave_changes = true,
+    }
   },
 }

@@ -4,7 +4,6 @@
 return {
   "mason-org/mason.nvim",
   version = "*",
-  lazy = true,
   opts = {
     -- Append so that project-specific versions of tools alwasy take
     -- precedence.
