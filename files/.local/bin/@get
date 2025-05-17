@@ -12,7 +12,6 @@ export EGET_BIN=$TMPDIR
 # import { visualizer } from "rollup-plugin-visualizer";
 # @alias fx
 antonmedv/fx() {
-	setup_env
 	eget antonmedv/fx --to="$BINDIR"
 }
 
@@ -20,7 +19,6 @@ antonmedv/fx() {
 # Modern/faster grep alternative
 # @alias rg
 BurntSushi/ripgrep() {
-	setup_env
 	eget BurntSushi/ripgrep --file="*" --to=ripgrep
 
 	cp ripgrep/rg "$BINDIR/"
@@ -34,7 +32,6 @@ BurntSushi/ripgrep() {
 # Binary installer for rust. Mostly replaced by eget.
 # @alias cargo-binstall
 cargo-bins/cargo-binstall() {
-	setup_env
 	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
 }
 
@@ -42,7 +39,6 @@ cargo-bins/cargo-binstall() {
 # My dotfile manager
 # @alias dfm
 CGamesPlay/dfm() {
-	setup_env
 	eget CGamesPlay/dfm --to="$BINDIR"
 }
 
@@ -50,7 +46,6 @@ CGamesPlay/dfm() {
 # Modern sed replacement
 # @alias sd
 chmln/sd() {
-	setup_env
 	eget chmln/sd --file="*" --to=sd
 
 	cp sd/sd "$BINDIR/"
@@ -63,7 +58,6 @@ chmln/sd() {
 # @cmd Install cocogitto
 # @alias cocogitto,cog
 cocogitto/cocogitto() {
-	setup_env
 	eget -f 'cog' cocogitto/cocogitto --to="$BINDIR"
 }
 
@@ -71,7 +65,6 @@ cocogitto/cocogitto() {
 # Procfile runner.
 # @alias hivemind
 DarthSim/hivemind() {
-	setup_env
 	eget DarthSim/hivemind --to="$BINDIR"
 }
 
@@ -79,7 +72,6 @@ DarthSim/hivemind() {
 # Git output filter.
 # @alias delta
 dandavision/delta() {
-	setup_env
 	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
 }
 
@@ -87,7 +79,6 @@ dandavision/delta() {
 # Friendly HTTP client
 # @alias xh
 ducaale/xh() {
-	setup_env
 	eget ducaale/xh --to="$BINDIR"
 	eget ducaale/xh --file="*" --to=xh
 
@@ -101,7 +92,6 @@ ducaale/xh() {
 # @cmd Install direnv
 # @alias direnv
 direnv/direnv() {
-	setup_env
 	eget direnv/direnv --to="$BINDIR"
 
 	version=$(direnv --version)
@@ -114,7 +104,6 @@ direnv/direnv() {
 # Modern ls replacement
 # @alias eza
 eza-community/eza() {
-	setup_env
 	# Eza doesn't do their own builds for darwin or musl.
 	if is_darwin || is_musl; then
 		eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
@@ -134,7 +123,6 @@ eza-community/eza() {
 # Framework-agnostic database migration tool.
 # @alias migrate
 golang-migrate/migrate() {
-	setup_env
 	eget golang-migrate/migrate --to="$BINDIR"
 }
 
@@ -142,7 +130,6 @@ golang-migrate/migrate() {
 # A swiss army knife of container debugging.
 # @alias cdebug
 iximiuz/cdebug() {
-	setup_env
 	eget iximiuz/cdebug --to="$BINDIR"
 }
 
@@ -150,7 +137,6 @@ iximiuz/cdebug() {
 # Friendly interface to git
 # @alias lazygit
 jesseduffield/lazygit() {
-	setup_env
 	eget jesseduffield/lazygit --to="$BINDIR"
 }
 
@@ -158,7 +144,6 @@ jesseduffield/lazygit() {
 # Fuzzy file finder
 # @alias fzf
 junegunn/fzf() {
-	setup_env
 	eget junegunn/fzf --to="$BINDIR"
 
 	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
@@ -168,7 +153,6 @@ junegunn/fzf() {
 # @cmd Install git-filter-repo
 # @alias git-filter-repo
 newren/git-filter-repo() {
-	setup_env
 	eget newren/git-filter-repo --file="*" --to=git-filter-repo
 
 	cp git-filter-repo/git-filter-repo "$BINDIR/"
@@ -181,7 +165,6 @@ newren/git-filter-repo() {
 # Node version manager
 # @alias nvm
 nvm-sh/nvm() {
-	setup_env
 	eget nvm-sh/nvm --source --file="*" --to=nvm
 
 	rsync -a nvm/ "${NVM_DIR:?}"
@@ -192,7 +175,6 @@ nvm-sh/nvm() {
 # @cmd Install goose
 # @alias goose
 pressly/goose() {
-	setup_env
 	eget pressly/goose --to="$BINDIR"
 }
 
@@ -200,7 +182,6 @@ pressly/goose() {
 # Modern cat/less replacement.
 # @alias bat
 sharkdp/bat() {
-	setup_env
 	eget -a "$(musl_tag)" sharkdp/bat --file="*" --all --to=bat
 
 	cp bat/bat "$BINDIR/"
@@ -214,7 +195,6 @@ sharkdp/bat() {
 # Modern find replacement.
 # @alias fd
 sharkdp/fd() {
-	setup_env
 	eget sharkdp/fd --file="*" --all --to=fd
 
 	cp fd/fd "$BINDIR/"
@@ -228,14 +208,12 @@ sharkdp/fd() {
 # My primary command runner.
 # @alias argc
 sigoden/argc() {
-	setup_env
 	eget sigoden/argc --to="$BINDIR"
 }
 
 # @cmd Install sgpt
 # @alias sgpt
 tbckr/sgpt() {
-	setup_env
 	eget -a '^.json' tbckr/sgpt --file="*" --all --to=sgpt
 
 	cp sgpt/sgpt "$BINDIR/"
@@ -249,14 +227,12 @@ tbckr/sgpt() {
 # The command runner I used before switching to argc.
 # @alias robo
 tj/robo() {
-	setup_env
 	eget tj/robo --to="$BINDIR"
 }
 
 # @cmd Install ecslog
 # @alias ecslog
 trentm/go-ecslog() {
-	setup_env
 	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
 }
 
@@ -264,7 +240,6 @@ trentm/go-ecslog() {
 # File monitor and command runner
 # @alias watchexec
 watchexec/watchexec() {
-	setup_env
 	eget -a "$(musl_tag)" -a '^b3' -a '^sha512' -a 'tar' watchexec/watchexec --file="*" --to=watchexec
 
 	cp watchexec/watchexec "$BINDIR/"
@@ -274,7 +249,7 @@ watchexec/watchexec() {
 	rm -rf watchexec
 }
 
-setup_env() {
+_argc_before() {
 	cd "$TMPDIR"
 	BINDIR="${argc_target:?}/bin"
 	MANDIR="${argc_target:?}/share/man"
