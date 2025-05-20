@@ -121,17 +121,6 @@ function M:_dispose()
   end
 end
 
---- Return a LazyKeysSpec[] for this group
----@return table[]
-function M:lazy_keys()
-  local result = {}
-  for _, map in ipairs(self._maps) do
-    local opts = map[4] or {}
-    table.insert(result, { map[2], mode = map[1], ft = opts.ft, desc = opts.desc })
-  end
-  return result
-end
-
 local augroup = vim.api.nvim_create_augroup("keygroup", { clear = true })
 
 vim.api.nvim_create_autocmd("FileType", {

@@ -67,7 +67,6 @@ return {
     -- This enables using gq for range formatting
     vim.o.formatexpr = "v:lua.require'config.conform'.formatexpr()"
   end,
-  keys = keys:lazy_keys(),
 
   formatexpr = function()
     local bufnr = vim.api.nvim_get_current_buf()
