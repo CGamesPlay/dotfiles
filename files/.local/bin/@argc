@@ -121,7 +121,6 @@ rails::rdoc() {
 
 	mkdir -p "${argc_target:?}"
 	index_file="${argc_target:?}/index.html"
-	> "$index_file"
 
 	echo "<html><head><title>Gems Documentation Index</title></head><body><h1>Gems Documentation Index</h1><ul>" > "$index_file"
 
@@ -132,7 +131,7 @@ rails::rdoc() {
 			echo "<li><a href='$gem_name/index.html'>$gem_name</a></li>" >> "$index_file"
 		fi
 
-		if [ -d "$gem_out_dir" -a ! "${argc_rebuild:+1}" ]; then
+		if [ -d "$gem_out_dir" ] && [ ! "${argc_rebuild:+1}" ]; then
 			echo "Skipping $gem_name"
 			continue
 		fi
@@ -145,6 +144,16 @@ rails::rdoc() {
 	echo "</ul></body></html>" >> "$index_file"
 
 	echo "RDoc generation complete. Open $index_file to browse the documentation."
+}
+
+# @cmd Run Anthropic's Claude Code
+# In the future, potentially look into:
+# - https://github.com/openai/codex
+# - https://github.com/All-Hands-AI/OpenHands
+claude() {
+	# shellcheck disable=SC1091
+	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+	nvm exec --lts npx @anthropic-ai/claude-code
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
