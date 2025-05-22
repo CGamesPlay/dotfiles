@@ -48,12 +48,9 @@ return {
         args = { "format", "$FILENAME" },
         stdin = false,
       },
-      -- stylua = {
-      --   prepend_args = { "--foo=bar" },
-      -- },
     },
     default_format_opts = {
-      lsp_format = "first",
+      lsp_format = "prefer",
     },
     format_on_save = function(bufnr)
       -- Disable with a global or buffer-local variable
