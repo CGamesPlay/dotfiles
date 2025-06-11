@@ -236,6 +236,13 @@ trentm/go-ecslog() {
 	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
 }
 
+# @cmd Install g
+# Go version manager
+# @alias g
+voidint/g() {
+	eget voidint/g --to="$BINDIR"
+}
+
 # @cmd Install watchexec
 # File monitor and command runner
 # @alias watchexec
