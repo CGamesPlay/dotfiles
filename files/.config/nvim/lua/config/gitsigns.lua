@@ -38,20 +38,6 @@ return {
         end,
         { desc = "Toggle Git [S]tatus" })
 
-      -- Navigation
-      local function hunk_nav(keys, direction)
-        map("n", keys, function()
-          if vim.wo.diff then
-            vim.cmd.normal({ keys, bang = true })
-          else
-            gitsigns.nav_hunk(direction)
-          end
-        end, { desc = "Jump to " .. direction .. " [c]hange" })
-      end
-      hunk_nav("[C", "first")
-      hunk_nav("[c", "prev")
-      hunk_nav("]c", "next")
-      hunk_nav("]C", "last")
 
       -- Hunk staging
       map("n", "+", gitsigns.stage_hunk, { desc = "Stage hunk" })

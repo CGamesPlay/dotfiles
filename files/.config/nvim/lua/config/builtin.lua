@@ -193,17 +193,69 @@ keys:set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true 
 keys:set("c", "%%", '<C-R>=expand("%:h")<CR>/')
 
 -- Jump between quickfix locations
-local function bracket_map(left, cmd, desc)
-  keys:set("n", left, "<Cmd>:" .. cmd .. "<CR>", { desc = desc })
+local function hunk_nav(key, direction)
+  return function()
+    if vim.wo.diff then
+      vim.cmd.normal({ key, bang = true })
+    else
+      require("gitsigns").nav_hunk(direction)
+    end
+  end
 end
-bracket_map("[L", "lfirst", "Jump To First [L]ocation item")
-bracket_map("]L", "llast", "Jump To Last [L]ocation item")
-bracket_map("[l", "lprev", "Jump To Previous [L]ocation item")
-bracket_map("]l", "lnext", "Jump To Next [L]ocation item")
-bracket_map("[Q", "cfirst", "Jump To First [Q]uickfix item")
-bracket_map("]Q", "clast", "Jump To Last [Q]uickfix item")
-bracket_map("[q", "cprev", "Jump To Previous [Q]uickfix item")
-bracket_map("]q", "cnext", "Jump To Next [Q]uickfix item")
+local MODES = {
+  q = { desc = "[Q]uickfix", prev = "cprev", next = "cnext", first = "cfirst", last = "clast" },
+  l = { desc = "[L]ocation", prev = "lprev", next = "lnext", first = "lfirst", last = "llast" },
+  c = {
+    desc = "[C]hange (git hunk)",
+    prev = hunk_nav("[c", "prev"),
+    next = hunk_nav("]c", "next"),
+    first = hunk_nav("[c", "first"),
+    last = hunk_nav("]c", "last"),
+  },
+  d = {
+    desc = "[D]iagnostic",
+    prev = function() vim.diagnostic.jump({ count = -1 }) end,
+    next = function() vim.diagnostic.jump({ count = 1 }) end,
+    first = function() vim.diagnostic.jump({ count = -math.huge, wrap = false }) end,
+    last = function() vim.diagnostic.jump({ count = math.huge, wrap = false }) end,
+  },
+}
+local last_bracket = "l"
+
+local function safe_cmd(cmd)
+  local ok, err
+  if type(cmd) == "function" then
+    ok, err = pcall(cmd)
+  else
+    ok, err = pcall(vim.cmd, cmd)
+  end
+  if not ok then
+    local clean_err = err:match("E%d+: (.*)") or err
+    vim.api.nvim_echo({ { clean_err, "ErrorMsg" } }, true, {})
+  end
+end
+
+local function bracket_map(key, cmd, mode_key, desc)
+  keys:set("n", key, function()
+    last_bracket = mode_key
+    safe_cmd(cmd)
+  end, { desc = desc })
+end
+
+for mode_key, mode in pairs(MODES) do
+  bracket_map("[" .. mode_key:upper(), mode.first, mode_key, "Jump To First " .. mode.desc .. " item")
+  bracket_map("]" .. mode_key:upper(), mode.last, mode_key, "Jump To Last " .. mode.desc .. " item")
+  bracket_map("[" .. mode_key:lower(), mode.prev, mode_key, "Jump To Previous " .. mode.desc .. " item")
+  bracket_map("]" .. mode_key:lower(), mode.next, mode_key, "Jump To Next " .. mode.desc .. " item")
+end
+
+-- Add [[ and ]] that use the last bracket category
+keys:set("n", "[[", function()
+  safe_cmd(MODES[last_bracket].prev)
+end, { desc = "Jump To Previous (last used category)" })
+keys:set("n", "]]", function()
+  safe_cmd(MODES[last_bracket].next)
+end, { desc = "Jump To Next (last used category)" })
 
 -- Select the just-pasted text, works with whole and partial lines.
 keys:set("n", "gp", [['`[' . strpart(getregtype(), 0, 1) . '`]']], { expr = true, desc = "Select last pasted text" })
