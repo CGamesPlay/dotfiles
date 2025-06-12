@@ -191,10 +191,6 @@ keys:set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true 
 -- Use %% in command mode to get the directory of the current buffer.
 keys:set("c", "%%", '<C-R>=expand("%:h")<CR>/')
 
--- Disable mouse selection for text (because I trigger is accidentally)
-keys:set("n", "<LeftDrag>", "<Nop>")
-keys:set("n", "<LeftRelease>", "<Nop>")
-
 -- Jump between quickfix locations
 local function bracket_map(left, cmd, desc)
   keys:set("n", left, "<Cmd>:" .. cmd .. "<CR>", { desc = desc })
@@ -283,10 +279,10 @@ vim.api.nvim_create_autocmd("BufRead", {
       callback = function()
         local line = vim.fn.line("'\"")
         if
-          line >= 1
-          and line <= vim.fn.line("$")
-          and vim.bo.filetype ~= "commit"
-          and not vim.tbl_contains({ "xxd", "gitrebase" }, vim.bo.filetype)
+            line >= 1
+            and line <= vim.fn.line("$")
+            and vim.bo.filetype ~= "commit"
+            and not vim.tbl_contains({ "xxd", "gitrebase" }, vim.bo.filetype)
         then
           vim.cmd('normal! g`"')
         end

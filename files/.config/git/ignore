@@ -14,3 +14,5 @@ pyvenv.cfg
 .aider*
 .amelpair.db
 .amelpair.toml
+
+**/.claude/settings.local.json
