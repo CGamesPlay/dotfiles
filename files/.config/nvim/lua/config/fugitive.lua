@@ -49,25 +49,7 @@
 -- - :GBrowse to open the current file on the web front-end of your favorite
 --   hosting provider, with optional line range (try it in visual mode).
 
-local function git_delete()
-  local buf = vim.api.nvim_get_current_buf()
-  if vim.bo[buf].modified then
-    local _, choice = pcall(vim.fn.confirm, "File has been modified", "&Delete\n&Cancel", 2, "Warning")
-    if choice ~= 1 then
-      return
-    end
-  end
-
-  vim.cmd("GRemove! | BD")
-end
-
 local keys = require("keygroup").new("config.fugitive")
-
-keys:set("n", "<leader>gs", "<Cmd>Git<CR>", { desc = "[G]it [S]tatus" })
-keys:set("n", "<leader>gb", "<Cmd>Git blame<CR>", { desc = "[G]it [B]lame" })
-keys:set("n", "<leader>gd", git_delete, { desc = "[G]it [D]elete" })
-keys:set("n", "<leader>gw", "<Cmd>:Gwrite<CR>", { desc = "[G]it [W]rite (buffer to git index)" })
-keys:set("n", "<leader>gr", "<Cmd>:Gread<CR>", { desc = "[G]it [R]ead (buffer from git index)" })
 
 keys:set(
   "n",

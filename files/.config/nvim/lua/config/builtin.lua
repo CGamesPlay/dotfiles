@@ -20,6 +20,7 @@ vim.g.have_nerd_font = true
 -- status bar). Note that relativenumber can cause lag over slow connections.
 opt.number = false
 opt.relativenumber = true
+opt.numberwidth = 3
 
 -- Enable the mouse in normal and visual modes
 opt.mouse = "nv"
@@ -44,7 +45,7 @@ opt.ignorecase = true
 opt.smartcase = true
 
 -- Always make room for the sign columns
-opt.signcolumn = "number"
+opt.signcolumn = "yes:1"
 
 -- Amount of time to wait for for CursorHold events.
 opt.updatetime = 1000

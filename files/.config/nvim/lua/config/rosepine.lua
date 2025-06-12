@@ -31,7 +31,9 @@ return {
     local augroup_rosepine = vim.api.nvim_create_augroup("rosepine", { clear = true })
     vim.api.nvim_create_autocmd("OptionSet", {
       pattern = "background",
-      callback = update_colorscheme,
+      callback = function()
+        vim.schedule(update_colorscheme)
+      end,
       group = augroup_rosepine,
     })
   end,
