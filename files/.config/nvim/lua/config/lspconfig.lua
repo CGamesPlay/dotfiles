@@ -15,17 +15,8 @@ end
 return {
   {
     "neovim/nvim-lspconfig",
+    version = "*",
     dependencies = {
-      -- mason-lspconfig.nvim closes some gaps that exist between mason.nvim
-      -- and lspconfig. Its main responsibilities are to:
-      -- - register a setup hook with lspconfig that ensures servers installed
-      --   with mason.nvim are set up with the necessary configuration
-      -- - provide extra convenience APIs such as the :LspInstall command
-      -- - allow you to (i) automatically install, and (ii) automatically set
-      --   up a predefined list of servers
-      -- - translate between lspconfig server names and mason.nvim package
-      --   names (e.g. lua_ls <-> lua-language-server)
-      "mason-org/mason-lspconfig.nvim",
       "nvim-telescope/telescope.nvim",
       "saghen/blink.cmp",
     },
@@ -60,6 +51,7 @@ return {
         },
         rust_analyzer = {},
         standardrb = {},
+        terraformls = {},
         ts_ls = {},
       },
     },
@@ -72,7 +64,7 @@ return {
       vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 
       lspconfig.util.default_config =
-          vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
+        vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
 
       local function setup_server(server_name)
         local config = opts.servers[server_name]

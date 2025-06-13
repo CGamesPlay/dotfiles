@@ -16,6 +16,20 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   end,
 })
 
+local keys = require("keygroup").new("config.gitsigns")
+keys:set(
+  "n",
+  "<leader>gs",
+  function() require("gitsigns").setqflist(0, { use_location_list = true }) end,
+  { silent = true, desc = "[G]it [S]tatus File" }
+)
+keys:set(
+  "n",
+  "<leader>gS",
+  function() require("gitsigns").setqflist("all") end,
+  { silent = true, desc = "[G]it [S]tatus Repository" }
+)
+
 return {
   "lewis6991/gitsigns.nvim",
   version = "*",

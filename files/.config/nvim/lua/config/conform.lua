@@ -21,17 +21,21 @@ return {
   event = { "BufWritePre" },
   cmd = { "ConformInfo" },
   opts = {
-    -- In general, I prefer lsp formatters since the always-running daemon is
-    -- faster than running a separate program.
+    default_format_opts = {
+      -- In general, I prefer lsp formatters since the always-running daemon is
+      -- faster than running a separate program.
+      lsp_format = "prefer",
+    },
     formatters_by_ft = {
       astro = { "prettier" },
       beancount = { "bh_format" },
       css = { "prettier" },
       go = { "gofmt", "goimports" },
-      hcl = { "terraform_hclfmt" },
+      hcl = { "terraform_fmt" },
       javascript = { "prettier" },
       json = { "prettier" },
       jsonc = { "prettier" },
+      jsonnet = { "jsonnetfmt" },
       lua = { "stylua" },
       -- Organize imports automatically.
       -- https://github.com/astral-sh/ruff-lsp/issues/335
@@ -48,9 +52,6 @@ return {
         args = { "format", "$FILENAME" },
         stdin = false,
       },
-    },
-    default_format_opts = {
-      lsp_format = "prefer",
     },
     format_on_save = function(bufnr)
       -- Disable with a global or buffer-local variable

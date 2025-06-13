@@ -2,4 +2,5 @@
 return {
   "jvirtanen/vim-hcl",
   "nathangrigg/vim-beancount",
+  "google/vim-jsonnet",
 }

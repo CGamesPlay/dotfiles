@@ -4,6 +4,14 @@
 
 local augroup = vim.api.nvim_create_augroup("config.nvim-lint", { clear = true })
 
+vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+  desc = "Lint on file save",
+  group = augroup,
+  callback = function()
+    require("lint").try_lint()
+  end,
+})
+
 vim.api.nvim_create_user_command("Lint", function()
   require("lint").try_lint()
 end, {})
@@ -19,15 +27,7 @@ return {
     -- To override args:
     --   :lua =require('lint').linters.ruff.args
     --table.insert(lint.linters.ruff.args, 2, "--foo")
+    table.insert(lint.linters.shellcheck.args, 1, "--exclude=2002")
   end,
   lazy = true,
-  init = function()
-    vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-      desc = "Lint on file save",
-      group = augroup,
-      callback = function()
-        require("lint").try_lint()
-      end,
-    })
-  end,
 }

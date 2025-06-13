@@ -35,6 +35,14 @@ cargo-bins/cargo-binstall() {
 	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
 }
 
+# @cmd Install kapp
+# kapp is a simple deployment tool focused on the concept of "Kubernetes
+# application" — a set of resources with the same label
+# @alias kapp
+carvel-dev/kapp() {
+	eget carvel-dev/kapp --to="$BINDIR"
+}
+
 # @cmd Install dfm
 # My dotfile manager
 # @alias dfm
