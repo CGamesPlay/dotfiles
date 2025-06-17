@@ -146,17 +146,4 @@ rails::rdoc() {
 	echo "RDoc generation complete. Open $index_file to browse the documentation."
 }
 
-# @cmd Run Anthropic's Claude Code
-# In the future, potentially look into:
-# - https://github.com/boldsoftware/sketch
-# - https://github.com/All-Hands-AI/OpenHands
-# - https://github.com/openai/codex
-# @arg args~ Passed to claude
-claude() {
-	unset ANTHROPIC_API_KEY
-	# shellcheck disable=SC1091
-	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
-	nvm exec --lts npx --yes @anthropic-ai/claude-code@latest ${argc_args+-- "${argc_args[@]}"}
-}
-
 eval "$(argc --argc-eval "$0" "$@")"

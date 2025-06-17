@@ -92,6 +92,8 @@ opt.completeopt = "menu,menuone,noinsert,preview"
 opt.shiftwidth = 4
 opt.tabstop = 4
 
+-- Set up folding using syntax by default.
+opt.foldmethod = "syntax"
 -- Always start editing with no folds closed
 opt.foldlevelstart = 99
 -- Just show the normal line (with a background highlight) for closed folds

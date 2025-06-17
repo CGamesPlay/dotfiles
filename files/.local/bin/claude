@@ -1,0 +1,18 @@
+#!/bin/bash
+# In the future, potentially look into:
+# - https://github.com/boldsoftware/sketch
+# - https://github.com/All-Hands-AI/OpenHands
+# - https://github.com/openai/codex
+
+set -e
+
+# Claude doesn't like using an external key
+unset ANTHROPIC_API_KEY
+
+# shellcheck disable=SC1091
+. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+nvm use --lts
+if [ "$(command -v claude)" = "${BASH_SOURCE[0]}" ]; then
+	npm install -g @anthropic-ai/claude-code
+fi
+exec claude "$@"
