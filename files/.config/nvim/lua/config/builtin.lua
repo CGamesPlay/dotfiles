@@ -22,6 +22,9 @@ opt.number = false
 opt.relativenumber = true
 opt.numberwidth = 3
 
+-- Always make room for the sign columns
+opt.signcolumn = "yes:1"
+
 -- Enable the mouse in normal and visual modes
 opt.mouse = "nv"
 
@@ -43,9 +46,6 @@ opt.showbreak = "↳ "
 -- in the pattern to disable.
 opt.ignorecase = true
 opt.smartcase = true
-
--- Always make room for the sign columns
-opt.signcolumn = "yes:1"
 
 -- Amount of time to wait for for CursorHold events.
 opt.updatetime = 1000
@@ -91,6 +91,11 @@ opt.completeopt = "menu,menuone,noinsert,preview"
 -- Set the default tab width to 4 characters. All other tab settings are defined per-filetype and using plugins.
 opt.shiftwidth = 4
 opt.tabstop = 4
+
+-- Always start editing with no folds closed
+opt.foldlevelstart = 99
+-- Just show the normal line (with a background highlight) for closed folds
+opt.foldtext = ""
 
 -- Format lists inside of comments
 opt.formatoptions:append("n")
