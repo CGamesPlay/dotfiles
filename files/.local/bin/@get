@@ -35,12 +35,27 @@ cargo-bins/cargo-binstall() {
 	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
 }
 
+# @cmd Install kbld
+# kbld seamlessly incorporates image building and image pushing into
+# your development and deployment workflows.
+# @alias kbld
+carvel-dev/kbld() {
+	eget carvel-dev/kbld --to="$BINDIR"
+}
+
 # @cmd Install kapp
 # kapp is a simple deployment tool focused on the concept of "Kubernetes
 # application" — a set of resources with the same label
 # @alias kapp
 carvel-dev/kapp() {
 	eget carvel-dev/kapp --to="$BINDIR"
+}
+
+# @cmd Install ytt
+# YAML templating tool that works on YAML structure instead of text
+# @alias ytt
+carvel-dev/ytt() {
+	eget carvel-dev/ytt --to="$BINDIR"
 }
 
 # @cmd Install dfm
@@ -156,6 +171,14 @@ junegunn/fzf() {
 
 	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
 	curl -fsSL "https://github.com/junegunn/fzf/raw/${fzf_version}/man/man1/fzf.1" -o "$MANDIR/man1/fzf.1"
+}
+
+# @cmd Install devpod CLI
+# Codespaces but client-only
+# @alias devpod
+loft-sh/devpod() {
+	# Desktop versions are called DevPod with capitals
+	eget loft-sh/devpod -a '^DevPod' --to="$BINDIR"
 }
 
 # @cmd Install git-filter-repo

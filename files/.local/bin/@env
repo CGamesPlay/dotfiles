@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 # @describe Spin up and access isolated development environments.
 #
-# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each
-# environment is an Argcfile which defines subcommands to start and
-# access the environment. Required subcommands:
+# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment is
+# an Argcfile which defines subcommands to start and access the environment.
+# Required subcommands:
 #
 # - up: start the environment. Arguments are allowed.
-# - run-in-env: runs a shell command in the environment. The single
-#   argument is a shell script to run.
+# - run-in-env: runs a shell command in the environment. The single argument is
+#   a shell script to run.
 # - stop: stop the environment. Arguments are allowed.
+# - status: check the status of the environment. Should print something
+#   machine-readable and exit with a success code. Arguments are allowed.
 #
-# Any other commands are allowed and exposed via the env-command
-# subcommand.
+# Any other commands are allowed and exposed via the env-command subcommand.
 set -eu
 
 ATENV_HOME=${ATENV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/@env}
@@ -124,6 +125,13 @@ stop() {
 	env-command
 }
 
+# @cmd Check the environment is running
+# @arg       environment![`_list_environments`] Name of the environment
+status() {
+	argc_args=(status)
+	env-command
+}
+
 # @cmd Open a shell in the environment
 # @arg       environment![`_list_environments`] Name of the environment
 shell() {
@@ -135,6 +143,7 @@ shell() {
 # @arg       environment![`_list_environments`] Name of the environment
 # @arg       directory                          Remote directory to start in
 tmux() {
+	echo "Starting tmux in $argc_environment"
 	cmd="tmux -uCC new -As0"
 	if [ ${argc_directory:+1} ]; then
 		cmd="cd $(shelljoin "$argc_directory") && $cmd"

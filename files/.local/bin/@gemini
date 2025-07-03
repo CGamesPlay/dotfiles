@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+# Required because my Google account is a workspace account
+export GOOGLE_CLOUD_PROJECT=astute-helper-258108
+
+# shellcheck disable=SC1091
+. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+nvm use --lts
+npm install -g @google/gemini-cli
+exec gemini "$@"
