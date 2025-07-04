@@ -4,17 +4,8 @@ end
 if [ -d /usr/local/bin ]
   fish_add_path -g /usr/local/bin
 end
-if [ -d /Applications/MacVim.app/Contents/bin/ ]
-  fish_add_path -g /Applications/MacVim.app/Contents/bin/
-end
-if [ -d /Applications/MacVim.app/Contents/bin/ ]
-  fish_add_path -g /Applications/MacVim.app/Contents/bin/
-end
 if [ -d /opt/homebrew/bin ]
   fish_add_path -g /opt/homebrew/bin
-end
-if [ -d /opt/nvim-linux64/bin ]
-  fish_add_path -g /opt/nvim-linux64/bin
 end
 if [ -d ~/.cargo/bin ]
   fish_add_path -g ~/.cargo/bin
