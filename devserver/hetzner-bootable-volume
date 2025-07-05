@@ -8,7 +8,7 @@ set -eu
 # @cmd Boot the specified cloud volume.
 # @arg    volume!                         Name or ID of bootable volume
 # @option -n --name <NAME>                Name of server to create (default: same as volume)
-# @option    --boot-image=ubuntu-22.04    <ID> ID of image to use for booting
+# @option    --boot-image=ubuntu-24.04    <ID> ID of image to use for booting
 # @option -t --type=cpx51 <TYPE>          Type of machine to use
 # @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
 # @option    --firewall*                  ID or name of firewall to attach
@@ -61,11 +61,14 @@ boot() {
 		--type "${argc_type:?}"
 		--ssh-key "${argc_ssh_key:?}"
 		--user-data-from-file "$user_data"
+		--start-after-create=false
 	)
 	for id in ${argc_firewall+"${argc_firewall[@]}"}; do
 		create_args+=(--firewall="$id")
 	done
 	hcloud server create "${create_args[@]}"
+	hcloud volume attach "$argc_volume" --server "$server_name"
+	hcloud server poweron "$server_name"
 	rm "$user_data"
 	ip=$(hcloud server ip "$server_name")
 	echo "Created $server_name with IP $ip"
@@ -115,7 +118,7 @@ update_ssh_config() {
 #   hcloud volume create --name myvol --size 50 --location nbg1
 #   hetzner-bootable-volume prepare-volume myvol
 # @arg    volume!                         Name or ID of volume to be formatted
-# @option    --image=ubuntu-22.04         Image to use for the volume
+# @option    --image=ubuntu-24.04         Image to use for the volume
 # @option    --server-name                Preparation server name (default: same as volume)
 # @option    --server-type=cpx11          Preparation server type
 # @option    --user-data-from-file        <FILE> Filename containing user-data
@@ -155,6 +158,7 @@ prepare-volume() {
 		create_args+=(--user-data-from-file="$argc_user_data_from_file")
 	fi
 	hcloud server create "${create_args[@]}"
+	hcloud volume attach "$argc_volume" --server "$argc_server_name"
 	# shellcheck disable=SC2317
 	cleanup() {
 		if [[ $? -eq 0 ]] || user_confirmation "Delete server $argc_server_name?'"; then
@@ -374,7 +378,7 @@ show-prepare-script() {
 # @arg    dst_region! region to create new volume in
 # @option -s --size   size of new volume to create, in GB
 # @option    --target-volume-id  ID of an existing volume to use
-# @option    --image=ubuntu-22.04         Image to use for the volume
+# @option    --image=ubuntu-24.04         Image to use for the volume
 # @option    --server-type=cpx11          Preparation server type
 # @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
 # @option    --login-user=root            <USERNAME> Username to log in with

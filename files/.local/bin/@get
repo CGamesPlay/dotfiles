@@ -149,6 +149,13 @@ golang-migrate/migrate() {
 	eget golang-migrate/migrate --to="$BINDIR"
 }
 
+# @cmd Install hcloud
+# Hetzner Cloud CLI
+# @alias hcloud
+hetznercloud/cli() {
+	eget hetznercloud/cli -f hcloud --to="$BINDIR"
+}
+
 # @cmd Install cdebug
 # A swiss army knife of container debugging.
 # @alias cdebug

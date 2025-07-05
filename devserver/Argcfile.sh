@@ -7,7 +7,7 @@ set -eu
 # @arg    volume!                   Name or ID of bootable volume
 # @option    --size!                <GB> Size of volume in GiB
 # @option    --location=nbg1        <LOCATION> Where to create volume
-# @option    --image=ubuntu-22.04   <ID> Image to use for volume
+# @option    --image=ubuntu-24.04   <ID> Image to use for volume
 # @option -t --server-type          <TYPE> Type of machine to use for preparation
 # @option -k --ssh-key              <ID> SSH key to use for preparation
 create-hbv() {
