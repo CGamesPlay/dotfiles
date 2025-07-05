@@ -58,16 +58,16 @@ user_data = {
     "timezone": "UTC",
     "package_update": True,
     "packages": [
+        "direnv",
         "docker.io",
         "hcloud-cli",
+        "jq",
+        "net-tools",
         "python3",
         "python3-pip",
         "python3-venv",
-        "wireguard",
-        "net-tools",
+        "restic",
         "unzip",
-        "direnv",
-        "jq",
     ],
     "write_files": [
         write_file(

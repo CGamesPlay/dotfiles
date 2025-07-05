@@ -100,6 +100,86 @@
           state: restarted
         when: not auto_shutdown_unit.changed and auto_shutdown_bin.changed
 
+      - name: configure restic user
+        user:
+          name: restic
+          system: yes
+          create_home: no
+          shell: /usr/sbin/nologin
+          group: backup
+
+      - name: create restic config directory
+        file:
+          path: /etc/restic
+          state: directory
+          owner: restic
+          group: backup
+          mode: '0750'
+
+      - copy:
+          dest: /etc/restic/restic.conf
+          mode: 0644
+          force: no
+          content: |
+            RESTIC_REPOSITORY=
+            RESTIC_PASSWORD=
+            RESTIC_OPTIONS="-o s3.storage-class=STANDARD_IA"
+            RESTIC_CACHE_DIR=/var/cache/restic
+            AWS_ACCESS_KEY_ID=
+            AWS_SECRET_ACCESS_KEY=
+
+      - copy:
+          dest: /etc/restic/exclude
+          mode: 0644
+          force: no
+          content: |
+            # https://restic.readthedocs.io/en/latest/040_backup.html#excluding-files
+            # --exclude-caches is also enabled: https://bford.info/cachedir/
+
+      - copy:
+          dest: /etc/systemd/system/restic-backup.timer
+          content: |
+            [Unit]
+            Description="Restic Backup daily timer"
+            Documentation=https://gitlab.com/CGamesPlay/dotfiles
+            Requires=network-online.target
+            After=network-online.target
+
+            [Timer]
+            OnCalendar=daily
+            Persistent=true
+            RandomizedDelaySec=60
+
+            [Install]
+            WantedBy=timers.target
+        register: restic_backup_timer_unit
+
+      - copy:
+          dest: /etc/systemd/system/restic-backup.service
+          content: |
+            [Unit]
+            Description="Restic Backup"
+            Documentation=https://gitlab.com/CGamesPlay/dotfiles
+            Requires=network-online.target
+            After=network-online.target
+
+            [Service]
+            Type=oneshot
+            User=restic
+            IOSchedulingClass=idle
+            WorkingDirectory=/etc/restic
+            EnvironmentFile=/etc/restic/restic.conf
+            AmbientCapabilities=CAP_DAC_READ_SEARCH
+            CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+            ExecStart=restic backup --exclude-file exclude --exclude-caches /home/ubuntu
+            CacheDirectory=restic
+            CacheDirectoryMode=0750
+        register: restic_backup_service_unit
+
+      - systemd:
+          daemon-reload: true
+        when: restic_backup_timer_unit.changed or restic_backup_service_unit.changed
+
       - name: configure dotfiles
         become: yes
         become_user: ubuntu

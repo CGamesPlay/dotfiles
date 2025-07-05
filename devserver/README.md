@@ -66,6 +66,23 @@ We create a persistent cloud storage volume and install Linux on it. To boot int
 - **Why not just snapshot the server and restore from snapshot?** Snapshots are not preferred in general because they are immutable. This would require managing rolling snapshots of the volumes and clean dangling snapshots. Also, restoring a snapshot is significantly slower than booting from a stock image with an attached cloud volume.
 - **Why not just boot directly from the cloud volume?** This would require a (very small) snapshot that contained just the Grub boot loader. However, Grub is unable to see the Hetzner cloud volume, for unknown reasons.
 
+## Automatic backups with Restic
+
+The Ansible playbook also sets up a service to perform Restic backups for the drive, although it is disabled by default. Only `/home/ubuntu` is backed up; this is set in the systemd unit file.
+
+To enable it, configure the restic options in `/etc/restic/restic.conf`, then follow these steps:
+
+```bash
+# Initial setup steps after configuring /etc/restic/restic.conf
+sudo su
+set -a; . /etc/restic/restic.conf; set +a
+restic init
+systemctl start restic-backup
+systemctl status restic-backup # Verify that it succeeded
+restic snapshots # More verification
+sudo systemctl enable --now restic-backup.timer
+```
+
 ## Migrating Hetzner Cloud Volumes
 
 Hetzner does not provide any built-in facility to migrate cloud volumes between datacenters. It is possible to manually clone a volume into a new region.

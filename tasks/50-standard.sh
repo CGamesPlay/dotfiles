@@ -14,7 +14,3 @@ for i in "${list[@]}"; do
 		@get "$i"
 	fi
 done
-
-if [ ! -d ~/.config/nvm ]; then
-	@get nvm
-fi
