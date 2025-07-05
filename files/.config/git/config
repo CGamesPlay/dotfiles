@@ -65,6 +65,7 @@
 	ci = commit
 	st = status
 	cp = cherry-pick
+	diff-sbs = -c delta.side-by-side=true diff
 	# Show a commit graph
 	graph = log --date-order --date=short --graph --full-history --pretty=format:'%x08%x09%C(red)%h %C(cyan)%cd %C(bold blue)%cN%C(reset)%C(bold yellow)%d %C(reset)%s'
 	# Utilities for setting up branches with tracking

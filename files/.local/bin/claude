@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# @describe Claude Code Wrapper
-# @meta version wrapper has no version, use --claude-version
-# @flag      --claude-help     Show help for Claude
-# @flag      --claude-version  Show versio for Claude
-# @arg       args~             Additional arguments for Claude
+# @describe Wrapper around Claude Code
+#
+# In the future, potentially look into:
+# - https://github.com/boldsoftware/sketch
+# - https://github.com/All-Hands-AI/OpenHands
+# - https://github.com/openai/codex
+# @version wrapper has no version, use --claude-version
+# @flag      --claude-version Show Claude Code version
+# @flag      --claude-help    Show Claude Code help
+# @arg    args~               Passed to Claude Code
 
 set -eu
 
 # Claude doesn't like using an external key
 unset ANTHROPIC_API_KEY
 # Undocumented method to set the config directory
-export CLAUDE_CONFIG_DIR=$HOME/.config/claude
+export CLAUDE_CONFIG_DIR=~/.config/claude
 
 main() {
 	if [ -z "$NVM_DIR" ]; then
@@ -18,6 +23,7 @@ main() {
 		return 1
 	fi
 	set +eu
+	# shellcheck disable=SC1091
 	. "$NVM_DIR/nvm.sh"
 	nvm use --lts --silent
 	set -eu
@@ -27,7 +33,7 @@ main() {
 		npm install -g @anthropic-ai/claude-code
 		claude config set --global preferredNotifChannel iterm
 	fi
-	exec claude "${argc_args[@]}" ${argc_claude_help+--help} ${argc_claude_version+--version}
+	exec claude ${argc_args+"${argc_args[@]}"} ${argc_claude_help+--help} ${argc_claude_version+--version}
 }
 
 if ! command -v argc >/dev/null; then

@@ -29,6 +29,18 @@ keys:set(
   function() require("gitsigns").setqflist("all") end,
   { silent = true, desc = "[G]it [S]tatus Repository" }
 )
+keys:set(
+  "n",
+  "<leader>gr",
+  function() require("gitsigns").reset_hunk() end,
+  { silent = true, desc = "[G]it [R]eset Hunk" }
+)
+keys:set(
+  "v",
+  "<leader>gr",
+  function() require("gitsigns").reset_hunk({ vim.fn.line('.'), vim.fn.line('v') }) end,
+  { silent = true, desc = "[G]it [R]eset Selection" }
+)
 
 return {
   "lewis6991/gitsigns.nvim",
