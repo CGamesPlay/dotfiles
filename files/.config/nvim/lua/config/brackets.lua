@@ -2,6 +2,9 @@
 
 local keys = require("keygroup").new("config.brackets")
 
+-- Disable mapping which override these
+vim.g.no_python_maps = 1
+
 -- Jump between quickfix locations
 local function hunk_nav(key, direction)
   return function()

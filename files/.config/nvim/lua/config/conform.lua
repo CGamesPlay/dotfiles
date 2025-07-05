@@ -5,9 +5,11 @@ local keys = require("keygroup").new("config.conform")
 keys:set("n", "<leader>tf", function()
   local bufnr = vim.api.nvim_get_current_buf()
   vim.b[bufnr].conform_disable = not vim.b[bufnr].conform_disable
+  print("Auto-format " .. (vim.b[bufnr].conform_disable and "disabled" or "enabled") .. " for this buffer")
 end, { desc = "[T]oggle Auto[f]ormat" })
 keys:set("n", "<leader>tF", function()
   vim.g.conform_disable = not vim.g.conform_disable
+  print("Auto-format " .. (vim.g.conform_disable and "disabled" or "enabled"))
 end, { desc = "[T]oggle Auto[f]ormat (all files)" })
 
 --- The timeout for format_on_save can be set per-buffer with
@@ -43,7 +45,7 @@ return {
       rust = { "rustfmt" },
       eruby = { "erb_format" },
       terraform = { "terraform_fmt" },
-      typescript = { "prettier" },
+      typescript = { "prettier", lsp_format = "fallback" },
       typescriptreact = { "prettier" },
     },
     formatters = {
