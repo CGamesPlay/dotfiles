@@ -77,7 +77,8 @@ def touch_keepalive(value):
         except FileNotFoundError:
             pass
     else:
-        os.utime(keepalive_file, (value.timestamp(), value.timestamp()))
+        with open(keepalive_file, "a"):
+            os.utime(keepalive_file, (value.timestamp(), value.timestamp()))
 
 
 def get_activity():
