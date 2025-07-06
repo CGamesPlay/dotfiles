@@ -31,7 +31,7 @@ main() {
 	if ! npm list -g @anthropic-ai/claude-code >/dev/null; then
 		echo "Claude Code is not installed. Installing..." >&2
 		npm install -g @anthropic-ai/claude-code
-		claude config set --global preferredNotifChannel iterm
+		claude config set --global preferredNotifChannel iterm2
 	fi
 	exec claude ${argc_args+"${argc_args[@]}"} ${argc_claude_help+--help} ${argc_claude_version+--version}
 }
