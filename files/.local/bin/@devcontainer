@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# @describe Wrapper around @devcontainers/cli
+# 
+# Because that program was not designed for human use.
+# @option    --workspace-folder=.         Path to workspace folder
+# @meta inherit-flag-options
+
+set -eu
+
+# shellcheck disable=SC1091
+. "${NVM_DIR:?}/nvm.sh"
+set +u
+nvm use --lts --silent
+set -u
+
+_ensure_installed() {
+	if ! which devcontainer >/dev/null; then
+		echo "Installing @devcontainers/cli" >&2
+		npm install -g @devcontainers/cli >&2
+	fi
+}
+
+# @cmd Start a container, creating it if necessary
+# @flag      --remove-existing-container  Remove a container and recreate it
+up() {
+	_ensure_installed
+	args=(
+		--workspace-folder="${argc_workspace_folder:?}"
+		--dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git
+		${argc_remove_existing_container+--remove-existing-container}
+	)
+	devcontainer up "${args[@]}"
+}
+
+# @cmd Open a shell in the running devcontainer
+shell() {
+	_ensure_installed
+	devcontainer exec --workspace-folder="${argc_workspace_folder:?}" sh -c "exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\""
+}
+
+# @cmd Execute a command in the running devcontainer
+# @arg       args~                        Command to run
+# @alias exec
+run-cmd() {
+	devcontainer exec --workspace-folder="${argc_workspace_folder:?}" "${argc_args[@]:?}"
+}
+
+# @cmd Show the status of the devcontainer
+#
+# Only considers the main container in docker compose setups.
+status() {
+	path="$(readlink -f "${argc_workspace_folder:?}")"
+	docker ps -a -f "label=devcontainer.local_folder=$path" --format '{{.State}}'
+}
+
+# @cmd Stop a running devcontainer
+#
+# Doesn't work for docker compose containers
+#
+# https://github.com/devcontainers/cli/issues/386
+stop() {
+	container_id=$(_locate_container)
+	if [[ ${container_id:+1} ]]; then
+		docker stop "$container_id"
+	fi
+}
+
+# @cmd Remove the devcontainer
+#
+# Doesn't work for docker compose containers
+down() {
+	container_id=$(_locate_container)
+	if [[ ${container_id:+1} ]]; then
+		docker stop "$container_id"
+		docker rm "$container_id"
+	fi
+}
+
+_locate_container() {
+	path="$(readlink -f "${argc_workspace_folder:?}")"
+	docker ps -a -f "label=devcontainer.local_folder=$path" --format '{{.ID}}'
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# @describe Primitive fallback wrapper for when git-delta is not installed
+#
+# Install git-delta with @get delta
+# @flag --color-only
+
+main() {
+	if [ ${argc_color_only+1} ]; then
+		exec cat
+	else
+		exec less
+	fi
+}
+
+if ! command -v argc >/dev/null; then
+	echo "Delta not installed and fallback requires argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"
