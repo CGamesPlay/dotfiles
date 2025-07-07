@@ -52,8 +52,8 @@
             Description="Ansible - run ansible-pull on boot"
             Documentation=https://www.ansible.com/
             DefaultDependencies=no
-            Wants=cloud-final.target
-            After=cloud-final.target
+            Wants=cloud-final.target systemd-networkd-wait-online.service
+            After=cloud-final.target systemd-networkd-wait-online.service
 
             [Service]
             Type=oneshot
@@ -183,6 +183,7 @@
       - name: configure dotfiles
         become: yes
         become_user: ubuntu
+        ignore_errors: true
         block:
           - git:
               repo: https://gitlab.com/CGamesPlay/dotfiles.git
