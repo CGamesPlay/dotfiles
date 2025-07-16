@@ -48,25 +48,40 @@ require("lazy").setup({
   -- Configure any other settings here. See the documentation for more details.
   -- colorscheme that will be used when installing plugins.
   install = { colorscheme = { "habamax" } },
-  -- if I am not trying to do an immediate edit, check for plugin updates
-  checker = { enabled = vim.fn.argc() == 0 },
+  -- Plugin update checker
+  checker = {
+    -- Default: disabled
+    -- Optional: automatic check only when not doing an immediate update
+    --enabled = vim.fn.argc() == 0
+  },
   -- disable luarocks (consider adding back later)
   rocks = { enabled = false },
   ui = {
     icons = {
-      cmd = "⌘",
-      config = "🛠",
-      event = "📅",
-      ft = "📂",
-      init = "⚙",
-      keys = "🗝",
-      plugin = "🔌",
-      runtime = "💻",
-      require = "🌙",
-      source = "📄",
-      start = "🚀",
-      task = "📌",
-      lazy = "💤 ",
+      cmd = " ",
+      config = "",
+      debug = "● ",
+      event = " ",
+      favorite = " ",
+      ft = " ",
+      init = " ",
+      import = " ",
+      keys = " ",
+      lazy = "󰒲 ",
+      loaded = "●",
+      not_loaded = "○",
+      plugin = " ",
+      runtime = " ",
+      require = "󰢱 ",
+      source = " ",
+      start = " ",
+      task = "✔ ",
+      list = {
+        "●",
+        "➜",
+        "★",
+        "‒",
+      },
     },
   },
   performance = {
