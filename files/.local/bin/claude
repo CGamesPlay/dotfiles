@@ -2,9 +2,12 @@
 # @describe Wrapper around Claude Code
 #
 # In the future, potentially look into:
-# - https://github.com/boldsoftware/sketch
-# - https://github.com/All-Hands-AI/OpenHands
-# - https://github.com/openai/codex
+# - cli: https://github.com/sst/opencode
+# - cli: https://github.com/openai/codex
+# - web: https://github.com/All-Hands-AI/OpenHands
+# - web: https://github.com/boldsoftware/sketch
+# - nvim: https://github.com/olimorris/codecompanion.nvim
+# - nvim: https://github.com/coder/claudecode.nvim
 # @version wrapper has no version, use --claude-version
 # @flag      --claude-version Show Claude Code version
 # @flag      --claude-help    Show Claude Code help
