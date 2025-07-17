@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # @describe Wrapper around Claude Code
 #
+# This is named @claude because a) activating nvm --lts will put the unwrapped
+# claude script ahead in the path and b) because claude's auto-update likes to
+# unlink any other claude in $PATH.
+#
 # In the future, potentially look into:
 # - cli: https://github.com/sst/opencode
 # - cli: https://github.com/openai/codex
@@ -31,9 +35,9 @@ main() {
 	nvm use --lts --silent
 	set -eu
 
-	if ! npm list -g @anthropic-ai/claude-code >/dev/null; then
+	if ! npm --no-update-notifier list -g @anthropic-ai/claude-code >/dev/null; then
 		echo "Claude Code is not installed. Installing..." >&2
-		npm install -g @anthropic-ai/claude-code
+		npm --no-update-notifier install -g @anthropic-ai/claude-code
 		claude config set --global preferredNotifChannel iterm2
 	fi
 	exec claude ${argc_args+"${argc_args[@]}"} ${argc_claude_help+--help} ${argc_claude_version+--version}
