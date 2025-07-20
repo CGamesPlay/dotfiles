@@ -9,7 +9,7 @@
 # - nvim: https://github.com/olimorris/codecompanion.nvim
 # - nvim: https://github.com/coder/claudecode.nvim
 function claude --description "Claude Code"
-	argparse --ignore-unknown --stop-nonopt 'help' 'claude-help' 'claude-reinstall' -- $argv
+	argparse --ignore-unknown --stop-nonopt 'help' 'claude-help' 'claude-reinstall' 'claude-usage' -- $argv
 	or return
 
 	if set -ql _flag_help
@@ -19,6 +19,7 @@ function claude --description "Claude Code"
 		echo "  --help              Print help for wrapper"
 		echo "  --claude-help       Print help for Claude Code"
 		echo "  --claude-reinstall  Reinstall Claude"
+		echo "  --claude-usage      Run ccusage"
 		return
 	else if set -ql _flag_claude_help
 		set argv $argv --help
@@ -26,6 +27,11 @@ function claude --description "Claude Code"
 
 	# Poor man's NVM
 	set -p PATH (dirname (nvm which --lts node))
+
+	if set -ql _flag_claude_usage
+		npx -- ccusage@latest $argv
+		return
+	end
 
 	if set -ql _flag_claude_reinstall; or ! npm --no-update-notifier list -g @anthropic-ai/claude-code >/dev/null
 		echo "Claude Code is not installed. Installing..." >&2
