@@ -6,11 +6,16 @@ vim.api.nvim_create_autocmd("ColorScheme", {
   desc = "Customize gitsigns colors",
   group = augroup,
   callback = function()
-    vim.api.nvim_set_hl(0, 'GitSignsAdd', { fg = vim.api.nvim_get_hl(0, { name = "DiffAdd" }).bg })
-    vim.api.nvim_set_hl(0, 'GitSignsChange', { fg = vim.api.nvim_get_hl(0, { name = "DiffAdd" }).bg })
-    vim.api.nvim_set_hl(0, 'GitSignsStagedAdd', { fg = vim.api.nvim_get_hl(0, { name = "DiffChange" }).bg })
-    vim.api.nvim_set_hl(0, 'GitSignsStagedChange', { fg = vim.api.nvim_get_hl(0, { name = "DiffChange" }).bg })
-    vim.api.nvim_set_hl(0, 'GitSignsStagedDelete', { fg = vim.api.nvim_get_hl(0, { name = "DiffChange" }).bg })
+    local wcColor = vim.api.nvim_get_hl(0, { name = "DiffAdd" }).bg
+    for _, group in pairs({ "GitSignsAdd", "GitSignsChange", "GitSignsTopdelete", "GitSignsChangedelete", "GitSignsDelete" }) do
+      vim.api.nvim_set_hl(0, group, { fg = wcColor })
+    end
+
+    local stageColor = vim.api.nvim_get_hl(0, { name = "DiffChange" }).bg
+    for _, group in pairs({ "GitSignsStagedAdd", "GitSignsStagedChange", "GitSignsStagedTopdelete", "GitSignsStagedChangedelete", "GitSignsStagedDelete" }) do
+      vim.api.nvim_set_hl(0, group, { fg = stageColor })
+    end
+
     vim.api.nvim_set_hl(0, 'GitSignsStagedAddLn', { bg = "bg" })
     vim.api.nvim_set_hl(0, 'GitSignsStagedChangeLn', { bg = "bg" })
   end,
