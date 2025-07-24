@@ -50,22 +50,6 @@ docker-sandbox() {
 	exit "$status"
 }
 
-# @cmd Install amel
-# @arg       target     Path to install to
-# @meta require-tools uv
-install-amel() {
-	target=${argc_target:-~/amel}
-	if [ ! -d "$target" ]; then
-		git clone git@gitlab.com:CGamesPlay/amel-pair.git "$target"
-		cd "$target"
-	else
-		cd "$target"
-		git pull
-	fi
-	uv sync
-	ln -sf "$target/.venv/bin/amel" ~/.local/bin/amel
-}
-
 # @cmd Install llm and llm-cmd-comp
 install-llm() {
 	if ! which uv >/dev/null; then

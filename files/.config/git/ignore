@@ -12,7 +12,6 @@ yarn-error.log
 .direnv
 pyvenv.cfg
 .aider*
-.amelpair.db
-.amelpair.toml
 
 **/.claude/settings.local.json
+**/CLAUDE.local.md
