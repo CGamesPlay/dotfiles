@@ -4,8 +4,8 @@
 
 local augroup = vim.api.nvim_create_augroup("config.nvim-lint", { clear = true })
 
-vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-  desc = "Lint on file save",
+vim.api.nvim_create_autocmd({ "BufWritePost", "FileType" }, {
+  desc = "Lint on file load/save",
   group = augroup,
   callback = function()
     require("lint").try_lint()
@@ -23,6 +23,7 @@ return {
     lint.linters_by_ft = {
       python = { "ruff" },
       sh = { "shellcheck" },
+      -- rust/clippy is handled using lsp
     }
     -- To override args:
     --   :lua =require('lint').linters.ruff.args

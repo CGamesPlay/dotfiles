@@ -1,7 +1,7 @@
 // JSON format reference: https://containers.dev/implementors/json_reference/
 {
   "name": "Devcontainer",
-  "image": "mcr.microsoft.com/devcontainers/base:jammy",
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
   "features": {
     // "ghcr.io/devcontainers/features/docker-in-docker:2": {},
   },

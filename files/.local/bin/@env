@@ -144,7 +144,7 @@ shell() {
 # @arg       directory                          Remote directory to start in
 tmux() {
 	echo "Starting tmux in $argc_environment"
-	cmd="tmux -uCC new -As0"
+	cmd="exec tmux -uCC new -As0"
 	if [ ${argc_directory:+1} ]; then
 		cmd="cd $(shelljoin "$argc_directory") && $cmd"
 	fi

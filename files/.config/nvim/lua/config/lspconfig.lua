@@ -49,7 +49,15 @@ return {
             client.server_capabilities.hoverProvider = false
           end,
         },
-        rust_analyzer = {},
+        rust_analyzer = {
+          settings = {
+            ["rust-analyzer"] = {
+              check = {
+                command = "clippy"
+              }
+            }
+          }
+        },
         standardrb = {},
         terraformls = {},
         ts_ls = {},
@@ -64,7 +72,7 @@ return {
       vim.tbl_deep_extend("force", capabilities, require("blink.cmp").get_lsp_capabilities())
 
       lspconfig.util.default_config =
-        vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
+          vim.tbl_extend("force", lspconfig.util.default_config, { capabilities = capabilities })
 
       local function setup_server(server_name)
         local config = opts.servers[server_name]

@@ -35,7 +35,7 @@ up() {
 # @cmd Open a shell in the running devcontainer
 shell() {
 	_ensure_installed
-	devcontainer exec --workspace-folder="${argc_workspace_folder:?}" sh -c "exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\""
+	exec devcontainer exec --workspace-folder="${argc_workspace_folder:?}" sh -c "exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\""
 }
 
 # @cmd Execute a command in the running devcontainer

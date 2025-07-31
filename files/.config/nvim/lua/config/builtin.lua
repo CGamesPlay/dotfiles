@@ -117,12 +117,17 @@ local keys = require("keygroup").new("config.builtin")
 -- Use arrow keys to scroll view in normal mode
 keys:set("n", "<Up>", "<C-y>")
 keys:set("n", "<Down>", "<C-e>")
--- TIP: Unbind the arrow keys to force yourself to break that habit when you
--- are just getting started with vim.
--- keys:set({'n', 'i'}, '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- keys:set({'n', 'i'}, '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- keys:set({'n', 'i'}, '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- keys:set({'n', 'i'}, '<down>', '<cmd>echo "Use j to move!!"<CR>')
+
+-- Override the wildmenu keymaps with something more like fish.
+keys:set("c", "<Up>", "<C-P>")
+keys:set("c", "<Down>", "<C-N>")
+keys:set("c", "<Right>", function()
+  if vim.fn.pumvisible() ~= 0 then
+    return "<C-Y>"
+  else
+    return "<Right>"
+  end
+end, { expr = true })
 
 -- Exit insert mode by typing jk. To actually insert "jk", wait 1 second after
 -- typing the j.

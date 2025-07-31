@@ -133,12 +133,7 @@ direnv/direnv() {
 # Modern ls replacement
 # @alias eza
 eza-community/eza() {
-	# Eza doesn't do their own builds for darwin or musl.
-	if is_darwin || is_musl; then
-		eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
-	else
-		eget -a "^musl" -a "^zip" eza-community/eza --to="$BINDIR/"
-	fi
+	eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 
