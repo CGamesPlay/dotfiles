@@ -74,7 +74,7 @@
 	# Safe remove all branches reachable from HEAD. "Garbage Collect BRanches"
 	gcbr = !git branch --no-track --no-color --merged | sed 's/[ *]*//' | grep -v main | grep -v master | xargs -n1 git branch -d &> /dev/null || exit 0
 	push-pull = !git pull --rebase && git push
-	pull-all = "!git fetch --all && git for-each-ref 'refs/heads/*' --format '%(refname:strip=2)' | while read br; do git checkout $br && git rebase @{u} || git rebase --abort; done"
+	pull-all = "!current_branch=$(git branch --show-current) && git fetch --all && git for-each-ref 'refs/heads/*' --format '%(refname:strip=2)' | while read br; do git checkout $br && git rebase @{u} || git rebase --abort; done && git checkout $current_branch"
 	# Rebase onto the same base commit. Allows editing a stack of commits
 	# without changing the base. Especially useful when someone squashes your
 	# commits as part of a merge.

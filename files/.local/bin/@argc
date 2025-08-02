@@ -25,10 +25,36 @@ dotfiles::edit() {
 # @flag      --bootstrap Run the bootstrap script.
 dotfiles::pull() {
 	cd "$(dotfiles_root)"
+
+	# Get the current commit hash before pulling
+	before_commit=$(git rev-parse HEAD)
+
 	git pull
 	dfm link
+
+	# Get the new commit hash after pulling
+	after_commit=$(git rev-parse HEAD)
+
 	if [[ "${argc_bootstrap:+1}" ]]; then
 		./bootstrap.sh
+
+	elif [[ "$before_commit" != "$after_commit" ]]; then
+		# Get list of modified files between the commits
+		modified_files=$(git diff --name-only "$before_commit" "$after_commit")
+
+		# Check if any files in tasks directory were modified
+		tasks_modified=$(echo "$modified_files" | grep -E '^tasks/' || true)
+
+		if [[ -n "$tasks_modified" && ! "${argc_bootstrap:+1}" ]]; then
+			echo -e "\033[1;33m" >&2
+			echo "WARNING: Files in the 'tasks' directory have been modified!" >&2
+			echo "Modified task files:" >&2
+			# shellcheck disable=SC2001
+			echo "$tasks_modified" | sed 's/^/    /' >&2
+			echo >&2
+			echo "To fully update: @argc dotfiles pull --bootstrap" >&2
+			echo -e "\033[0m" >&2
+		fi
 	fi
 }
 
