@@ -82,6 +82,7 @@
             After=network-online.target
 
             [Service]
+            EnvironmentFile=-/etc/hbv-auto-shutdown.env
             ExecStart=/usr/local/bin/hbv-auto-shutdown daemon
             KillMode=process
             KillSignal=SIGTERM

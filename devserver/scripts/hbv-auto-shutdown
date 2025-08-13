@@ -1,148 +1,236 @@
 #!/usr/bin/python3
-from datetime import datetime, timedelta
-from glob import glob
 import argparse
+import fcntl
 import os
-import re
-import signal
+import socket
 import subprocess
 import sys
+import threading
 import time
+from datetime import datetime, timedelta
+from glob import glob
 
-IDLE_TIMEOUT = timedelta(hours=2)
-keepalive_file = f"/tmp/auto-shutdown-keepalive-{os.getpid()}"
-
-
-def file_atimes(pattern):
-    paths = glob(pattern)
-    atime = lambda path: datetime.fromtimestamp(os.stat(path).st_atime)
-    if len(paths) == 0:
-        return ()
-    return list((x, atime(x)) for x in paths)
+# Default timeout - can be overridden by HBV_IDLE_TIMEOUT environment variable (in hours)
+DEFAULT_IDLE_TIMEOUT_HOURS = 2
+SOCKET_PATH = "/run/hbv-auto-shutdown.sock"
 
 
-def most_active_pty():
-    "Returns a list of active PTYs as [(filename, datetime)]."
-    return file_atimes("/dev/pts/*")
-
-
-def keepalive_time():
-    "Returns a [(keepalive_file, datetime)]."
-    return file_atimes("/tmp/auto-shutdown-keepalive-*")
-
-
-def xprintidle(user, display):
-    "Return the time of last interaction for the given display, or None"
-    env = os.environ.copy()
-    env["DISPLAY"] = display
-    # Janky but I don't want to install the getent dependency
-    env["XAUTHORITY"] = (
-        "/root/.Xauthority" if user == "root" else f"/home/{user}/.Xauthority"
-    )
-    try:
-        rc = subprocess.run(
-            ("xprintidle"),
-            timeout=1,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=env,
-        )
-        if rc.returncode != 0:
-            return None
-    except subprocess.TimeoutExpired:
-        # This happens when xrdp can't reach the client but it's still connected.
-        return datetime.now()
-    idle = int(rc.stdout.decode("utf-8"))
-    return datetime.now() - timedelta(milliseconds=idle)
-
-
-def x_time():
-    "Return [(DISPLAY, time)]."
-    ps = subprocess.check_output(("ps", "-A", "ue")).decode("utf-8")
-    displays = set(
-        re.findall(r"^(\w+).*(?<=\bDISPLAY=)(:\d+(?:\.\d+)?)\b", ps, flags=re.M)
-    )
-    return list(
-        filter(
-            lambda x: x[1] is not None,
-            ((d[1], xprintidle(d[0], d[1])) for d in displays),
-        )
-    )
-
-
-def touch_keepalive(value):
-    if value is None:
+def get_idle_timeout():
+    """Get idle timeout from environment variable or use default."""
+    timeout_hours = os.environ.get("HBV_IDLE_TIMEOUT")
+    if timeout_hours:
         try:
-            os.unlink(keepalive_file)
-        except FileNotFoundError:
-            pass
-    else:
-        with open(keepalive_file, "a"):
-            os.utime(keepalive_file, (value.timestamp(), value.timestamp()))
+            return timedelta(hours=float(timeout_hours))
+        except ValueError:
+            print(
+                f"Warning: Invalid HBV_IDLE_TIMEOUT value '{timeout_hours}', using default",
+                file=sys.stderr,
+            )
+    return timedelta(hours=DEFAULT_IDLE_TIMEOUT_HOURS)
 
 
-def get_activity():
-    activity = {}
-    sources = [most_active_pty, keepalive_time, x_time]
-    for source in sources:
-        files = source()
-        if files is None:
+def get_last_terminal_activity():
+    """Get the most recent terminal activity time from /dev/pts/*."""
+    pts_paths = glob("/dev/pts/*")
+    if not pts_paths:
+        return None
+
+    latest_time = None
+    for path in pts_paths:
+        try:
+            # Get the access time of the pts device
+            atime = datetime.fromtimestamp(os.stat(path).st_atime)
+            if latest_time is None or atime > latest_time:
+                latest_time = atime
+        except (OSError, ValueError):
+            # Skip files we can't stat (permissions, etc.)
             continue
-        for f in files:
-            name, timestamp = f
-            if timestamp is not None:
-                activity[name] = timestamp
-    return activity
+
+    return latest_time
 
 
 def shutdown():
+    """Initiate system shutdown."""
     subprocess.run("systemctl poweroff --when=+10m", check=True, shell=True)
     time.sleep(10 * 60)
 
 
-def status(args):
-    activity = get_activity()
-    now = datetime.now()
-    print("Last activity:")
-    for key, value in activity.items():
-        age = now - value
-        print(f"{key:30}  {age} ago")
-    overall = max((x[1] for x in activity.items()))
-    shutdown_time = overall + IDLE_TIMEOUT
-    print("")
-    print(f"Machine will auto-shutdown at {shutdown_time} (in {shutdown_time - now})")
+class AutoShutdownDaemon:
+    def __init__(self):
+        self.idle_timeout = get_idle_timeout()
+        self.last_activity = datetime.now()
+        self.caffeinate_connections = set()
+        self.socket_lock = threading.Lock()
 
+    def update_activity_time(self):
+        """Update the last activity time from terminal devices."""
+        activity_time = get_last_terminal_activity()
+        if activity_time:
+            self.last_activity = max(self.last_activity, activity_time)
 
-def daemon(args):
-    # We keep a snapshot of the last activity because sources can disappear,
-    # but this should not cause the timer to skip forward.
-    last_activity = datetime.now()
-    while True:
-        last_activity = max(last_activity, *(x[1] for x in get_activity().items()))
+    def should_shutdown(self):
+        """Check if system should shutdown."""
+        # Don't shutdown if there are active caffeinate connections
+        if self.caffeinate_connections:
+            return False
+
         now = datetime.now()
-        shutdown_time = last_activity + IDLE_TIMEOUT
-        if now >= shutdown_time:
-            shutdown()
-        time.sleep(30)
+        shutdown_time = self.last_activity + self.idle_timeout
+        return now >= shutdown_time
+
+    def handle_client(self, client_socket):
+        """Handle a client connection."""
+        try:
+            data = client_socket.recv(1024).decode().strip()
+
+            if data == "caffeinate":
+                # Add this connection to active caffeinate connections
+                with self.socket_lock:
+                    self.caffeinate_connections.add(client_socket)
+
+                try:
+                    # Keep connection alive until client disconnects
+                    while True:
+                        data = client_socket.recv(1024)
+                        if not data:  # Client disconnected
+                            break
+                finally:
+                    with self.socket_lock:
+                        self.caffeinate_connections.discard(client_socket)
+
+            elif data == "status":
+                self.update_activity_time()
+                now = datetime.now()
+                age = now - self.last_activity
+                shutdown_time = self.last_activity + self.idle_timeout
+
+                status_msg = f"Last terminal activity: {age} ago\n"
+                status_msg += f"Active caffeinate connections: {len(self.caffeinate_connections)}\n"
+                if self.caffeinate_connections:
+                    status_msg += "Auto-shutdown suspended (caffeinate active)\n"
+                else:
+                    time_to_shutdown = shutdown_time - now
+                    if time_to_shutdown.total_seconds() > 0:
+                        status_msg += f"Auto-shutdown in: {time_to_shutdown}\n"
+                    else:
+                        status_msg += "Auto-shutdown overdue (checking...)\n"
+
+                client_socket.send(status_msg.encode())
+
+        except Exception as e:
+            print(f"Error handling client: {e}", file=sys.stderr)
+        finally:
+            try:
+                client_socket.close()
+            except:
+                pass
+
+    def run_socket_server(self):
+        """Run the UNIX socket server."""
+        # Clean up any existing socket
+        try:
+            os.unlink(SOCKET_PATH)
+        except FileNotFoundError:
+            pass
+
+        # Create socket
+        server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server_socket.bind(SOCKET_PATH)
+        os.chmod(SOCKET_PATH, 0o777)  # Make socket accessible to all users
+        server_socket.listen(5)
+
+        print(f"Auto-shutdown daemon listening on {SOCKET_PATH}")
+        print(f"Idle timeout: {self.idle_timeout}")
+
+        while True:
+            client_socket, _ = server_socket.accept()
+            # Handle client in a separate thread
+            client_thread = threading.Thread(
+                target=self.handle_client, args=(client_socket,), daemon=True
+            )
+            client_thread.start()
+
+    def run_activity_monitor(self):
+        """Monitor terminal activity and check for shutdown conditions."""
+        while True:
+            self.update_activity_time()
+
+            if self.should_shutdown():
+                print("Idle timeout reached, initiating shutdown...")
+                shutdown()
+
+            time.sleep(30)  # Check every 30 seconds
+
+    def run(self):
+        """Main daemon loop."""
+        # Start activity monitoring thread
+        activity_thread = threading.Thread(
+            target=self.run_activity_monitor, daemon=True
+        )
+        activity_thread.start()
+
+        # Run socket server (blocking)
+        self.run_socket_server()
+
+
+def get_daemon_socket():
+    """Get a connected socket to the daemon."""
+    try:
+        client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client_socket.connect(SOCKET_PATH)
+        return client_socket
+    except Exception as e:
+        print(f"Error connecting to daemon: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def status(_):
+    """Show daemon status."""
+    client_socket = get_daemon_socket()
+    client_socket.send(b"status\n")
+    response = client_socket.recv(4096).decode()
+    print(response.strip())
+    client_socket.close()
+
+
+def daemon(_):
+    """Run the auto-shutdown daemon."""
+    if os.geteuid() != 0:
+        print(
+            "Warning: Daemon should be run as root to access wtmp and create socket in /run",
+            file=sys.stderr,
+        )
+
+    daemon = AutoShutdownDaemon()
+    daemon.run()
 
 
 def caffeinate(args):
-    command = " ".join(args.COMMAND)
-    process = subprocess.Popen(command, shell=True)
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-    poll_period = IDLE_TIMEOUT / 2
-    while True:
-        touch_keepalive(datetime.now())
+    """Run command while preventing auto-shutdown."""
+    client_socket = get_daemon_socket()
+    client_socket.send(b"caffeinate\n")
+
+    # Set socket to not close on exec
+    flags = fcntl.fcntl(client_socket.fileno(), fcntl.F_GETFD)
+    fcntl.fcntl(client_socket.fileno(), fcntl.F_SETFD, flags & ~fcntl.FD_CLOEXEC)
+
+    if not args.COMMAND:
+        # Just caffeinate without running a command
+        print("Caffeinating... Press Ctrl+C to stop")
         try:
-            process.wait(timeout=poll_period.total_seconds())
-            break
-        except subprocess.TimeoutExpired:
-            pass
-    touch_keepalive(None)
-    sys.exit(process.returncode)
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            print("\nStopping caffeinate")
+        finally:
+            client_socket.close()
+    else:
+        # Run command while caffeinating - use exec to replace this process
+        command = args.COMMAND
+        os.execvp(command[0], command)
 
 
+# Command line interface
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(required=True)
 
@@ -153,8 +241,9 @@ parser_daemon = subparsers.add_parser("daemon")
 parser_daemon.set_defaults(func=daemon)
 
 parser_caffeinate = subparsers.add_parser("caffeinate")
-parser_caffeinate.add_argument("COMMAND", nargs="+")
+parser_caffeinate.add_argument("COMMAND", nargs="*")
 parser_caffeinate.set_defaults(func=caffeinate)
 
-args = parser.parse_args()
-args.func(args)
+if __name__ == "__main__":
+    args = parser.parse_args()
+    args.func(args)
