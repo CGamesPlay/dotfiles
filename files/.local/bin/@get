@@ -9,7 +9,7 @@ export TMPDIR=${TMPDIR:-/tmp}
 export EGET_BIN=$TMPDIR
 
 # @cmd Install fx
-# import { visualizer } from "rollup-plugin-visualizer";
+# Terminal JSON viewer & processor
 # @alias fx
 antonmedv/fx() {
 	eget antonmedv/fx --to="$BINDIR"
