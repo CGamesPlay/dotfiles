@@ -155,14 +155,10 @@ tmux() {
 # @cmd Run neovim in the environment
 # @arg       environment![`_list_environments`] Name of the environment
 # @arg       args~                              Additional args
-# @option    --tmux                             Set TMUX environment variable
 # @option    --chdir                            Remote directory to change into
 nvim() {
 	local script
 	script="nvim $(shelljoin ${argc_args:+"${argc_args[@]}"})"
-	if [ ${argc_tmux:+1} ]; then
-		script="env TMUX=$(shelljoin "$argc_tmux") $script"
-	fi
 	if [ ${argc_chdir:+1} ]; then
 		script="cd $(shelljoin "$argc_chdir") && direnv exec . $script"
 	fi

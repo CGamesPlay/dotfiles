@@ -40,9 +40,6 @@ else
 	fi
 
 	value="id=neovide:env=${ATENV_NAME:?}:dir=$(pwd)"
-	if [[ "${TMUX:+1}" ]]; then
-		value="$value:tmux=$TMUX"
-	fi
 	if [[ "${1:+1}" ]]; then
 		value="$value:filename=$1"
 	fi

@@ -18,31 +18,26 @@ async def main(connection):
         while True:
             match = await mon.async_get()
             try:
-                env = None
+                atenv_name = None
                 directory = None
                 filename = None
-                tmux = None
 
                 for part in match.string.split(":"):
                     if part.startswith("env="):
-                        env = part[4:]
+                        atenv_name = part[4:]
                     elif part.startswith("dir="):
                         directory = part[4:]
                     elif part.startswith("filename="):
                         filename = part[9:]
-                    elif part.startswith("tmux="):
-                        tmux = part[5:]
 
-                if env is None:
+                if atenv_name is None:
                     print("No env name given; skipping")
                     continue
 
-                env_cmd = ["@env", "nvim"]
-                if tmux:
-                    env_cmd.append(f"--tmux={tmux}")
+                atenv_cmd = ["@env", "nvim"]
                 if directory is not None:
-                    env_cmd.append(f"--chdir={directory}")
-                env_cmd.append(env)
+                    atenv_cmd.append(f"--chdir={directory}")
+                atenv_cmd.append(atenv_name)
                 cmd = [
                     "open",
                     "-na",
@@ -55,7 +50,7 @@ async def main(connection):
                     cmd.append(filename)
                 cmd += [
                     "--",
-                    f"--prefix={shlex.join(env_cmd)}",
+                    f"--prefix={shlex.join(atenv_cmd)}",
                 ]
                 print(cmd)
                 subprocess.run(cmd, check=True, env={"NEOVIDE_LAUNCHER": "1"})
