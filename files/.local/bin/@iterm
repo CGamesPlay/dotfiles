@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+# @describe iTerm2 custom escapes
+# https://iterm2.com/documentation-escape-codes.html
+
+set -eu
+
+# @cmd Check if connected to iTerm
+# @option --min-version Minimum version of iTerm to accept
+check() {
+	argc_min_version="${argc_min_version:-2.9.20160304}"
+	prepare_for_response
+	printf "\033[1337n\033[5n" >&9
+	read -r -n 2 <&9 # Skip "\033["
+	read -r -dn dsr <&9
+	if [ "$dsr" = "0" ]; then
+		# The iTerm escape was ignored; this is not iterm
+		exit 1
+	fi
+	read -r -dn <&9 # Skip second DSR
+	clean_up
+
+	# Parse the response
+	read -r -a words <<< "$dsr"
+	if [ "${words[0]}" != "ITERM2" ]; then
+		exit 1
+	fi
+	[ "${words[1]}" \> "${argc_min_version:?}" ] || [ "${words[1]}" = "${argc_min_version:?}" ]
+}
+
+# @cmd Sets a mark
+# Same as Cmd-Shift-M. Records a location so that you can jump back to it later
+# (with Cmd-Shift-J)
+set-mark() {
+	tty_printf "\033]1337;SetMark\a"
+}
+
+# @cmd Bring iTerm2 to the foreground
+steal-focus() {
+	tty_printf "\033]1337;StealFocus\a"
+}
+
+# @cmd Erase the scrollback history
+clear-scrollback() {
+	tty_printf "\033]1337;ClearScrollback\a"
+}
+
+# @cmd Post a notification
+# @option --title     Title for the notification
+# @option --subtitle  Subtitle for the notification
+# @arg    message!    Content of the notification
+notify() {
+	if [ ${argc_title+1} ] || [ ${argc_subtitle+1} ]; then
+		payload="message=$(echo -n "${argc_message:?}" | base64)"
+		if [ ${argc_title+1} ]; then
+			payload="$payload;title=$(echo -n "${argc_title:?}" | base64)"
+		fi
+		if [ ${argc_subtitle+1} ]; then
+			payload="$payload;subtitle=$(echo -n "${argc_subtitle:?}" | base64)"
+		fi
+		tty_printf "\033]1337;Notification=%s\a" "$payload"
+	else
+		tty_printf "\033]9;%s\a" "${argc_message:?}"
+	fi
+}
+
+# @cmd Bounce the Dock icon
+# @flag --forever    Bounce forever
+# @flag --stop       Stop bouncing
+# @flag --fireworks  Show fireworks instead
+bounce() {
+	param="once"
+	if [ ${argc_fireworks+1} ]; then
+		param="fireworks"
+	elif [ ${argc_stop+1} ]; then
+		param="stop"
+	elif [ ${argc_forever+1} ]; then
+		param="yes"
+	fi
+	tty_printf "\033]1337;RequestAttention=%s\a" "$param"
+}
+
+# @cmd Set badge text
+#
+# This is an interpolated string: https://iterm2.com/documentation-scripting-fundamentals.html#:~:text=below.-,Interpolated%20Strings,-Another
+# @arg text  Text for badge
+badge() {
+	tty_printf "\033]1337;SetBadgeFormat=%s\a" "$(echo -n "${argc_text:-}" | base64)"
+}
+
+# @cmd Set a user variable
+# @arg name!  Name of user variable
+# @arg value  Value to set
+set-user-var() {
+	tty_printf "\033]1337;SetUserVar=%s=%s\a" "${argc_name:?}" "$(echo -n "${argc_value:-}" | base64)"
+}
+
+# @cmd Open a URL
+# @arg url!  URL to open
+open() {
+	tty_printf "033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64 -r)"
+}
+
+# @cmd Copy to clipboard (not iTerm specific)
+copy() {
+	printf "\033]50;Copy=:" >/dev/tty
+	trap 'printf "\a" >/dev/tty' EXIT
+	base64 >/dev/tty
+}
+
+# @cmd Paste from clipboard (not iTerm specific)
+paste() {
+	prepare_for_response
+	printf "\033]52;c;?\a\033[5n" >&9
+	read -r -d"$(printf "\033")" <&9 # Skip to start of next escape sequence
+	read -r -n1 response <&9
+	if [ "$response" = "]" ]; then
+		read -r -n5 response <&9 # Skip "52;c;"
+		if [ "$response" != "52;c;" ]; then
+			echo "Unexpected response" >&2
+			exit 1
+		fi
+		read -r -d"$(printf "\033")" data <&9
+		read -r -dn <&9 # Skip to end of DSR
+		clean_up
+		[ "$data" = "(null)" ] && exit 0
+		echo "$data" | base64 -d
+	else
+		read -r -dn <&9 # Skip to end of DSR
+		clean_up
+		echo "Paste denied by terminal" >&2
+		exit 1
+	fi
+}
+
+# @cmd Save a file or directory to the machine where iTerm2 is running
+# @arg file! <FILE> File or directory to download
+download() {
+	filename="$(basename -- "${argc_file:?}")"
+	if [ -d "${argc_file:?}" ]; then
+		tar_file=$(mktemp)
+		trap 'rm "$tar_file"' EXIT
+		tar -czf "$tar_file" "$argc_file"
+		argc_file="$tar_file"
+		filename="$filename.tar.gz"
+	fi
+	eval "$(stat -s "${argc_file:?}")"
+	tty_printf "\033]1337;MultipartFile=name=%s;size=%d\a" "$(echo -n "$filename" | base64)" "${st_size:?}"
+	while read -r part; do
+		tty_printf "\033]1337;FilePart=%s\a" "$part"
+	done < <(base64 < "${argc_file:?}" | fold -w 200)
+	tty_printf "\033]1337;FileEnd\a"
+}
+
+# @cmd Prompt for files to upload to the local machine
+upload() {
+	check
+	stty -echo
+	printf "\033]1337;RequestUpload=format=tgz\a" >&9
+	read -r status <&9
+	if [ "$status" != "ok" ]; then
+		echo "Upload aborted" >&2
+		exit 1
+	fi
+	tar_file=$(mktemp)
+	trap 'rm "$tar_file"' EXIT
+	while read -r line <&9; do
+		if [ -z "$line" ]; then
+			break
+		fi
+		echo "$line" >> "$tar_file"
+	done
+	base64 -d <"$tar_file" | tar -xz
+}
+
+# @cmd Rich file display
+# @arg       file <FILE>  File to display
+# @option -t --type       MIME type of the content
+# @flag   -w --wide       Use horizontal scrollbar if needed
+cat() {
+	params="inline=1"
+	if [ ${argc_file+1} ]; then
+		filename="$(basename -- "${argc_file:?}")"
+		eval "$(stat -s "${argc_file:?}")"
+		params="$params;name=$(echo -n "$filename" | base64);size=${st_size:?}"
+	fi
+	if [ ${argc_wide+1} ]; then
+		params="$params;mode=wide"
+	fi
+	if [ -z ${argc_file+1} ]; then
+		argc_file="/dev/stdin"
+	fi
+	tty_printf "\033]1337;MultipartFile=%s\a" "$params"
+	while read -r part; do
+		tty_printf "\033]1337;FilePart=%s\a" "$part"
+	done < <(base64 < "${argc_file:?}" | fold -w 200)
+	tty_printf "\033]1337;FileEnd\a\n"
+}
+
+# @cmd Play a sound (custom)
+# @arg sound!  Name of sound to play
+play-sound() {
+	tty_printf "\033]1337;Custom=id=%s:%s\a" "play-sound" "${argc_sound:?}"
+}
+
+# Print to the tty
+tty_printf() {
+	# shellcheck disable=SC2059
+	printf "$@" >/dev/tty
+}
+
+# Restore the saved stty
+clean_up() {
+	stty "${_STTY:?prepare_for_response not called}" <&9
+}
+
+# Set up the tty to read an iTerm response.
+prepare_for_response() {
+	if ! [ -c /dev/tty ]; then
+		echo "$0: must be connected to a tty" >&2
+		exit 1
+	fi
+	exec 9<> /dev/tty
+
+	_STTY=$(stty -g <&9)
+	trap clean_up EXIT
+
+	# Silently read any (>=0) characters with no delay.
+	stty -echo -icanon raw min 0 time 0 <&9
+	while read -r <&9; do :; done
+	# Enter raw mode and turn off echo
+	clean_up
+	stty -echo -icanon raw <&9
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

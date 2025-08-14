@@ -3,7 +3,9 @@
 function pbcopy --description "Save input to the system clipboard"
   if set -q TMUX
     tmux loadb -
-  else
+  else if set -q DISPLAY
     xclip -selection clipboard
+  else
+    @iterm copy
   end
 end
