@@ -1,8 +1,42 @@
 -- https://github.com/stevearc/oil.nvim
 -- Neovim file explorer: edit your filesystem like a buffer
 local keys = require("keygroup").new("config.oil")
+local augroup = vim.api.nvim_create_augroup("config.oil", { clear = true })
 
 keys:set("n", "-", "<Cmd>Oil<CR>", { desc = "Open parent directory" })
+
+---@param url string
+---@return nil|string
+---@return nil|string
+local parse_url = function(url)
+  return url:match "^.*://(.*)$"
+end
+
+vim.api.nvim_create_autocmd("User", {
+  desc = "Delete open buffers on file delete",
+  group = augroup,
+  pattern = "OilActionsPost",
+  callback = function(args)
+    if args.data.err == nil then
+      for _, action in ipairs(args.data.actions) do
+        if action.type == "delete" then
+          local path = parse_url(action.url)
+          local bufnr = vim.fn.bufnr(path)
+          if bufnr == -1 then
+            return
+          end
+
+          local winnr = vim.fn.win_findbuf(bufnr)[1]
+          if not winnr then
+            vim.cmd("bw " .. bufnr)
+          else
+            vim.fn.win_execute(winnr, "bp | bw " .. bufnr)
+          end
+        end
+      end
+    end
+  end,
+})
 
 local detail = false
 
