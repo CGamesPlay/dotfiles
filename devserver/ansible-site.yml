@@ -66,6 +66,18 @@
           name: ansible
           enabled: true
 
+      - name: configure git signature verification for ansible
+        git_config:
+          repo: /opt/ansible/dotfiles
+          scope: local
+          name: "{{ item.name }}"
+          value: "{{ item.value }}"
+        loop:
+          - name: gpg.ssh.allowedSignersFile
+            value: share/authorized_signers
+          - name: merge.verifySignatures
+            value: "true"
+
       - name: install auto-shutdown service
         copy:
           src: scripts/hbv-auto-shutdown
@@ -196,3 +208,10 @@
             environment:
               HOME: /home/ubuntu
             when: result.changed
+          - name: manage authorized_keys
+            blockinfile:
+              path: /home/ubuntu/.ssh/authorized_keys
+              block: "{{ lookup('file', '/opt/ansible/dotfiles/share/authorized_keys') }}"
+              marker: "# {mark} ANSIBLE MANAGED BLOCK - dotfiles authorized_keys"
+              create: yes
+              mode: '0600'
