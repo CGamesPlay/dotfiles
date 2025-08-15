@@ -3,13 +3,13 @@
     gather_facts: false
     become: yes
     tasks:
+
       - name: check for hbv-self-destruct.env
         stat: path=/etc/hbv-self-destruct.env
         register: self_destruct_env
       - name: fail if hbv-self-destruct.env is missing
         fail: msg="/etc/hbv-self-destruct.env is not configured"
         when: not self_destruct_env.stat.exists
-
       - name: install self-destruct service
         copy:
           dest: /etc/systemd/system/hbv-self-destruct.service
@@ -65,7 +65,6 @@
           daemon_reload: yes
           name: ansible
           enabled: true
-
       - name: configure git signature verification for ansible
         git_config:
           repo: /opt/ansible/dotfiles
@@ -120,7 +119,6 @@
           create_home: no
           shell: /usr/sbin/nologin
           group: backup
-
       - name: create restic config directory
         file:
           path: /etc/restic
@@ -128,7 +126,6 @@
           owner: restic
           group: backup
           mode: '0750'
-
       - copy:
           dest: /etc/restic/restic.conf
           mode: 0644
@@ -140,7 +137,6 @@
             RESTIC_CACHE_DIR=/var/cache/restic
             AWS_ACCESS_KEY_ID=
             AWS_SECRET_ACCESS_KEY=
-
       - copy:
           dest: /etc/restic/exclude
           mode: 0644
@@ -148,7 +144,6 @@
           content: |
             # https://restic.readthedocs.io/en/latest/040_backup.html#excluding-files
             # --exclude-caches is also enabled: https://bford.info/cachedir/
-
       - copy:
           dest: /etc/systemd/system/restic-backup.timer
           content: |
@@ -166,7 +161,6 @@
             [Install]
             WantedBy=timers.target
         register: restic_backup_timer_unit
-
       - copy:
           dest: /etc/systemd/system/restic-backup.service
           content: |
@@ -188,10 +182,25 @@
             CacheDirectory=restic
             CacheDirectoryMode=0750
         register: restic_backup_service_unit
-
       - systemd:
           daemon-reload: true
         when: restic_backup_timer_unit.changed or restic_backup_service_unit.changed
+
+      - name: configure motd blocks
+        lineinfile:
+          path: /etc/default/motd-news
+          regexp: '^ENABLED='
+          line: 'ENABLED=0'
+          create: no
+      - name: disable help text motd
+        file:
+          path: /etc/update-motd.d/10-help-text
+          mode: '0644'
+      - name: install devserver motd script
+        copy:
+          src: scripts/60-devserver
+          dest: /etc/update-motd.d/60-devserver
+          mode: '0755'
 
       - name: configure dotfiles
         become: yes

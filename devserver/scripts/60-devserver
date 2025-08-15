@@ -1,0 +1,32 @@
+#!/bin/sh
+
+echo
+
+# Check enabled services
+for service in hbv-self-destruct.service hbv-auto-shutdown.service; do
+    if systemctl is-enabled "$service" >/dev/null 2>&1; then
+        echo "✓ $service: enabled"
+    else
+        echo "✗ $service: not enabled"
+    fi
+done
+
+# Check boot services
+for service in ansible.service hbv-ephemeral-drive.service restic-backup.service; do
+    status=$(systemctl is-active "$service" 2>/dev/null)
+    exit_code=$(systemctl show "$service" --property=ExecMainStatus --value 2>/dev/null)
+
+    if [ "$status" = "active" ]; then
+        echo "✓ $service: running"
+    elif [ "$exit_code" = "0" ]; then
+        inactive_exit=$(systemctl show "$service" --property=InactiveExitTimestamp --value 2>/dev/null)
+        if [ -n "$inactive_exit" ] && [ "$inactive_exit" != "n/a" ]; then
+            time_ago=$(systemd-analyze timestamp "$inactive_exit" 2>/dev/null | grep -o '[0-9]\+[a-z]* ago' || echo "recently")
+            echo "✓ $service: finished $time_ago"
+        else
+            echo "✓ $service: exited successfully"
+        fi
+    else
+        echo "✗ $service: failed or not run"
+    fi
+done
