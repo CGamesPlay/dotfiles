@@ -1,0 +1,24 @@
+*watcher.txt*	Automatically reload files changed outside of nvim
+
+This plugin installs a file watcher for visible buffers in nvim. This means
+that if you have Vim focused and an external program changes a visible file,
+it will automatically be reloaded. This is similar to the built-in
+|'autoread'|, except it works all the time, rather than only when Vim gains
+focus. It is intended to be combined with |'autoread'|.
+
+Note: This plugin does not integrate with LSP or reload non-visible buffers,
+because the LSP server should do that on its own, which is already supported
+by nvim.
+
+For more information about this feature, see here:
+
+    https://github.com/neovim/neovim/issues/1380#issuecomment-1946115753
+
+==============================================================================
+Implementation
+
+This plugin works by examining all visible file-backed buffers and monitoring
+all directories they are in. When a file in a visible buffer is modified,
+|:checktime| is called on that buffer.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
