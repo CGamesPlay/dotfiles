@@ -12,6 +12,7 @@ keys:set("n", "<leader>g", "<Nop>", { desc = "[G]it" })
 keys:set("n", "<leader>r", "<Nop>", { desc = "[R]ename" })
 keys:set("n", "<leader>s", "<Nop>", { desc = "[S]earch" })
 keys:set("n", "<leader>t", "<Nop>", { desc = "[T]oggle Vim Option" })
+keys:set("n", "<leader>y", "<Nop>", { desc = "[Y]ank" })
 
 keys:set("n", "<leader>?", function()
   require("which-key").show({ global = true })

@@ -259,6 +259,30 @@ keys:set(
   { expr = true, desc = "Accept the wildmenu choice, or submit" }
 )
 
+-- Yank the current filename (including line numbers in visual mode)
+keys:set("n", [[,yf]], function()
+  vim.fn.setreg(vim.v.register, vim.fn.expand('%'))
+  print(vim.fn.expand('%'))
+end, { desc = "Yank current [f]ile name" })
+keys:set("v", [[,yf]], function()
+  local start_line = vim.fn.line("v")
+  local end_line = vim.fn.line(".")
+  -- Ensure start_line <= end_line
+  if start_line > end_line then
+    start_line, end_line = end_line, start_line
+  end
+  local filename = vim.fn.expand('%')
+  local result
+  if start_line == end_line then
+    result = filename .. ":" .. start_line
+  else
+    result = filename .. ":" .. start_line .. "-" .. end_line
+  end
+  vim.fn.setreg(vim.v.register, result)
+  print(result)
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+end, { desc = "Yank current [f]ile name with line range" })
+
 -- [[ Basic autocommands ]]
 local augroup = vim.api.nvim_create_augroup("config.basic", { clear = true })
 
