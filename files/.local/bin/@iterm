@@ -97,7 +97,7 @@ set-user-var() {
 # @cmd Open a URL
 # @arg url!  URL to open
 open() {
-	tty_printf "033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64 -r)"
+	tty_printf "\033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64 -r)"
 }
 
 # @cmd Copy to clipboard (not iTerm specific)
