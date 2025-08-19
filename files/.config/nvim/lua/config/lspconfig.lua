@@ -42,6 +42,12 @@ return {
             },
           },
         },
+        ruby_lsp = {
+          init_options = {
+            formatter = 'standard',
+            linters = { 'standard' },
+          }
+        },
         ruff = {
           ---@param client vim.lsp.Client
           on_attach = function(client, _)
@@ -58,7 +64,8 @@ return {
             }
           }
         },
-        standardrb = {},
+        -- See above
+        -- standardrb = {},
         terraformls = {},
         ts_ls = {},
       },
@@ -146,6 +153,13 @@ return {
             map("<leader>th", function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
             end, "[T]oggle Inlay [H]ints")
+          end
+
+          -- Use LSP folding when the LSP supports it
+          if client and client:supports_method('textDocument/foldingRange') then
+            local win = vim.api.nvim_get_current_win()
+            vim.wo[win][0].foldmethod = 'expr'
+            vim.wo[win][0].foldexpr = 'v:lua.vim.lsp.foldexpr()'
           end
         end,
       })

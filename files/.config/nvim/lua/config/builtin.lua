@@ -219,7 +219,18 @@ keys:set("n", "<leader>tB", function()
   vim.o.background = vim.o.background == "light" and "dark" or "light"
 end, { desc = "[T]oggle [B]ackground" })
 keys:set("n", "<leader>td", function()
-  vim.diagnostic.enable(not vim.diagnostic.is_enabled())
+  if not vim.diagnostic.is_enabled() then
+    vim.diagnostic.config({ virtual_lines = false })
+    vim.diagnostic.enable(true)
+    print("Diagnostics as signs")
+  elseif vim.diagnostic.is_enabled() and not vim.diagnostic.config().virtual_lines then
+    vim.diagnostic.config({ virtual_lines = true })
+    vim.diagnostic.enable(true)
+    print("Diagnostics as lines")
+  else
+    vim.diagnostic.enable(false)
+    print("Diagnostics disabled")
+  end
 end, { desc = "[T]oggle [D]iagnostics" })
 keys:set("n", "<leader>t|", function()
   if vim.o.textwidth == 0 then
@@ -227,22 +238,6 @@ keys:set("n", "<leader>t|", function()
   end
   vim.o.colorcolumn = vim.o.colorcolumn == "" and "+0" or ""
 end, { desc = "[T]oggle Color Column" })
-
-keys:set("n", "<D-r>", function()
-  vim.cmd("wa")
-  local handle = io.popen(
-    'osascript -e \'tell application "Google Chrome" to set URL of active tab of its first window to "javascript:void(typeof Jupyter !== \\"undefined\\" ? Jupyter.notebook.execute_all_cells() : location.reload())"\''
-  )
-  if not handle then
-    return
-  end
-  local result = handle:read("*a")
-  handle:close()
-
-  if result and result ~= "" then
-    print(result)
-  end
-end, { desc = "Save all and refresh browser" })
 
 -- Cmdline completion: <Tab> moves through completion options
 keys:set(
