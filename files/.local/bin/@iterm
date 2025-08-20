@@ -97,7 +97,7 @@ set-user-var() {
 # @cmd Open a URL
 # @arg url!  URL to open
 open() {
-	tty_printf "\033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64 -r)"
+	tty_printf "\033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64)"
 }
 
 # @cmd Copy to clipboard (not iTerm specific)
@@ -153,23 +153,32 @@ download() {
 
 # @cmd Prompt for files to upload to the local machine
 upload() {
-	check
+	# TODO: check that iterm is running
+	exec 9<> /dev/tty
+	_STTY=$(stty -g)
+	trap clean_up EXIT
 	stty -echo
+
 	printf "\033]1337;RequestUpload=format=tgz\a" >&9
+	# The request/response here is actually done asynchronously, so we can't
+	# use the trick of asking for a DSR to indicate no response. Also, if the
+	# dialog is canceled, iTerm doesn't give any response at all.
+	printf "Waiting for file selection. Press enter to cancel." >&9
 	read -r status <&9
+	printf "\r\033[K" >&9
 	if [ "$status" != "ok" ]; then
 		echo "Upload aborted" >&2
 		exit 1
 	fi
 	tar_file=$(mktemp)
 	trap 'rm "$tar_file"' EXIT
-	while read -r line <&9; do
+	while read -rs line <&9; do
 		if [ -z "$line" ]; then
 			break
 		fi
 		echo "$line" >> "$tar_file"
 	done
-	base64 -d <"$tar_file" | tar -xz
+	base64 -d <"$tar_file" | tar -xvz
 }
 
 # @cmd Rich file display
