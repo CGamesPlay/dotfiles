@@ -143,8 +143,8 @@ download() {
 		argc_file="$tar_file"
 		filename="$filename.tar.gz"
 	fi
-	eval "$(stat -s "${argc_file:?}")"
-	tty_printf "\033]1337;MultipartFile=name=%s;size=%d\a" "$(echo -n "$filename" | base64)" "${st_size:?}"
+	st_size="$(filesize "${argc_file:?}")"
+	tty_printf "\033]1337;MultipartFile=name=%s;size=%d\a" "$(echo -n "$filename" | base64)" "${st_size}"
 	while read -r part; do
 		tty_printf "\033]1337;FilePart=%s\a" "$part"
 	done < <(base64 < "${argc_file:?}" | fold -w 200)
@@ -189,8 +189,8 @@ cat() {
 	params="inline=1"
 	if [ ${argc_file+1} ]; then
 		filename="$(basename -- "${argc_file:?}")"
-		eval "$(stat -s "${argc_file:?}")"
-		params="$params;name=$(echo -n "$filename" | base64);size=${st_size:?}"
+		st_size="$(filesize "${argc_file:?}")"
+		params="$params;name=$(echo -n "$filename" | base64);size=${st_size}"
 	fi
 	if [ ${argc_wide+1} ]; then
 		params="$params;mode=wide"
@@ -239,6 +239,17 @@ prepare_for_response() {
 	# Enter raw mode and turn off echo
 	clean_up
 	stty -echo -icanon raw <&9
+}
+
+# Get the filesize of the first argument
+filesize() {
+	if [[ "$(stat --version 2>&1)" =~ "GNU coreutils" ]]; then
+		stat -c "%s" "$1"
+	else
+		# macOS
+		eval "$(stat -s "${argc_file:?}")"
+		echo "$st_size"
+	fi
 }
 
 if ! command -v argc >/dev/null; then
