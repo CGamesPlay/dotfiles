@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# @describe Run a command in an iterm window
+# @arg    command  Command to run (shell script)
+
+set -eu
+
+main() {
+	command="$(iterm_quote "$(printf "sh -c %q" "${argc_command:?}")")"
+	osascript \
+		-e 'on run argv' \
+		-e 'tell application "iTerm" to create window with default profile command (item 1 of argv)' \
+		-e 'return' \
+		-e 'end run' \
+		"$command"
+}
+
+iterm_quote() {
+	printf "%s" "${1/\\\\/\\\\\\\\}"
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"
