@@ -27,6 +27,20 @@
 - You MUST NEVER remove code comments unless you can PROVE they are actively false. Comments are important documentation and must be preserved.
 - You MUST NEVER refer to temporal context in comments (like "recently refactored" / "moved") or code. Comments should be evergreen and describe the code as it is. If you name something "new" or "enhanced" or "improved", you've probably made a mistake and MUST STOP and ask me what to do.
 
+## Handling exceptions
+
+When writing exception / error handling, the first step is to categorized the exception into one of 4 categories: fatal, boneheaded, vexing, or exogenous. This applies when you are raising the exception as when you are deciding to catch or re-raise an exception.
+
+Fatal exceptions are exceptions that cannot realistically be prevented and cannot sensibly be recovered from. Examples include out of memory or a Rust/Go panic. There is no point in attempting to recover from these errors, the absolute maximum should be to let finalizers run and exit as quickly as possible. You should never even attempt to catch this category of error (it's ok to skip a try/catch block and you should not account for this with a Result).
+
+Boneheaded exceptions are exceptions that could have been avoided entirely and therefore indicate a bug in the code. Examples include invalid arguments, out of range array access, or divide by zero. There is no point in attempting to catch these errors, since doing so actually hides an error in the code. It's OK to use unwrap / unreachable! on such a Result, and you should definitely not try/catch this categoy of error.
+
+Vexing exceptions are the result of unfortunate design decisions. It isn't really an "exceptional situation", rather, it's used in languages which have exceptions but don't have Result types. An example is Python's `int` function raising a `ValueError` on invalid input. In order to avoid this exception, you would have to completely re-implement the function, so instead you must catch this exception. Another is `StopIteration`, which MUST be caught and is entirely non-exceptional. It's never OK to skip a try/catch for this categoy of exception, and you should strongly avoid designing an API that exposes this categoy of exception.
+
+Finally, exogenous exceptions are how exception-oriented languages emulate Result types. An example is opening a file: rather than returning an error value, Python will raise `OSError`. As with vexing exceptions, this category of exception is entirely non-exceptional and therefore must ALWAYS be caught and handled (it's never OK to skip a try/catch block for this category of exception). Unlike with vexing exceptions, it is OK to design an API that raises this kind of exception when working in languages where it is idiomatic.
+
+When you write an exception handler, first decide what category of exception it falls into, and then how you should handle the exception. If you aren't sure, it's OK to leave yourself a TODO item to decide about the exception later once you have a clear picture of the whole implementation, but you need to resolve it (don't be afraid to remove the try/catch if it shouldn't be there) before you return your work to Ryan.
+
 ## Getting help
 
 - ALWAYS ask for clarification rather than making assumptions.
