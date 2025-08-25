@@ -18,8 +18,8 @@ boot() {
 	set +e
 	volume_json=$(hcloud volume describe -o json "$argc_volume" 2>/dev/null)
 	volume_status=$?
-	ip=$(hcloud server ip "$server_name" 2>/dev/null)
-	ip_status=$?
+	server_json=$(hcloud server describe -o json "$server_name" 2>/dev/null)
+	server_status=$?
 	set -e
 
 	if [[ $volume_status -ne 0 ]]; then
@@ -31,12 +31,21 @@ boot() {
 	volume_name=$(echo "$volume_json" | jq -r '.name')
 	volume_id=$(echo "$volume_json" | jq -r '.id')
 
-	if [[ $ip_status -eq 0 ]]; then
-		# TODO - verify that the volume we want is actually attached to this
-		# server.
-		echo "$server_name is already running"
-		echo "$server_name is available at $ip"
-		return 0
+	if [[ $server_status -eq 0 ]]; then
+		server_power=$(echo "$server_json" | jq -r '.status')
+		server_volume=$(echo "$server_json" | jq -r '.volumes[0]')
+		ip=$(echo "$server_json" | jq -r '(.public_net.ipv4.ip // (.public_net.ipv6.ip | sub("::/64$"; "::1")))')
+		if [[ "$server_volume" != "$volume_id" ]]; then
+			echo "$server_name is not attached to $volume_name" >&2
+			return 1
+		elif [[ "$server_power" != "running" ]]; then
+			echo "$server_name is $server_power" >&2
+			return 1
+		else
+			echo "$server_name is already running"
+			echo "$server_name is available at $ip"
+			return 0
+		fi
 	fi
 
 	echo "Booting ${argc_volume} on ${argc_type:?} in ${location}..."
