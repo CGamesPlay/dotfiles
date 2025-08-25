@@ -23,9 +23,11 @@ set -eu
 # - nvim: https://github.com/coder/claudecode.nvim
 
 main() {
+	set +u
 	# shellcheck disable=1091
 	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
 	nvm use --lts > /dev/null
+	set -u
 
 	export CLAUDE_CONFIG_DIR=~/.config/claude
 
