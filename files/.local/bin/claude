@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# @describe Wrapper for Claude Code.
+#
+# The wrapper is responsible for setting up CLAUDE_CONFIG_DIR, and can
+# auto-install claude when needed.
+# @version wrapper, use --claude-version for version information
+# @arg args~                Additional arguments, passed verbatim
+# @flag --claude-help       Show help for Claude Code
+# @flag --claude-version    Show version for Claude Code
+# @flag --claude-reinstall  Reinstall Claude Code even if already installed
+# @flag --claude-usage      Run ccusage instead of Claude Code.
+
+set -eu
+
+# In the future, potentially look into integrating:
+# - mobile: https://github.com/slopus/happy
+#
+# ALso, other things
+# - cli: https://github.com/sst/opencode
+# - web: https://github.com/All-Hands-AI/OpenHands
+# - web: https://github.com/boldsoftware/sketch
+# - nvim: https://github.com/olimorris/codecompanion.nvim
+# - nvim: https://github.com/coder/claudecode.nvim
+
+main() {
+	# shellcheck disable=1091
+	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+	nvm use --lts > /dev/null
+
+	export CLAUDE_CONFIG_DIR=~/.config/claude
+
+	if [[ "${argc_claude_usage+1}" ]]; then
+		npm --no-update-notifier install -g ccusage@latest
+		exec ccusage ${argc_args+"${argc_args[@]}"}
+	fi
+	if [[ "${argc_claude_reinstall+1}" ]] || ! npm --no-update-notifier list -g @anthropic-ai/claude-code >/dev/null; then
+		echo "Claude Code is not installed. Installing..." >&2
+		npm --no-update-notifier install -g @anthropic-ai/claude-code@latest
+		claude config set --global preferredNotifChannel iterm2
+	fi
+	exec claude \
+		${argc_claude_help+--help} \
+		${argc_claude_version+--version} \
+		${argc_args+"${argc_args[@]}"}
+}
+
+eval "$(argc --argc-eval "$0" "$@")"
