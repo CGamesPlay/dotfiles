@@ -43,7 +43,7 @@ return {
       -- https://github.com/astral-sh/ruff-lsp/issues/335
       python = { "ruff_organize_imports" },
       rust = { "rustfmt" },
-      eruby = { "erb_format" },
+      eruby = { "erb_format", lsp_format = "fallback" },
       terraform = { "terraform_fmt" },
       typescript = { "prettier", lsp_format = "fallback" },
       typescriptreact = { "prettier" },

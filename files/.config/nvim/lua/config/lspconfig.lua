@@ -64,7 +64,7 @@ return {
             }
           }
         },
-        -- See above
+        -- ruby_lsp is preferred
         -- standardrb = {},
         terraformls = {},
         ts_ls = {},
@@ -73,6 +73,9 @@ return {
 
     config = function(_, opts)
       local lspconfig = require("lspconfig")
+      -- Add a no-op deactivate function to enable reloading
+      lspconfig.deactivate = function()
+      end
 
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       -- Add blink.cmp's capabilities
