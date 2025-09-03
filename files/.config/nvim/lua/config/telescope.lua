@@ -58,6 +58,8 @@ return {
       local telescope = require("telescope")
       telescope.setup({
         defaults = {
+          generic_sorter = require('multi-fzy').sorter,
+          file_sorter = require('multi-fzy').sorter,
           mappings = {
             i = {
               ["jk"] = false, -- apparently false means "leave insert mode"
