@@ -152,6 +152,7 @@ download() {
 }
 
 # @cmd Prompt for files to upload to the local machine
+# @arg dest=. <DIR> Directory to place files into
 upload() {
 	# TODO: check that iterm is running
 	exec 9<> /dev/tty
@@ -178,7 +179,7 @@ upload() {
 		fi
 		echo "$line" >> "$tar_file"
 	done
-	base64 -d <"$tar_file" | tar -xvz
+	base64 -d <"$tar_file" | tar -xz -C "${argc_dest:?}"
 }
 
 # @cmd Rich file display
