@@ -84,6 +84,7 @@ opt.wildmenu = true
 opt.wildmode = "full:longest"
 opt.wildoptions = "pum"
 opt.wildcharm = 9 -- Tab key
+opt.wildignorecase = true
 
 -- Require approval for completion options
 opt.completeopt = "menu,menuone,noinsert,preview"
