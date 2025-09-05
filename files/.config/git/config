@@ -81,7 +81,7 @@
 	rebase-in-place = !git rebase --onto $(git merge-base HEAD @{u})
 	unstage = restore --staged
 	# Open the web repo associated with this repository.
-	web = !sh -c \"git remote get-url \\${1:-origin} | sed -e 's\\$git@gitlab.com:\\$https://gitlab.com/\\$' -e 's\\$git@github.com:\\$https://github.com/\\$' | xargs \\$(which open || which xdg-open)\" git-web
+	web = !sh -c \"git remote get-url \\${1:-origin} | sed -r -e 's\\$git@gitlab.com:\\$https://gitlab.com/\\$' -e 's\\$git@github.com:\\$https://github.com/\\$' -e 's\\$ssh://(git@)?([^:]+)(:[0-9]+)?/\\$https://\\2/\\$'| xargs \\$(which open || which xdg-open)\" git-web
 	# Create a fixup commit using fzf
 	fixup = !git commit --fixup $(git log --oneline | fzf --preview='git show {1} --stat --color=always' | awk '{ print $1 }')
 
