@@ -20,7 +20,7 @@ function fish_prompt --description 'Write out the prompt'
   end
 
   # Write pipestatus
-  set -l statusb_color (set_color --bold $fish_color_status)
+  set -l statusb_color (set_color $fish_color_status)
   set -l prompt_status (__fish_print_pipestatus "Command failed: [" "]" "|" "$statusb_color" "$statusb_color" $last_pipestatus)
 
   set -q __fish_prompt_status_generation; or set -g __fish_prompt_status_generation $status_generation
@@ -29,7 +29,7 @@ function fish_prompt --description 'Write out the prompt'
   end
   set __fish_prompt_status_generation $status_generation
   echo -s \
-    (set_color $ry_fish_color_date) (date "+%Y-%m-%d %H:%M") (set_color normal) \
+    (set_color $fish_color_date) (date "+%Y-%m-%d %H:%M") (set_color normal) \
     (set_color $fish_color_user) '  ' (prompt_login)' ' \
     (set_color $cwd_color) (prompt_pwd -D 2) (fish_vcs_prompt)
   echo -n -s (set_color $cwd_color) $delim (set_color normal) ' '
