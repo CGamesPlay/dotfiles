@@ -32,8 +32,7 @@ main() {
 	export CLAUDE_CONFIG_DIR=~/.config/claude
 
 	if [[ "${argc_claude_usage+1}" ]]; then
-		npm --no-update-notifier install -g ccusage@latest
-		exec ccusage ${argc_args+"${argc_args[@]}"}
+		exec open https://claude.ai/settings/usage
 	fi
 	if [[ "${argc_claude_reinstall+1}" ]] || ! npm --no-update-notifier list -g @anthropic-ai/claude-code >/dev/null; then
 		echo "Claude Code is not installed. Installing..." >&2
