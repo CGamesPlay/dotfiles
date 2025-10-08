@@ -257,8 +257,8 @@ keys:set(
 
 -- Yank the current filename (including line numbers in visual mode)
 keys:set("n", [[,yf]], function()
-  vim.fn.setreg(vim.v.register, vim.fn.expand('%'))
-  print(vim.fn.expand('%'))
+  vim.fn.setreg(vim.v.register, vim.fn.expand('%:.'))
+  print(vim.fn.expand('%:.'))
 end, { desc = "Yank current [f]ile name" })
 keys:set("v", [[,yf]], function()
   local start_line = vim.fn.line("v")
@@ -267,7 +267,7 @@ keys:set("v", [[,yf]], function()
   if start_line > end_line then
     start_line, end_line = end_line, start_line
   end
-  local filename = vim.fn.expand('%')
+  local filename = vim.fn.expand('%:.')
   local result
   if start_line == end_line then
     result = filename .. ":" .. start_line
