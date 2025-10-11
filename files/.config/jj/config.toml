@@ -1,0 +1,169 @@
+#:schema https://jj-vcs.github.io/jj/latest/config-schema.json
+# the default config is available at
+# https://github.com/jj-vcs/jj/blob/main/cli/src/config/
+
+[user]
+name = "Ryan Patterson"
+email = "cgamesplay@cgamesplay.com"
+
+[ui]
+# Default command. Shows commits that aren't in the main branch yet.
+default-command = "status"
+log-synthetic-elided-nodes = true
+pager = ["less", "-FR"]
+
+[git]
+private-commits = "private_commits"
+
+[colors]
+commit_id = "magenta"
+change_id = "blue"
+"working_copy commit_id" = "bright magenta"
+"working_copy change_id" = "bright blue"
+"normal change_id" = { bold = true, fg = "cyan" }
+"immutable change_id" = { bold = false, fg = "bright blue" }
+empty = "bright black"
+"working_copy empty" = "bright black"
+
+[merge-tools.difft]
+diff-args = ["--color=always", "--sort-paths", "--display=inline", "--byte-limit=100000", "$left", "$right"]
+
+[[--scope]]
+--when.commands = ["diff", "show"]
+[--scope.ui]
+pager = "delta"
+diff-formatter = ":git"
+
+[aliases]
+# Log, but shorter.
+l = ["log", "-T", "log_oneline"]
+# My kind-of replacement for `git branch`. Shows mutable commits and their
+# immutable parents.
+wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "ancestors(mutable(), 2) | @..trunk()"]
+
+[revsets]
+# Default revset works just like `git log`
+log = '::@'
+
+[revset-aliases]
+# The default revsets and revset-aliases are available at
+# https://github.com/jj-vcs/jj/blob/main/cli/src/config/revsets.toml
+wip = "ancestors(mutable(), 2) | trunk_unincorporated"
+trunk_unincorporated = "ancestors(fork_point(trunk() | @)..trunk(), 1)"
+
+# Private and WIP commits that should never be pushed anywhere. Often part of
+# work-in-progress merge stacks.
+private_commits = "description(glob:'wip:*') | description(glob:'private:*')"
+
+[templates]
+log = 'builtin_log_detailed'
+
+log_node = '''
+label('node',
+  coalesce(
+    if(!self, label('elided', '⋮')),
+    label(
+      separate(' ',
+        if(current_working_copy, 'working_copy'),
+        if(immutable, 'immutable', 'mutable'),
+        if(conflict, 'conflicted'),
+      ),
+      coalesce(
+        if(current_working_copy, '@'),
+        if(immutable, '◆'),
+        if(conflict, '×'),
+        '○',
+      )
+    )
+  )
+)
+'''
+
+[template-aliases]
+
+shell_prompt = '''
+' ' ++ separate(
+  ' ',
+  bookmarks.join(', '),
+  if(hidden,
+    label('hidden',
+      change_id.shortest(4) ++ ' hidden'
+    ),
+    label(if(divergent, 'divergent'),
+      change_id.shortest(4) ++ if(divergent, '??')
+    )
+  ),
+  commit_id.shortest(4),
+  label(
+    coalesce(
+      if(conflict, 'conflict'),
+      if(empty, 'empty'),
+    ),
+    surround('(', ')', separate(', ',
+      if(conflict, 'conflict'),
+      if(empty, 'empty'),
+    ))
+  ),
+  coalesce(
+    if(
+      description.first_line().len() <= 24,
+      description.first_line(),
+      description.first_line().substr(0, 23) ++ '…'
+    ),
+    description_placeholder
+  ),
+)
+'''
+
+log_oneline = 'log_oneline(self)'
+'log_oneline(commit)' = '''
+if(commit.root(),
+  format_root_commit(commit),
+  label(
+    separate(' ',
+      if(commit.current_working_copy(), 'working_copy'),
+      if(commit.immutable(), 'immutable', 'mutable'),
+      if(commit.conflict(), 'conflicted'),
+    ),
+    concat(
+      separate(' ',
+        format_short_change_id_with_hidden_and_divergent_info(commit),
+        format_short_signature_oneline(commit.author()),
+        format_short_timestamp(commit_timestamp(commit)),
+        format_short_commit_id(commit.commit_id()),
+        surround(
+          '[',
+          ']',
+          separate(' ', commit.bookmarks(), commit.tags()),
+        ),
+        commit.working_copies(),
+        if(commit.conflict(), label('conflict', 'conflict')),
+        if(config('ui.show-cryptographic-signatures').as_boolean(),
+          format_short_cryptographic_signature(commit.signature())),
+        if(commit.empty(), label('empty', '(empty)')),
+        if(commit.description(),
+          commit.description().first_line(),
+          label(if(commit.empty(), 'empty'), description_placeholder),
+        ),
+      ) ++ "\n",
+    ),
+  )
+)
+'''
+
+'format_short_signature_oneline(signature)' = '''
+if(signature.email() != config('user.email').as_string(),
+  coalesce(signature.email().local(), email_placeholder))
+'''
+# "YYYY-MM-DD" is 10 characters, and the longest value this can print
+'format_short_timestamp(timestamp)' = '''
+pad_end(10, if(timestamp.after('1 week ago'),
+  timestamp.ago().replace(regex:' (.).* ago', '$1 ago'),
+  timestamp.format('%F')
+  ))
+'''
+'format_timestamp(timestamp)' = "timestamp.format('%+')"
+
+'in_branch(commit)' = "commit.contained_in('immutable_heads()..bookmarks()')"
+
+# vim:sw=2

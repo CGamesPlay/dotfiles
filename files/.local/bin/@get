@@ -171,6 +171,17 @@ jesseduffield/lazygit() {
 	eget jesseduffield/lazygit --to="$BINDIR"
 }
 
+# @cmd Install jujutsu
+# A Git-compatible VCS that is both simple and powerful
+# @alias jj
+jj-vcs/jj() {
+	eget jj-vcs/jj --to="$BINDIR"
+
+	eget jj-vcs/jj -a 'docs' -d --to=jj-docs.tar.gz
+	mkdir -p "~/.local/share/doc/jj"
+	tar xf jj-docs.tar.gz -C ~/.local/share/doc/jj
+}
+
 # @cmd Install fzf
 # Fuzzy file finder
 # @alias fzf

@@ -1,6 +1,5 @@
-# Defined in /var/folders/2r/0y4kz7r53y1bflwy7l87z4n40000gn/T//fish.UXq4Qv/fish_greeting.fish @ line 2
 function fish_greeting
-	set phase (fish_moon)
+  set phase (fish_moon)
   if test $phase = full
     echo
     echo "  🌕  You are lucky! Full moon tonight."

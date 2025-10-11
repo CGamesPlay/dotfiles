@@ -11,12 +11,23 @@ function fish_prompt --description 'Write out the prompt'
     end
   end
 
-  # Just calculate these once, to save a few cycles when displaying the prompt
-  set -l delim '$'
-  set -l cwd_color $fish_color_cwd
-  if test $USER = root
-    set delim '#'
-    set cwd_color $fish_color_cwd_root
+  # Cache per-session values
+  if not set -q __fish_prompt_login_str
+    set -l host (prompt_hostname)
+    set -l color_host $fish_color_host
+    if set -q SSH_TTY; and set -q fish_color_host_remote
+      set color_host $fish_color_host_remote
+    end
+
+    if test $USER = root
+      set -g __fish_prompt_login_str (set_color $fish_color_user)"$USER"(set_color normal)"@"(set_color $color_host)$host(set_color normal)
+      set -g __fish_prompt_delim '#'
+      set -g __fish_prompt_cwd_color $fish_color_cwd_root
+    else
+      set -g __fish_prompt_login_str (set_color $color_host)$host(set_color normal)
+      set -g __fish_prompt_delim '$'
+      set -g __fish_prompt_cwd_color $fish_color_cwd
+    end
   end
 
   # Write pipestatus
@@ -28,9 +39,10 @@ function fish_prompt --description 'Write out the prompt'
     echo $prompt_status
   end
   set __fish_prompt_status_generation $status_generation
+
   echo -s \
     (set_color $fish_color_date) (date "+%Y-%m-%d %H:%M") (set_color normal) \
-    (set_color $fish_color_user) '  ' (prompt_login)' ' \
-    (set_color $cwd_color) (prompt_pwd -D 2) (fish_vcs_prompt)
-  echo -n -s (set_color $cwd_color) $delim (set_color normal) ' '
+    (set_color $fish_color_user) '  ' $__fish_prompt_login_str '  ' \
+    (set_color $__fish_prompt_cwd_color) (prompt_pwd -D 2) ' ' (fish_vcs_prompt)
+  echo -n -s (set_color $__fish_prompt_cwd_color) $__fish_prompt_delim (set_color normal) ' '
 end
