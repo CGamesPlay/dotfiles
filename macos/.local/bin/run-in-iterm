@@ -1,25 +1,19 @@
 #!/usr/bin/env bash
-# @describe Run a command in an iterm window
-# @arg    command  Command to run (shell script)
+# This is a bash script that runs the appropriate iTerm2 python environment.
+''''exec "$(printf "%s\n" ~/.config/iterm2/AppSupport/iterm2env/versions/*/bin/python | sort -t/ -k9 -V | tail -1)" "$0" "$@"
+'''  # fmt: skip
 
-set -eu
+import iterm2
+import sys
 
-main() {
-	command="$(iterm_quote "$(printf "sh -c %q" "${argc_command:?}")")"
-	osascript \
-		-e 'on run argv' \
-		-e 'tell application "iTerm" to create window with default profile command (item 1 of argv)' \
-		-e 'return' \
-		-e 'end run' \
-		"$command"
-}
 
-iterm_quote() {
-	printf "%s" "${1/\\\\/\\\\\\\\}"
-}
+async def main(connection: iterm2.Connection):
+    app = await iterm2.async_get_app(connection)
+    window = await iterm2.Window.async_create(connection, command=sys.argv[1])
+    await window.async_activate()
+    await app.async_activate()
 
-if ! command -v argc >/dev/null; then
-	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
-	exit 100
-fi
-eval "$(argc --argc-eval "$0" "$@")"
+
+iterm2.run_until_complete(main)
+
+# vim:ft=python:expandtab:ts=4

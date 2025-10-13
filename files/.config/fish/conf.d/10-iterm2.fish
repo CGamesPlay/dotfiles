@@ -1,5 +1,5 @@
 # From https://github.com/gnachman/iTerm2/blob/master/Resources/shell_integration/iterm2_shell_integration.fish
-# Version 3d81737
+# Version e08d9fa
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != screen ]; and [ "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != screen-256color ]; and [ "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != tmux-256color ]; and [ "$TERM" != dumb ]; and [ "$TERM" != linux ]; end
+if begin; status --is-interactive; and not functions -q -- iterm2_status; and test "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != screen; and test "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != screen-256color; and test "$ITERM_ENABLE_SHELL_INTEGRATION_WITH_TMUX""$TERM" != tmux-256color; and test "$TERM" != dumb; and test "$TERM" != linux; end
   function iterm2_status
     printf "\033]133;D;%s\007" $argv
   end
@@ -33,7 +33,7 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
   # Tell terminal to create a mark at this location
   function iterm2_preexec --on-event fish_preexec
     # For other shells we would output status here but we can't do that in fish.
-    if [ "$TERM_PROGRAM" = "iTerm.app" ]
+    if test "$TERM_PROGRAM" = "iTerm.app"
       printf "\033]133;C;\r\007"
     else
       printf "\033]133;C;\007"
@@ -70,7 +70,7 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
 
     iterm2_status $last_status
     iterm2_write_remotehost_currentdir_uservars
-    if not functions iterm2_fish_prompt | grep -q iterm2_prompt_mark
+    if not functions iterm2_fish_prompt | string match -q "*iterm2_prompt_mark*"
       iterm2_prompt_mark
     end
     return $last_status
@@ -93,7 +93,7 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
       # Remove the trailing newline from the original prompt. This is done
       # using the string builtin from fish, but to make sure any escape codes
       # are correctly interpreted, use %b for printf.
-      printf "%b" (string join "\n" (iterm2_fish_prompt))
+      printf "%b" (string join "\n" -- (iterm2_fish_prompt))
 
       iterm2_prompt_end
     end
@@ -105,7 +105,7 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
       # Remove the trailing newline from the original prompt. This is done
       # using the string builtin from fish, but to make sure any escape codes
       # are correctly interpreted, use %b for printf.
-      printf "%b" (string join "\n" (iterm2_fish_prompt))
+      printf "%b" (string join "\n" -- (iterm2_fish_prompt))
 
       iterm2_prompt_end
     end
@@ -115,7 +115,7 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
   if not set -q -g iterm2_hostname
     # hostname -f is fast on macOS so don't cache it. This lets us get an updated version when
     # it changes, such as if you attach to a VPN.
-    if [ (uname) != Darwin ]
+    if test (uname) != Darwin
       set -g iterm2_hostname (hostname -f 2>/dev/null)
       # some flavors of BSD (i.e. NetBSD and OpenBSD) don't have the -f option
       if test $status -ne 0
@@ -125,5 +125,5 @@ if begin; status --is-interactive; and not functions -q -- iterm2_status; and [ 
   end
 
   iterm2_write_remotehost_currentdir_uservars
-  printf "\033]1337;ShellIntegrationVersion=18;shell=fish\007"
+  printf "\033]1337;ShellIntegrationVersion=19;shell=fish\007"
 end

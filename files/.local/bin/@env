@@ -133,9 +133,14 @@ status() {
 }
 
 # @cmd Open a shell in the environment
+# @option --chdir                               Directory to change to
 # @arg       environment![`_list_environments`] Name of the environment
 shell() {
-	argc_args=(run-in-env "exec sh -c 'exec \"\$(grep \"^\$USER:\" /etc/passwd | cut -d: -f7)\"'")
+	script="exec \"\$(grep \"^\$USER:\" /etc/passwd | cut -d: -f7)\""
+	if [ ${argc_chdir:+1} ]; then
+		script="cd $(shelljoin "$argc_chdir") && $script"
+	fi
+	argc_args=(run-in-env "exec sh -c $(shelljoin "$script")")
 	env-command
 }
 
@@ -171,7 +176,7 @@ nvim() {
 # @arg       directory                          Remote directory to start in
 start-working() {
 	"$0" up "${argc_environment:?}"
-	"$0" tmux "${argc_environment:?}" ${argc_directory:+"${argc_directory}"}
+	exec "$0" shell ${argc_directory:+--chdir "${argc_directory}"} "${argc_environment:?}"
 }
 
 if ! command -v argc >/dev/null; then
@@ -179,3 +184,5 @@ if ! command -v argc >/dev/null; then
 	exit 100
 fi
 eval "$(argc --argc-eval "$0" "$@")"
+
+# vim:ts=4
