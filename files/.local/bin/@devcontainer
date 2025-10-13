@@ -34,15 +34,23 @@ up() {
 
 # @cmd Open a shell in the running devcontainer
 shell() {
-	_ensure_installed
-	exec devcontainer exec --workspace-folder="${argc_workspace_folder:?}" sh -c "exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\""
+	argc_args=(sh -c "${env_vars[*]} exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\"")
+	run-cmd
 }
 
 # @cmd Execute a command in the running devcontainer
 # @arg       args~                        Command to run
 # @alias exec
 run-cmd() {
-	devcontainer exec --workspace-folder="${argc_workspace_folder:?}" "${argc_args[@]:?}"
+	env_vars=()
+	while IFS='=' read -r key value; do
+		case "$key" in
+			TERM|LANG|LC_*|COLOR*)
+				env_vars+=("--remote-env" "$(printf '%q=%q' "$key" "$value")")
+				;;
+		esac
+	done < <(env)
+	exec devcontainer exec --workspace-folder="${argc_workspace_folder:?}" "${env_vars[@]}" "${argc_args[@]:?}"
 }
 
 # @cmd Show the status of the devcontainer
