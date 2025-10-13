@@ -14,6 +14,9 @@ auto-track = "none()"
 default-command = "status"
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
+# We don't use delta as the main pager, because it can't handle jj's graph
+# display. We do use it for cases without a graph, configured below.
+diff-formatter = "delta"
 
 [git]
 private-commits = "private_commits"
@@ -28,29 +31,38 @@ change_id = "blue"
 empty = "bright black"
 "working_copy empty" = "bright black"
 
-# show_color_words_resolved_hunks
-"diff added" = { bg = "#d0ffd0", fg = "black" }
-"diff added line_number" = { bg = "default", fg = "black" }
-"diff added token" = { underline = false }
-"diff removed" = { bg = "#ffe0e0", fg = "black" }
-"diff removed line_number" = { bg = "default", fg = "black" }
-"diff removed token" = { underline = false }
-
 [merge-tools.difft]
-diff-args = ["--color=always", "--sort-paths", "--display=inline", "--byte-limit=100000", "$left", "$right"]
+diff-args = ["--color=always", "--display=inline", "--byte-limit=100000", "$left", "$right"]
 
+[merge-tools.delta]
+diff-expected-exit-codes = [0, 1]
+program = "sh"
+# Delta ordinarily tries to query the terminal to determine light/dark mode,
+# but it can't do that when it isn't the pager. This combines with the light
+# feature (in my git config) to implement COLORFGBG, which arguably Delta
+# should support natively (but doesn't).
+diff-args = ["-c", """
+if [[ "${COLORFGBG:-0;15}" = "0;15" ]]; then
+  export DELTA_FEATURES=+light
+fi
+exec delta "$@"
+""", "", "$left", "$right"]
+
+[merge-tools.vimdiff]
+program = "nvim"
+diff-args = []
+merge-args = [
+    "-c", "let g:jj_diffconflicts_marker_length=$marker_length",
+    "-c", "JJDiffConflicts!", "$output", "$base", "$left", "$right",
+]
+merge-tool-edits-conflict-markers = true
+
+# For these commands, we use delta as the pager directly
 [[--scope]]
 --when.commands = ["diff", "show"]
 [--scope.ui]
 pager = "delta"
 diff-formatter = ":git"
-
-# Goal: get jj log -p looking like git log -p
-[[--scope]]
---when.commands = ["log"]
-[--scope.ui]
-# pager = ["less", "-FR", "-pΔ"]
-# diff-formatter = ["delta", "$left", "$right"]
 
 [aliases]
 # Log, but shorter.
@@ -60,6 +72,29 @@ l = ["log", "-T", "log_oneline"]
 wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip"]
 # Add command, to work with auto-track = none().
 add = ["file", "track"]
+# Which revision is responsible for causing the problem I'm dealing with.
+blame = ["file", "annotate"]
+# Move all staged changes into the parent change (requires manually adding
+# changes to the git index).
+squash-index = ["util", "exec", "--", "sh", "-c", """
+set -e
+current_change=$(jj log --no-graph -T change_id -r @)
+staged_diff=$(git diff --cached)
+jj edit @- --quiet
+echo "$staged_diff" | patch -p1 >/dev/null
+jj edit "$current_change"
+""", ""]
+# Move all unstaged changes into a new child change (requires manually adding
+# changes to the git index).
+split-index = ["util", "exec", "--", "sh", "-c", """
+set -e
+unstaged_diff=$(git diff)
+git checkout -- .
+jj new --quiet
+echo "$unstaged_diff" | patch -p1 >/dev/null
+echo "Unstaged changes moved into child change."
+jj status
+""", ""]
 
 [revsets]
 # Default revset works just like `git log`

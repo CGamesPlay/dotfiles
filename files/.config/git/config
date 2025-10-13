@@ -28,17 +28,6 @@
 	# Allow long lines in git grep, but paginate if it goes over the screen height
 	grep = less -+S -FRX
 
-[delta]
-	navigate = true
-	navigate-regex = ^(commit|added:|removed:|renamed:|Δ)
-	line-numbers = true
-	light = true
-	commit-decoration-style = bold yellow ul ol
-	file-decoration-style = blue ul ol
-	hunk-header-decoration-style = none
-	pager = less -+F
-	max-line-length = 0
-
 [color "branch"]
 	current = white blue bold
 	local  = blue
@@ -166,3 +155,16 @@
 	autoCorrect = prompt
 [commit]
 	verbose = true
+
+[delta]
+	navigate = true
+	navigate-regex = ^(commit|added:|removed:|renamed:|Δ)
+	line-numbers = true
+	commit-decoration-style = bold yellow ul ol
+	file-decoration-style = blue
+	hunk-header-decoration-style = blue
+	pager = less -+F
+	max-line-length = 0
+
+[delta "light"]
+	light = true
