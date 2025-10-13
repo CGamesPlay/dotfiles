@@ -180,6 +180,9 @@ jj-vcs/jj() {
 	eget jj-vcs/jj -a 'docs' -d --to=jj-docs.tar.gz
 	mkdir -p "~/.local/share/doc/jj"
 	tar xf jj-docs.tar.gz -C ~/.local/share/doc/jj
+
+	mkdir -p ~/.local/share/man
+	jj util install-man-pages ~/.local/share/man
 }
 
 # @cmd Install fzf
