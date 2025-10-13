@@ -1,0 +1,1 @@
+qtm completions fish | source

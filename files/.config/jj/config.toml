@@ -42,7 +42,7 @@ program = "sh"
 # feature (in my git config) to implement COLORFGBG, which arguably Delta
 # should support natively (but doesn't).
 diff-args = ["-c", """
-if [[ "${COLORFGBG:-0;15}" = "0;15" ]]; then
+if [ "${COLORFGBG:-0;15}" = "0;15" ]; then
   export DELTA_FEATURES=+light
 fi
 exec delta "$@"
@@ -101,8 +101,9 @@ jj status
 log = '::@'
 
 [revset-aliases]
-wip = "ancestors(mutable(), 2) | trunk_unincorporated"
-trunk_unincorporated = "ancestors(fork_point(trunk() | @)..trunk(), 1)"
+# Mutable commits, plus remote bookmarks that we care about that and are not
+# incorporated into @.
+wip = "ancestors(mutable() | @..tracked_remote_bookmarks(), 2)"
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.

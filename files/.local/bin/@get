@@ -309,6 +309,13 @@ watchexec/watchexec() {
 	rm -rf watchexec
 }
 
+# @cmd Install difftastic
+# a structural diff that understands syntax
+# @alias difft
+Wilfred/difftastic() {
+	eget Wilfred/difftastic --to="$BINDIR"
+}
+
 _argc_before() {
 	cd "$TMPDIR"
 	BINDIR="${argc_target:?}/bin"
