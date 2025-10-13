@@ -19,7 +19,7 @@ pager = ["less", "-FR"]
 diff-formatter = "delta"
 
 [git]
-private-commits = "private_commits"
+private-commits = "private"
 
 [colors]
 commit_id = "magenta"
@@ -74,12 +74,26 @@ wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip"]
 add = ["file", "track"]
 # Which revision is responsible for causing the problem I'm dealing with.
 blame = ["file", "annotate"]
+
+# Open the web repo associated with this repository.
+web = ["util", "exec", "--", "sh", "-c", """
+git remote get-url ${1:-origin} | sed -r \
+  -e 's$git@gitlab.com:$https://gitlab.com/$' \
+  -e 's$git@github.com:$https://github.com/$' \
+  -e 's$ssh://(git@)?([^:]+)(:[0-9]+)?/$https://\\2/$' \
+  | xargs $(which open || which xdg-open)
+""", "jj web"]
+
 # Move all staged changes into the parent change (requires manually adding
 # changes to the git index).
 squash-index = ["util", "exec", "--", "sh", "-c", """
 set -e
 current_change=$(jj log --no-graph -T change_id -r @)
 staged_diff=$(git diff --cached)
+if [ -z "$staged_diff" ]; then
+  echo "Nothing to do" >&2
+  exit 1
+fi
 jj edit @- --quiet
 echo "$staged_diff" | patch -p1 >/dev/null
 jj edit "$current_change"
@@ -91,8 +105,10 @@ set -e
 unstaged_diff=$(git diff)
 git checkout -- .
 jj new --quiet
-echo "$unstaged_diff" | patch -p1 >/dev/null
-echo "Unstaged changes moved into child change."
+if [ ! -z "$unstaged_diff" ]; then
+  echo "$unstaged_diff" | patch -p1 >/dev/null
+  echo "Unstaged changes moved into child change."
+fi
 jj status
 """, ""]
 
@@ -107,7 +123,12 @@ wip = "ancestors(mutable() | @..tracked_remote_bookmarks(), 2)"
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.
-private_commits = "description(glob:'wip:*') | description(glob:'private:*')"
+private = "description(glob:'wip:*') | description(glob:'private:*')"
+
+# Find the latest "pushable" commit to the given one. Pushable means that all
+# ancestors are pushable.
+'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable))'
+unpushable = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private)'
 
 [templates]
 log = 'builtin_log_detailed'
@@ -121,9 +142,11 @@ label('node',
         if(current_working_copy, 'working_copy'),
         if(immutable, 'immutable', 'mutable'),
         if(conflict, 'conflicted'),
+        if(self.contained_in('private'), 'private'),
       ),
       coalesce(
         if(current_working_copy, '@'),
+        if(self.contained_in('private'), '⊗'),
         if(immutable, '◆'),
         if(conflict, '×'),
         '○',
