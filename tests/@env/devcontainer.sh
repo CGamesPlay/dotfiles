@@ -20,4 +20,15 @@ run-in-env() {
 	npx @devcontainers/cli exec --workspace-folder="$ATENV_DEVCONTAINER" -- sh -c "$1"
 }
 
+# @cmd Show devcontainer status
+status() {
+	npx @devcontainers/cli exec --workspace-folder="$ATENV_DEVCONTAINER" -- echo "up"
+}
+
+# @cmd Shut down the devcontainer
+stop() {
+	echo "@devcontainers/cli doesn't provide this functionality" >&2
+	exit 1
+}
+
 eval "$(argc --argc-eval "$0" "$@")"

@@ -36,6 +36,7 @@ def shellquote(s: str) -> str:
 async def main(connection: iterm2.connection.Connection):
     app = await iterm2.async_get_app(connection)
 
+    # Fetch the user's shell. Note that non-fish shells may not support the -C argument.
     user_shell = get_user_shell()
 
     @iterm2.RPC
@@ -65,8 +66,15 @@ async def main(connection: iterm2.connection.Connection):
         if directory is not None:
             args += ["--chdir", directory]
         inner_command = " ".join(shellquote(a) for a in args)
-        command = " ".join([user_shell, "-C", shellquote(inner_command)])
-        await window.async_create_tab(command=command)
+        command = " ".join([user_shell, "-c", shellquote(inner_command)])
+
+        profile = iterm2.profile.LocalWriteOnlyProfile()
+        profile.set_use_custom_command("Yes")
+        profile.set_command(command)
+        profile.set_initial_directory_mode(
+            iterm2.profile.InitialWorkingDirectory.INITIAL_WORKING_DIRECTORY_HOME
+        )
+        await window.async_create_tab(profile_customizations=profile)
 
     await new_tab_here.async_register(connection)
 

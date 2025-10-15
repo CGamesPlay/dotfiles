@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # @describe Spin up and access isolated development environments.
 #
-# Environment are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment is
-# an Argcfile which defines subcommands to start and access the environment.
+# Environments are defined in $XDG_CONFIG_HOME/@env/**/*.sh. Each environment
+# is an Argcfile which defines subcommands to start and access the environment.
 # Required subcommands:
 #
 # - up: start the environment. Arguments are allowed.
@@ -13,6 +13,8 @@
 #   machine-readable and exit with a success code. Arguments are allowed.
 #
 # Any other commands are allowed and exposed via the env-command subcommand.
+#
+# You can find several example environments in /tests/@env.
 set -eu
 
 ATENV_HOME=${ATENV_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/@env}

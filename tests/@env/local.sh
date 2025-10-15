@@ -15,4 +15,14 @@ run-in-env() {
 	exec sh -c "${argc_command:?}"
 }
 
+# @cmd Status of the environment
+status() {
+	echo "up"
+}
+
+# @cmd Shut down the environment
+stop() {
+	: # nothing to do
+}
+
 eval "$(argc --argc-eval "$0" "$@")"
