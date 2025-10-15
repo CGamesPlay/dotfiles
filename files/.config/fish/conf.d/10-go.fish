@@ -1,6 +1,6 @@
 # Set up GOPATH and optionally virtualgo, if go is installed.
 
-if ! command -qs go 2>/dev/null
+if ! command -q go 2>/dev/null
   exit
 end
 

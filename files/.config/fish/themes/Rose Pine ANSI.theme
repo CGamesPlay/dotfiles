@@ -17,7 +17,7 @@ fish_color_escape green
 fish_color_autosuggestion --bold --dim
 fish_color_cwd green
 # fish_color_cwd_root red
-fish_color_user blue
+fish_color_user yellow
 fish_color_host blue
 fish_color_host_remote magenta
 fish_color_cancel
@@ -42,4 +42,4 @@ fish_pager_color_selected_description
 
 # additions by ~ry
 fish_color_date cyan
-fish_color_status cyan
+fish_color_status --bold red

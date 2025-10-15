@@ -1,4 +1,4 @@
-if ! command -qs argc 2>/dev/null
+if ! command -q argc 2>/dev/null
   exit
 end
 

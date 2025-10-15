@@ -2,7 +2,7 @@
 # Copyright (c) 2021 Aditya Vikram Mukherjee
 # Modified by Ryan Patterson
 
-if ! command -qs fasd 2>/dev/null
+if ! command -q fasd 2>/dev/null
   exit
 end
 

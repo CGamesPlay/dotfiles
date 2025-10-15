@@ -159,7 +159,7 @@ label('node',
 [template-aliases]
 
 shell_prompt = '''
-' ' ++ separate(
+separate(
   ' ',
   bookmarks.join(', '),
   if(hidden,
@@ -181,16 +181,16 @@ shell_prompt = '''
       if(empty, 'empty'),
     ))
   ),
+  label("diff modified", count_if_present("~", diff.files().filter(|f| f.status() == "modified" || f.status() == "renamed").len())),
+  label("diff added", count_if_present("+", diff.files().filter(|f| f.status() == "added" || f.status() == "copied").len())),
+  label("diff removed", count_if_present("-", diff.files().filter(|f| f.status() == "removed").len())),
   coalesce(
-    if(
-      description.first_line().len() <= 24,
-      description.first_line(),
-      description.first_line().substr(0, 23) ++ '…'
-    ),
+    truncate_end(24, description.first_line(), '…'),
     description_placeholder
   ),
 )
 '''
+'count_if_present(prefix, value)' = 'if(value != 0, prefix ++ value)'
 
 log_oneline = 'log_oneline(self)'
 'log_oneline(commit)' = '''

@@ -1,4 +1,4 @@
-if command -qs bat
+if command -q bat
   function cat --wraps="bat"
     bat -pp $argv
   end

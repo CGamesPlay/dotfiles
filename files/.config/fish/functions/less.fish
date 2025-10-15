@@ -1,7 +1,7 @@
-if command -qs bat
+if command -q bat
   function less --wraps="bat"
     # When stdin is a terminal, use bat, otherwise, use less directly
-    if test -t 0
+    if status is-interactive
       bat --paging=always --style=plain $argv
     else
       command less $argv

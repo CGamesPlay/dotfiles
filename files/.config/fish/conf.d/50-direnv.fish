@@ -1,6 +1,6 @@
 # Set up direnv if it is installed
 
-if ! command -qs direnv 2>/dev/null
+if ! command -q direnv 2>/dev/null
   exit
 end
 

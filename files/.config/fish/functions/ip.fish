@@ -1,4 +1,4 @@
-if command -qs ip
+if command -q ip
   function ip
     command ip --color=auto $argv
   end

@@ -1,4 +1,4 @@
-if command -qs eza
+if command -q eza
   function ls --wraps "eza"
     eza -b $argv
   end

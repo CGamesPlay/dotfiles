@@ -1,5 +1,14 @@
 function git
-  if command -q jj; and jj workspace root >/dev/null 2>&1; and ! set -q allow_git_in_jj
+  # If this repository is a jj repository, ban direct use of git. This is to
+  # help me overcome muscle memory issues while switching to jj. There are a
+  # few escape hatches provided. The check for config / help is necessary
+  # because the completions for git call into these subcommands, and we don't
+  # want to break those.
+  # https://github.com/fish-shell/fish-shell/pull/4118/files
+  if command -q jj;
+      and jj workspace root >/dev/null 2>&1;
+      and ! set -q allow_git_in_jj;
+      and test $argv[1] != "config"; and test $argv[1] != "help"
     echo "This is a `jj` managed repository." >&2
     echo "" >&2
     echo "- Use `jj` instead" >&2

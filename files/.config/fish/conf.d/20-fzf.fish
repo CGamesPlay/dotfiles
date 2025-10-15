@@ -1,11 +1,11 @@
 # This script is generated using /workspace/dotfiles/scripts/update-fish-fzf.fish
 # Do not manually modify.
 
-if ! command -qs fzf 2>/dev/null
+if ! command -q fzf 2>/dev/null
   exit
 end
 
-if command -qs ag 2>/dev/null
+if command -q ag 2>/dev/null
   set FZF_CTRL_T_COMMAND 'ag -l .'
 end
 

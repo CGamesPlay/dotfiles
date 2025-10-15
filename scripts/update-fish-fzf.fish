@@ -8,11 +8,11 @@ curl -sSL https://raw.githubusercontent.com/junegunn/fzf/master/shell/key-bindin
 echo "# This script is generated using "(status -f)"
 # Do not manually modify.
 
-if ! command -qs fzf 2>/dev/null
+if ! command -q fzf 2>/dev/null
   exit
 end
 
-if command -qs ag 2>/dev/null
+if command -q ag 2>/dev/null
   set FZF_CTRL_T_COMMAND 'ag -l .'
 end
 
