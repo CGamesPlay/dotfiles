@@ -11,7 +11,7 @@ auto-track = "none()"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = "status"
+default-command = "wip"
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
@@ -74,6 +74,21 @@ wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip"]
 add = ["file", "track"]
 # Which revision is responsible for causing the problem I'm dealing with.
 blame = ["file", "annotate"]
+# The official name for "rebase" feels like historical baggage.
+move = ["rebase"]
+
+# Advance a bookmark to the closest pushable commit from @. If no bookmark is
+# specified, automatically select the nearest one. It's called "tug" because
+# it's pulling the bookmark to be closer to @, and because "prepare-to-push" is
+# rather longer.
+tug = ["util", "exec", "--", "sh", "-c", """
+set -eu
+if [ ${1+1} ]; then
+  jj bookmark move --to "closest_pushable(@)" "$@"
+else
+  jj bookmark move --to "closest_pushable(@)" --from "closest_bookmark(@)"
+fi
+""", "jj tug"]
 
 # Open the web repo associated with this repository.
 web = ["util", "exec", "--", "sh", "-c", """
@@ -129,6 +144,8 @@ private = "description(glob:'wip:*') | description(glob:'private:*')"
 # ancestors are pushable.
 'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable))'
 unpushable = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private)'
+# Find the latest bookmark in the history leading to the given revs.
+'closest_bookmark(to)' = 'heads(::to & bookmarks())'
 
 [templates]
 log = 'builtin_log_detailed'
