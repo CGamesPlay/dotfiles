@@ -2,7 +2,8 @@
 # Install fish v3 and set it as the default shell.
 set -e
 
-preferred_version="4.[0-9]"
+preferred_version="(4\\.[1-9]\\.)"
+preferred_version_check="4.1"
 
 is_installed() {
 	command -v "$1" >/dev/null
@@ -10,8 +11,9 @@ is_installed() {
 
 install_fish() {
 	if is_installed fish; then
-		if ! fish --version | grep -q "^fish, version $preferred_version"; then
+		if ! fish --version | grep -qE "^fish, version $preferred_version_check"; then
 			echo "Fish is installed, but not version $preferred_version!" >&2
+			printf "Installed: " >&2
 			fish --version >&2
 		else
 			return 0

@@ -8,6 +8,7 @@ list=(
 	direnv
 	eza
 	fzf
+	zoxide
 )
 for i in "${list[@]}"; do
 	if ! command -v "$i" >/dev/null; then

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install binaries using eget (only ones which should always be available).
+# Install binaries required for later bootstrap steps
 set -ue
 
 export PATH="$PATH:$HOME/.local/bin"

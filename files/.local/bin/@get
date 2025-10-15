@@ -8,6 +8,18 @@ set -eu
 export TMPDIR=${TMPDIR:-/tmp}
 export EGET_BIN=$TMPDIR
 
+# @cmd Install zoxide
+# @alias z, zoxide
+ajeetdsouza/zoxide() {
+	eget ajeetdsouza/zoxide --file="*" --all --to=zoxide
+
+	cp zoxide/zoxide "$BINDIR/"
+	cp -r zoxide/man/* "$MANDIR/"
+	cp zoxide/completions/zoxide.fish "$HOME/.config/fish/completions/"
+
+	rm -rf zoxide
+}
+
 # @cmd Install fx
 # Terminal JSON viewer & processor
 # @alias fx
@@ -178,7 +190,7 @@ jj-vcs/jj() {
 	eget jj-vcs/jj --to="$BINDIR"
 
 	eget jj-vcs/jj -a 'docs' -d --to=jj-docs.tar.gz
-	mkdir -p "~/.local/share/doc/jj"
+	mkdir -p ~/.local/share/doc/jj
 	tar xf jj-docs.tar.gz -C ~/.local/share/doc/jj
 
 	mkdir -p ~/.local/share/man
