@@ -6,12 +6,9 @@
 name = "Ryan Patterson"
 email = "cgamesplay@cgamesplay.com"
 
-[snapshot]
-auto-track = "none()"
-
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = "wip"
+default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip", "--reversed"]
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
@@ -30,6 +27,9 @@ change_id = "blue"
 "immutable change_id" = { bold = false, fg = "bright blue" }
 empty = "bright black"
 "working_copy empty" = "bright black"
+"status diff modified" = "blue"
+"status diff added" = "blue"
+"status diff removed" = "blue"
 
 [merge-tools.difft]
 diff-args = ["--color=always", "--display=inline", "--byte-limit=100000", "$left", "$right"]
@@ -63,6 +63,14 @@ merge-tool-edits-conflict-markers = true
 [--scope.ui]
 pager = "delta"
 diff-formatter = ":git"
+
+# The default status output is a disorienting rainbow of colors
+[[--scope]]
+--when.commands = ["status"]
+[--scope.colors]
+"diff modified" = "blue"
+"diff added" = "blue"
+"diff removed" = "blue"
 
 [aliases]
 # Log, but shorter.
@@ -103,20 +111,23 @@ git remote get-url ${1:-origin} | sed -r \
 # changes to the git index).
 squash-index = ["util", "exec", "--", "sh", "-c", """
 set -e
-current_change=$(jj log --no-graph -T change_id -r @)
-staged_diff=$(git diff --cached)
-if [ -z "$staged_diff" ]; then
+if git diff-index --quiet --cached HEAD --; then
   echo "Nothing to do" >&2
   exit 1
 fi
+current_change=$(jj log --no-graph -r @ -T change_id)
+current_commit=$(jj log --no-graph -r 'git_head()' -T commit_id)
+tree=$(git write-tree)
 jj edit @- --quiet
-echo "$staged_diff" | patch -p1 >/dev/null
+git restore --source="$tree" -WS -- :/
+git ls-files -z --cached :/ | xargs -0 jj file track
 jj edit "$current_change"
-""", ""]
+""", "jj squash-index"]
 # Move all unstaged changes into a new child change (requires manually adding
 # changes to the git index).
 split-index = ["util", "exec", "--", "sh", "-c", """
 set -e
+cd "$JJ_WORKSPACE_ROOT"
 unstaged_diff=$(git diff)
 git checkout -- .
 jj new --quiet
@@ -125,7 +136,7 @@ if [ ! -z "$unstaged_diff" ]; then
   echo "Unstaged changes moved into child change."
 fi
 jj status
-""", ""]
+""", "jj split-index"]
 
 [revsets]
 # Default revset works just like `git log`
@@ -148,7 +159,7 @@ unpushable = 'mutable() & (description(exact:"") | (empty() & ~merges()) | confl
 'closest_bookmark(to)' = 'heads(::to & bookmarks())'
 
 [templates]
-log = 'builtin_log_detailed'
+log = 'log_detailed'
 
 log_node = '''
 label('node',
@@ -242,6 +253,33 @@ if(commit.root(),
       ) ++ "\n",
     ),
   )
+)
+'''
+
+log_oneline_with_status = '''
+concat(
+  log_oneline(self),
+  if(self.current_working_copy(), label("status", diff.summary()) ++ "\n")
+)
+'''
+
+log_detailed = 'log_detailed(self)'
+'log_detailed(commit)' = '''
+concat(
+  "Commit ID: " ++ commit.commit_id().shortest(100) ++ "\n",
+  "Change ID: " ++ commit.change_id().shortest(100) ++ "\n",
+  surround("Bookmarks: ", "\n", separate(" ", commit.local_bookmarks(), commit.remote_bookmarks())),
+  surround("Tags     : ", "\n", commit.tags()),
+  "Author   : " ++ format_detailed_signature(commit.author()) ++ "\n",
+  "Committer: " ++ format_detailed_signature(commit.committer())  ++ "\n",
+  if(config("ui.show-cryptographic-signatures").as_boolean(),
+    "Signature: " ++ format_detailed_cryptographic_signature(commit.signature()) ++ "\n"),
+  "\n",
+  indent("    ",
+    if(commit.description(),
+      commit.description().trim_end(),
+      label(if(commit.empty(), "empty"), description_placeholder)) ++ "\n"),
+  "\n",
 )
 '''
 

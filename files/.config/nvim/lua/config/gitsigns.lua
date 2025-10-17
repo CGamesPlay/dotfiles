@@ -1,11 +1,6 @@
 -- Deep buffer integration for Git
 
-local augroup = vim.api.nvim_create_augroup("config.gitsigns", { clear = true })
-
-vim.api.nvim_create_autocmd("ColorScheme", {
-  desc = "Customize gitsigns colors",
-  group = augroup,
-  callback = function()
+local function set_colors()
     local wcColor = vim.api.nvim_get_hl(0, { name = "DiffAdd" }).bg
     for _, group in pairs({ "GitSignsAdd", "GitSignsChange", "GitSignsTopdelete", "GitSignsChangedelete", "GitSignsDelete" }) do
       vim.api.nvim_set_hl(0, group, { fg = wcColor })
@@ -18,8 +13,19 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 
     vim.api.nvim_set_hl(0, 'GitSignsStagedAddLn', { bg = "bg" })
     vim.api.nvim_set_hl(0, 'GitSignsStagedChangeLn', { bg = "bg" })
-  end,
+end
+
+local augroup = vim.api.nvim_create_augroup("config.gitsigns", { clear = true })
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+  desc = "Customize gitsigns colors",
+  group = augroup,
+  callback = set_colors,
 })
+
+if vim.g.colors_name then
+  set_colors()
+end
 
 local keys = require("keygroup").new("config.gitsigns")
 keys:set(
