@@ -45,6 +45,7 @@ user_data = {
         "name": "ubuntu",
         "groups": ["adm", "docker"],
         "ssh_authorized_keys": ssh_keys,
+        # Consider switching to https://lorier.net/docs/ssh-agent-sudo.html
         "sudo": "ALL=(ALL) NOPASSWD:ALL",
     },
     "users": {

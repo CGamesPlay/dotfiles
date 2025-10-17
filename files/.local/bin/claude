@@ -16,7 +16,6 @@ set -eu
 # - mobile: https://github.com/slopus/happy
 #
 # ALso, other things
-# - cli: https://github.com/sst/opencode
 # - web: https://github.com/All-Hands-AI/OpenHands
 # - web: https://github.com/boldsoftware/sketch
 # - nvim: https://github.com/olimorris/codecompanion.nvim
