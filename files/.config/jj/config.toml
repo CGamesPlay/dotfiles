@@ -8,7 +8,7 @@ email = "cgamesplay@cgamesplay.com"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip", "--reversed"]
+default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip()", "--reversed"]
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
@@ -16,7 +16,7 @@ pager = ["less", "-FR"]
 diff-formatter = "delta"
 
 [git]
-private-commits = "private"
+private-commits = "private()"
 
 [colors]
 commit_id = "magenta"
@@ -77,7 +77,7 @@ diff-formatter = ":git"
 l = ["log", "-T", "log_oneline"]
 # My kind-of replacement for `git branch`. Shows mutable commits and their
 # immutable parents, plus unincorporated changes.
-wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip"]
+wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip()"]
 # Add command, to work with auto-track = none().
 add = ["file", "track"]
 # Which revision is responsible for causing the problem I'm dealing with.
@@ -143,18 +143,21 @@ jj status
 log = '::@'
 
 [revset-aliases]
+# NOTE: revset-aliases shadow bookmarks, so it's generally a good idea to
+# always use the function form.
+
 # Mutable commits, plus remote bookmarks that we care about that and are not
 # incorporated into @.
-wip = "ancestors(mutable() | @..tracked_remote_bookmarks(), 2)"
+'wip()' = "ancestors(mutable() | @..tracked_remote_bookmarks(), 2)"
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.
-private = "description(glob:'wip:*') | description(glob:'private:*')"
+'private()' = "description(glob:'wip:*') | description(glob:'private:*')"
 
 # Find the latest "pushable" commit to the given one. Pushable means that all
 # ancestors are pushable.
-'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable))'
-unpushable = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private)'
+'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable()))'
+'unpushable()' = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private())'
 # Find the latest bookmark in the history leading to the given revs.
 'closest_bookmark(to)' = 'heads(::to & bookmarks())'
 
@@ -170,11 +173,11 @@ label('node',
         if(current_working_copy, 'working_copy'),
         if(immutable, 'immutable', 'mutable'),
         if(conflict, 'conflicted'),
-        if(self.contained_in('private'), 'private'),
+        if(self.contained_in('private()'), 'private'),
       ),
       coalesce(
         if(current_working_copy, '@'),
-        if(self.contained_in('private'), '⊗'),
+        if(self.contained_in('private()'), '⊗'),
         if(immutable, '◆'),
         if(conflict, '×'),
         '○',
