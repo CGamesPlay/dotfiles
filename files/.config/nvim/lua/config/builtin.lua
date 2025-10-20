@@ -83,7 +83,7 @@ opt.iminsert = 1
 opt.wildmenu = true
 opt.wildmode = "full:longest"
 opt.wildoptions = "pum"
-opt.wildcharm = 9 -- Tab key
+opt.wildcharm = opt.wildchar:get() -- Necessary for <Tab> binding
 opt.wildignorecase = true
 
 -- Require approval for completion options
@@ -118,17 +118,6 @@ local keys = require("keygroup").new("config.builtin")
 -- Use arrow keys to scroll view in normal mode
 keys:set("n", "<Up>", "<C-y>")
 keys:set("n", "<Down>", "<C-e>")
-
--- Override the wildmenu keymaps with something more like fish.
-keys:set("c", "<Up>", "<C-P>")
-keys:set("c", "<Down>", "<C-N>")
-keys:set("c", "<Right>", function()
-  if vim.fn.pumvisible() ~= 0 then
-    return "<C-Y>"
-  else
-    return "<Right>"
-  end
-end, { expr = true })
 
 -- Exit insert mode by typing jk. To actually insert "jk", wait 1 second after
 -- typing the j.
@@ -240,20 +229,50 @@ keys:set("n", "<leader>t|", function()
   vim.o.colorcolumn = vim.o.colorcolumn == "" and "+0" or ""
 end, { desc = "[T]oggle Color Column" })
 
--- Cmdline completion: <Tab> moves through completion options
+-- Cmdline completion: make it behave more like fish
 keys:set(
   "c",
   "<Tab>",
-  [[pumvisible() ? "<C-n>" : nr2char(&wildcharm)]],
-  { expr = true, desc = "Show wildmenu or advance to next option" }
+  [[wildmenumode() ? "<C-n>" : nr2char(&wildcharm)]],
+  { expr = true, desc = "Show/advance wildmenu" }
 )
--- Cmdline completion: <CR> accepts the completion without submitting
 keys:set(
   "c",
   "<CR>",
-  [[pumvisible() ? "<C-y>" : "<CR>"]],
+  [[wildmenumode() ? "<C-y>" : "<CR>"]],
   { expr = true, desc = "Accept the wildmenu choice, or submit" }
 )
+keys:set(
+  "c",
+  "<Left>",
+  [[wildmenumode() ? "<C-e>" : "<Left>"]],
+  { expr = true, replace_keycodes = false }
+)
+keys:set(
+  "c",
+  "<Right>",
+  [[wildmenumode() ? "<C-y><Tab>" : "<Right>"]],
+  { expr = true, replace_keycodes = false }
+)
+-- This feedkeys malarky is due to
+-- https://github.com/neovim/neovim/issues/36256
+vim.keymap.set("c", "<Up>", function()
+    local key = "<Up>"
+    if vim.fn.wildmenumode() ~= 0 then
+      key = "<C-p>"
+    end
+    vim.fn.feedkeys(vim.api.nvim_replace_termcodes(key, true, true, true), 'nt')
+  end,
+  { desc = "Navigate in wildmenu or command history" })
+vim.keymap.set("c", "<Down>", function()
+    local key = "<Down>"
+    if vim.fn.wildmenumode() ~= 0 then
+      key = "<C-n>"
+    end
+    vim.fn.feedkeys(vim.api.nvim_replace_termcodes(key, true, true, true), 'nt')
+  end,
+  { desc = "Navigate in wildmenu or command history" })
+
 
 -- Yank the current filename (including line numbers in visual mode)
 keys:set("n", [[,yf]], function()
