@@ -256,7 +256,7 @@ keys:set(
 )
 -- This feedkeys malarky is due to
 -- https://github.com/neovim/neovim/issues/36256
-vim.keymap.set("c", "<Up>", function()
+keys:set("c", "<Up>", function()
     local key = "<Up>"
     if vim.fn.wildmenumode() ~= 0 then
       key = "<C-p>"
@@ -264,7 +264,7 @@ vim.keymap.set("c", "<Up>", function()
     vim.fn.feedkeys(vim.api.nvim_replace_termcodes(key, true, true, true), 'nt')
   end,
   { desc = "Navigate in wildmenu or command history" })
-vim.keymap.set("c", "<Down>", function()
+keys:set("c", "<Down>", function()
     local key = "<Down>"
     if vim.fn.wildmenumode() ~= 0 then
       key = "<C-n>"
