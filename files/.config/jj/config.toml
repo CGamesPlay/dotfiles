@@ -141,6 +141,8 @@ jj status
 [revsets]
 # Default revset works just like `git log`
 log = '::@'
+# Give mutable commits shorter prefixes
+short-prefixes = 'mutable()'
 
 [revset-aliases]
 # NOTE: revset-aliases shadow bookmarks, so it's generally a good idea to
@@ -190,35 +192,21 @@ label('node',
 [template-aliases]
 
 shell_prompt = '''
-separate(
-  ' ',
-  bookmarks.join(', '),
-  if(hidden,
-    label('hidden',
-      change_id.shortest(4) ++ ' hidden'
-    ),
-    label(if(divergent, 'divergent'),
-      change_id.shortest(4) ++ if(divergent, '??')
-    )
+separate(' ',
+  coalesce(
+    if(hidden, label('hidden', change_id.shortest(4) ++ ' hidden')),
+    if(divergent, label('divergent', change_id.shortest(4) ++ '??')),
+    change_id.shortest(4),
   ),
   commit_id.shortest(4),
-  label(
-    coalesce(
-      if(conflict, 'conflict'),
-      if(empty, 'empty'),
-    ),
-    surround('(', ')', separate(', ',
-      if(conflict, 'conflict'),
-      if(empty, 'empty'),
-    ))
+  coalesce(
+    if(conflict, label('conflict', '(conflict)')),
+    if(empty, label('empty', '(empty)')),
   ),
   label("diff modified", count_if_present("~", diff.files().filter(|f| f.status() == "modified" || f.status() == "renamed").len())),
   label("diff added", count_if_present("+", diff.files().filter(|f| f.status() == "added" || f.status() == "copied").len())),
   label("diff removed", count_if_present("-", diff.files().filter(|f| f.status() == "removed").len())),
-  coalesce(
-    truncate_end(24, description.first_line(), '…'),
-    description_placeholder
-  ),
+  coalesce(truncate_end(24, description.first_line(), '…'), description_placeholder),
 )
 '''
 'count_if_present(prefix, value)' = 'if(value != 0, prefix ++ value)'
@@ -242,7 +230,7 @@ if(commit.root(),
         surround(
           '[',
           ']',
-          separate(' ', commit.bookmarks(), commit.tags()),
+          separate(', ', commit.bookmarks().join(", "), commit.tags().join(", ")),
         ),
         commit.working_copies(),
         if(commit.conflict(), label('conflict', 'conflict')),
