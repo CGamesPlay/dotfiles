@@ -116,7 +116,6 @@ if git diff-index --quiet --cached HEAD --; then
   exit 1
 fi
 current_change=$(jj log --no-graph -r @ -T change_id)
-current_commit=$(jj log --no-graph -r 'git_head()' -T commit_id)
 tree=$(git write-tree)
 jj edit @- --quiet
 git restore --source="$tree" -WS -- :/
