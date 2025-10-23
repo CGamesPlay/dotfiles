@@ -3,9 +3,7 @@
 local keys = require("keygroup").new("config.brackets")
 
 -- Disable mapping which override these
-vim.g.no_python_maps = 1
-vim.g.no_ruby_maps = 1
-vim.g.no_rust_maps = 1
+vim.g.no_plugin_maps = 1
 
 -- Jump between quickfix locations
 local function hunk_nav(key, direction)
@@ -46,7 +44,7 @@ local function safe_cmd(cmd)
   end
   if not ok then
     local clean_err = err:match("E%d+: (.*)") or err
-    vim.api.nvim_echo({ { clean_err, "ErrorMsg" } }, true, {})
+    vim.api.nvim_echo({ { clean_err } }, true, { err = true })
   end
 end
 

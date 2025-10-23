@@ -230,11 +230,12 @@ keys:set("n", "<leader>t|", function()
 end, { desc = "[T]oggle Color Column" })
 
 -- Cmdline completion: make it behave more like fish
+-- Tab: complete the longest substring, accept with " <BS>", then re-show the menu
 keys:set(
   "c",
   "<Tab>",
-  [[wildmenumode() ? "<C-n>" : nr2char(&wildcharm)]],
-  { expr = true, desc = "Show/advance wildmenu" }
+  [[wildmenumode() ? "<C-n>" : (nr2char(&wildcharm) .. " <BS>" .. nr2char(&wildcharm))]],
+  { expr = true, replace_keycodes = false, desc = "Show/advance wildmenu" }
 )
 keys:set(
   "c",

@@ -44,7 +44,13 @@ keys:set("n", "<C-p>", function()
     builtin.find_files()
   end
 end, { desc = "Jump To File" })
-keys:set("n", "<C-b>", "<Cmd>Telescope buffers sort_mru=true select_current=true<CR>", { desc = "Jump To Buffer" })
+
+keys:set("n", "<C-b>", function()
+  require('telescope.builtin').buffers({
+    sort_mru = true,
+    select_current = true,
+  })
+end, { desc = "Jump To Buffer" })
 
 return {
   {
