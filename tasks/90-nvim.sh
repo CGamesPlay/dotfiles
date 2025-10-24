@@ -29,6 +29,7 @@ install_neovim() {
 	eget neovim/neovim -a "$tag" --to="./nvim"
 	./nvim --appimage-extract
 	sudo rsync -a squashfs-root/usr/ /usr/local/
+	export PATH="/usr/local/bin:$PATH"
 }
 
 sync_plugins() {

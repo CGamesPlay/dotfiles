@@ -6,13 +6,12 @@ set -e
 packages=()
 type curl >/dev/null 2>&1 || packages+=(curl)
 type git >/dev/null 2>&1 || packages+=(git)
-type nvim >/dev/null 2>&1 || packages+=(neovim)
 type tar >/dev/null 2>&1 || packages+=(tar)
 
 if [[ "${#packages[@]}" -gt 0 ]]; then
 	if is_installed apt-get 2>/dev/null; then
 		sudo apt-get update
-		sudo apt-get install -y "${packages[@]}"
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
 	else
 		echo "Missing packages: ${packages[*]}" >&2
 		echo "Don't know how to install on this platform" >&2

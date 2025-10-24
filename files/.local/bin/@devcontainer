@@ -7,10 +7,15 @@
 
 set -eu
 
+DOTFILES_REPOSITORY=https://gitlab.com/CGamesPlay/dotfiles.git
+
 # shellcheck disable=SC1091
 . "${NVM_DIR:?}/nvm.sh"
 set +u
-nvm use --lts --silent
+if ! nvm use --lts --silent; then
+	nvm use --lts
+	exit 1
+fi
 set -u
 
 _ensure_installed() {
@@ -21,14 +26,19 @@ _ensure_installed() {
 }
 
 # @cmd Start a container, creating it if necessary
+# @flag      --no-dotfiles                Do not install dotfiles
 # @flag      --remove-existing-container  Remove a container and recreate it
+# @option    --remote-env*                Additional environment variables to set
 up() {
 	_ensure_installed
 	args=(
 		--workspace-folder="${argc_workspace_folder:?}"
-		--dotfiles-repository=https://gitlab.com/CGamesPlay/dotfiles.git
 		${argc_remove_existing_container+--remove-existing-container}
+		"${argc_remote_env[@]/#/--remote-env=}"
 	)
+	if [[ ! ${argc_no_dotfiles+1} ]]; then
+		args+=(--dotfiles-repository="$DOTFILES_REPOSITORY")
+	fi
 	devcontainer up "${args[@]}"
 }
 

@@ -2,7 +2,9 @@
 # If the dotfiles are running in a devcontainer, perform some additional
 # machine setup.
 
-if ! [ -e /.dockerenv ] || ! [ -d /workspaces ]; then
+set -x
+
+if ! [ -d /usr/local/etc/vscode-dev-containers ]; then
 	exit 0
 fi
 

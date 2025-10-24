@@ -39,8 +39,16 @@ install_fish() {
 		Signed-By: /etc/apt/keyrings/ppa-fish-shell.asc
 		EOF
 
-		sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/ppa-fish-shell-release-4.sources" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
-		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fish
+		# If apt-get update has never been run, we need to update everything.
+		# Otherwise, let's short-circuit things by only updating the PPA we
+		# just added.
+		if ! find /var/lib/apt/lists -maxdepth 1 -name "*_dists_${DISTRIB_CODENAME}_main_*" | read -r _; then
+			sudo apt-get update
+		else
+			sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/ppa-fish-shell-release-4.sources" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"
+		fi
+
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fish --no-install-recommends -o Acquire::https::timeout="30" -o Acquire::https::timeout="30"
 	else
 		echo "Don't know how to install fish on this platform." >&2
 		return 1
