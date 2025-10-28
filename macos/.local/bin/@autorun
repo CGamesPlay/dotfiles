@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# @describe Automatically run scripts when volumes are mounted
+#
+# Autorun files are only run if they are signed with the local default SSH key.
+
+set -eu
+
+# @cmd Sign an autorun file
+# @arg path!  Path to volume mount or autorun script.
+sign() {
+	if [ -d "${argc_path:?}" ]; then
+		autorun_script="${argc_path:?}/autorun/autorun.sh" 
+	else
+		autorun_script="${argc_path:?}"
+	fi
+	rm -f "$autorun_script.sig"
+	ssh-keygen -Y sign -n autorun -f ~/.ssh/id_rsa.pub "$autorun_script"
+}
+
+# @cmd Verify an autorun file
+# @arg path!  Path to volume mount or autorun script.
+verify() {
+	if [ -d "${argc_path:?}" ]; then
+		autorun_script="${argc_path:?}/autorun/autorun.sh" 
+	else
+		autorun_script="${argc_path:?}"
+	fi
+	if _verify "$autorun_script"; then
+		echo "$autorun_script.sig: verified"
+	else
+		echo "$autorun_script.sig: invalid" >&2
+		exit 1
+	fi
+}
+
+# @cmd Run an autorun script
+# @arg path!  Path to volume mount
+trigger() {
+	path=$(realpath -m "${argc_path:?}")
+	autorun_script="${path}/autorun/autorun.sh" 
+	if ! [ -x "$autorun_script" ]; then
+		echo "$autorun_script: not an executable file" >&2
+		exit 0
+	fi
+	if ! _verify "$autorun_script"; then
+		echo "$autorun_script.sig: invalid signature" >&2
+		exit 0
+	fi
+	cd "$path"
+	"$(realpath -m "$autorun_script")"
+}
+
+# @cmd Trigger an autorun script for the most-recently mounted volume.
+handle-mount() {
+	path=$(df | tail -1 | awk '{print substr($0, index($0,$9))}')
+	exec "$0" trigger "$path"
+}
+
+# @cmd Reload the LaunchAgent
+launchctl-reload() {
+	launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.cgamesplay.autorun.plist || true
+	launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.cgamesplay.autorun.plist
+	echo "Bootstrap succeeded"
+}
+
+# @cmd Simulate mounting a file system
+launchctl-kickstart() {
+	launchctl kickstart "gui/$(id -u)/com.cgamesplay.autorun"
+}
+
+# @cmd Tail the log file
+logs() {
+	touch ~/Library/Logs/com.cgamesplay.autorun.log
+	tail -f ~/Library/Logs/com.cgamesplay.autorun.log
+}
+
+_dotfiles_root() {
+	path=${BASH_SOURCE[0]}
+	realpath -m "$path"/../../../..
+}
+
+_verify() {
+	cat "$1" | ssh-keygen -Y verify -f "$(_dotfiles_root)/share/authorized_signers" -I ~/.ssh/id_rsa.pub -n autorun -s "$1.sig"
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

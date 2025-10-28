@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cgamesplay.autorun</string>
+    <key>ProgramArguments</key>
+    <array>
+		<string>/Users/rpatterson/.local/bin/@autorun</string>
+		<string>handle-mount</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+		<key>NVM_DIR</key>
+		<string>/Users/rpatterson/.local/share/nvm</string>
+		<key>SSH_AUTH_SOCK</key>
+		<string>/Users/rpatterson/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh</string>
+		<key>XDG_RUNTIME_DIR</key>
+		<string>/var/folders/g7/9y_ydbnj2fs_fvp8xf44p8gc0000gn/T/</string>
+		<key>PATH</key>
+		<string>/Users/rpatterson/.local/bin:/opt/local/bin:/opt/homebrew/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Volumes</string>
+    <key>StartOnMount</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/rpatterson/Library/Logs/com.cgamesplay.autorun.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rpatterson/Library/Logs/com.cgamesplay.autorun.log</string>
+</dict>
+</plist>
+<!-- vim: set ts=4 ft=xml: -->
