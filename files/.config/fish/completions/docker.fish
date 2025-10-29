@@ -1,0 +1,1 @@
+docker completion fish | source

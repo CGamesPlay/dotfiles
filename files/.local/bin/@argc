@@ -46,20 +46,6 @@ docker-sandbox() {
 	exit "$status"
 }
 
-# @cmd Install llm and llm-cmd-comp
-install-llm() {
-	if ! which uv >/dev/null; then
-		echo "Installing uv"
-		@get uv
-	fi
-	if ! which llm >/dev/null; then
-		echo "Installing llm"
-		uv tool install llm
-	fi
-	llm install llm-anthropic llm-cmd-comp
-	llm models default claude-3.5-haiku
-}
-
 # @cmd Instantiate templates.
 create() { :; }
 
