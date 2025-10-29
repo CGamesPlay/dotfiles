@@ -65,19 +65,16 @@ create() { :; }
 
 # @cmd Copy the devcontainer workspace root template to the named directory.
 # @arg       target!        Location of the new workspace.
-# @option -n --name <NAME>  Human-readable name for the workspace.
 create::devcontainer() {
 	template_dir="$(dotfiles_root)/share/devcontainer"
-	argc_name=${argc_name:-$argc_target}
-	cp -R "$template_dir" "$argc_target"
-	echo "$argc_target: created"
+	cp -Rnv "$template_dir/" "${argc_target:?}" | sed 's/.* -> //'
 }
 
 # @cmd Create a sample Argcfile.
 # @arg       target=Argcfile.sh            Target filename.
 create::argcfile() {
 	template_file="$(dotfiles_root)/share/Argcfile-template.sh"
-	cp -i "$template_file" "$argc_target"
+	cp -iv "$template_file" "${argc_target:?}"
 	echo "$argc_target: created"
 }
 

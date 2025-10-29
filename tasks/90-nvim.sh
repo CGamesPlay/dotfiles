@@ -26,14 +26,14 @@ install_neovim() {
 	cd "${TMPDIR:-/tmp}"
 	mkdir nvim
 	cd nvim
-	eget neovim/neovim -a "$tag" --to="./nvim"
+	~/.local/bin/eget neovim/neovim -a "$tag" --to="./nvim"
 	./nvim --appimage-extract
 	sudo rsync -a squashfs-root/usr/ /usr/local/
 	export PATH="/usr/local/bin:$PATH"
 }
 
 sync_plugins() {
-	nvim --headless "+Lazy! restore" +qa
+	nvim --headless "+Lazy restore" +qa
 }
 
 install_neovim

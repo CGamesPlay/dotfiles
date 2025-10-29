@@ -44,7 +44,7 @@ up() {
 
 # @cmd Open a shell in the running devcontainer
 shell() {
-	argc_args=(sh -c "${env_vars[*]} exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\"")
+	argc_args=(sh -c "exec \"\$(getent passwd \"\$USER\" | cut -d: -f7)\"")
 	run-cmd
 }
 
@@ -52,51 +52,53 @@ shell() {
 # @arg       args~                        Command to run
 # @alias exec
 run-cmd() {
-	env_vars=()
+	args=(--workspace-folder="${argc_workspace_folder:?}")
 	while IFS='=' read -r key value; do
 		case "$key" in
 			TERM|LANG|LC_*|COLOR*)
-				env_vars+=("--remote-env" "$(printf '%q=%q' "$key" "$value")")
+				args+=("--remote-env" "$(printf '%q=%q' "$key" "$value")")
 				;;
 		esac
 	done < <(env)
-	exec devcontainer exec --workspace-folder="${argc_workspace_folder:?}" "${env_vars[@]}" "${argc_args[@]:?}"
+	args+=("${argc_args[@]}")
+	exec devcontainer exec "${args[@]}"
 }
 
 # @cmd Show the status of the devcontainer
 #
 # Only considers the main container in docker compose setups.
 status() {
-	path="$(readlink -f "${argc_workspace_folder:?}")"
-	docker ps -a -f "label=devcontainer.local_folder=$path" --format '{{.State}}'
+	docker ps -a -f "$(_container_labels)" --format '{{.State}}'
 }
 
 # @cmd Stop a running devcontainer
 #
-# Doesn't work for docker compose containers
-#
 # https://github.com/devcontainers/cli/issues/386
 stop() {
-	container_id=$(_locate_container)
-	if [[ ${container_id:+1} ]]; then
+	container_id=$(docker ps -a -f "$(_container_labels)" --format '{{.ID}}')
+	compose_project=$(docker inspect "$container_id" --format '{{index .Config.Labels "com.docker.compose.project"}}')
+	if [[ -n "$compose_project" ]]; then
+		docker compose -p "$compose_project" stop
+	elif [[ ${container_id:+1} ]]; then
 		docker stop "$container_id"
 	fi
 }
 
 # @cmd Remove the devcontainer
-#
-# Doesn't work for docker compose containers
 down() {
-	container_id=$(_locate_container)
-	if [[ ${container_id:+1} ]]; then
+	container_id=$(docker ps -a -f "$(_container_labels)" --format '{{.ID}}')
+	compose_project=$(docker inspect "$container_id" --format '{{index .Config.Labels "com.docker.compose.project"}}')
+	if [[ -n "$compose_project" ]]; then
+		docker compose -p "$compose_project" down --volumes
+	elif [[ ${container_id:+1} ]]; then
 		docker stop "$container_id"
 		docker rm "$container_id"
 	fi
 }
 
-_locate_container() {
+_container_labels() {
 	path="$(readlink -f "${argc_workspace_folder:?}")"
-	docker ps -a -f "label=devcontainer.local_folder=$path" --format '{{.ID}}'
+	echo "label=devcontainer.local_folder=$path"
 }
 
 if ! command -v argc >/dev/null; then

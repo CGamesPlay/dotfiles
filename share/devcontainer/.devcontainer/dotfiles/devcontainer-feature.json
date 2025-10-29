@@ -1,0 +1,15 @@
+{
+  "id": "dotfiles",
+  "version": "2025.10.29",
+  "name": "Personal Dotfiles",
+  "description": "Preinstalls my dotfiles for faster container recreation",
+  "options": {
+    "githubToken": {
+      "type": "string",
+      "description": "GitHub token to bypass rate limits",
+      "default": ""
+    }
+  },
+  "installsAfter": ["ghcr.io/devcontainers/features/common-utils"],
+  "updateContentCommand": "cd ~/dotfiles; argc pull --bootstrap"
+}
