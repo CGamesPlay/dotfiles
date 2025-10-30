@@ -19,8 +19,7 @@ fi
 set -u
 
 _ensure_installed() {
-	if ! which devcontainer >/dev/null; then
-		echo "Installing @devcontainers/cli" >&2
+	if ! command -v devcontainer >/dev/null; then
 		npm install -g @devcontainers/cli >&2
 	fi
 }
