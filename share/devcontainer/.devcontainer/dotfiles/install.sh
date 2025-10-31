@@ -2,7 +2,7 @@
 set -eu
 
 if [[ "$(id -un)" != "$_REMOTE_USER" ]]; then
-	exec sudo --preserve-env=_REMOTE_USER,_REMOTE_USER_HOME,GITHUBTOKEN -u vscode "$0" "$@"
+	exec sudo --preserve-env=_REMOTE_USER,_REMOTE_USER_HOME,GITHUBTOKEN -u "$_REMOTE_USER" "$0" "$@"
 fi
 
 DOTFILES_REPOSITORY=https://gitlab.com/CGamesPlay/dotfiles.git

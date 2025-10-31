@@ -5,9 +5,11 @@ set -ueo pipefail
 export PATH="$PATH:$HOME/.local/bin"
 list=(
 	bat
+	delta
 	direnv
 	eza
 	fzf
+	jj
 	zoxide
 )
 for i in "${list[@]}"; do

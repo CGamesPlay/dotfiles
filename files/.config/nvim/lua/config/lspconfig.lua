@@ -28,6 +28,7 @@ return {
       servers = {
         astro = {},
         gopls = {},
+        jsonls = {},
         lua_ls = {},
         pyright = {
           settings = {

@@ -8,7 +8,9 @@ if [ -d /usr/local/share/nvm ]; then
 	export NVM_DIR=/usr/local/share/nvm
 else
 	export NVM_DIR=~/.local/share/nvm
-	@get nvm
+	if ! [ -d "$NVM_DIR" ]; then
+		@get nvm
+	fi
 fi
 
 set +u

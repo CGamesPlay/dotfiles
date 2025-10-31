@@ -1,12 +1,12 @@
 // JSON format reference: https://containers.dev/implementors/json_reference/
 {
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json",
   "name": "Devcontainer",
   "image": "mcr.microsoft.com/devcontainers/base:noble",
   "features": {
     "./dotfiles": {
       "githubToken": "${localEnv:GITHUB_TOKEN}"
     }
-    // "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   // Use 'updateContentCommand' to run commands at the end of the build step.
   // These are the commands that prebuilds will use to update themselves. The
@@ -18,9 +18,4 @@
   "postStartCommand": {
     // "compose": "docker compose up -d"
   }
-  // Environment variables hard-coded into the container at build-time.
-  // "containerEnv": { },
-  // Expose ports outside of the container. This works for local services that
-  // bind on all interfaces as well as dind exposed ports.
-  // "appPort": ["8000:8000"],
 }
