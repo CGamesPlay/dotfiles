@@ -73,6 +73,7 @@ diff-formatter = ":git"
 "diff removed" = "blue"
 
 [aliases]
+e = ["edit"]
 # Log, but shorter.
 l = ["log", "-T", "log_oneline"]
 # My kind-of replacement for `git branch`. Shows mutable commits and their
@@ -160,7 +161,7 @@ short-prefixes = 'mutable()'
 'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable()))'
 'unpushable()' = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private())'
 # Find the latest bookmark in the history leading to the given revs.
-'closest_bookmark(to)' = 'heads(::to & bookmarks())'
+'closest_bookmark(to)' = 'heads(::to & tracked_remote_bookmarks())'
 
 [templates]
 log = 'log_detailed'
@@ -249,7 +250,12 @@ if(commit.root(),
 log_oneline_with_status = '''
 concat(
   log_oneline(self),
-  if(self.current_working_copy(), label("status", diff.summary()) ++ "\n")
+  if(self.current_working_copy(),
+    concat(
+      label("status", diff.summary()),
+      label("conflict", files.filter(|f| f.conflict()).map(|f| "‼ " ++ f.path()).join("\n"))
+    ),
+  )
 )
 '''
 
@@ -272,6 +278,8 @@ concat(
   "\n",
 )
 '''
+
+'format_short_commit_header(commit)' = 'log_oneline(commit)'
 
 'format_short_signature_oneline(signature)' = '''
 if(signature.email() != config('user.email').as_string(),

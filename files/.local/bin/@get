@@ -116,6 +116,12 @@ dandavision/delta() {
 	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
 }
 
+# @cmd Install k9s
+# @alias k9s
+derailed/k9s() {
+	eget -a 'tar.gz' -a '^sbom' derailed/k9s --to="$BINDIR"
+}
+
 # @cmd Install xh
 # Friendly HTTP client
 # @alias xh
@@ -224,17 +230,6 @@ newren/git-filter-repo() {
 	cp -rv git-filter-repo/Documentation/man1 "$MANDIR/man1/"
 
 	rm -rf git-filter-repo
-}
-
-# @cmd Install nvm
-# Node version manager
-# @alias nvm
-nvm-sh/nvm() {
-	eget nvm-sh/nvm --source --file="*" --to=nvm
-
-	rsync -a nvm/ "${NVM_DIR:?}"
-
-	rm -rf nvm
 }
 
 # @cmd Install goose
