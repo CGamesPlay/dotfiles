@@ -28,7 +28,11 @@ keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
 end, { desc = "[S]earch [dot]files" })
 keys:set("n", "<leader>sG", function()
-  require("git_grep").workspace_live_grep()
+  if 1 == vim.fn.executable "rg" then
+    require("telescope.builtin").live_grep({ cwd = vim.fn.getcwd(0), additional_args = { "--hidden", "--glob=!.git" } })
+  else
+    require("git_grep").workspace_live_grep()
+  end
 end, { desc = "[S]earch Git [G]rep" })
 
 -- This binding intelligently switches between git_files and find_files
@@ -52,12 +56,21 @@ keys:set("n", "<C-b>", function()
   })
 end, { desc = "Jump To Buffer" })
 
+vim.api.nvim_create_user_command("Undo", function()
+  require('telescope').extensions.undo.undo()
+end, {
+  nargs = "*",
+  desc = "Visualize undolist"
+})
+
 return {
   {
     "nvim-telescope/telescope.nvim",
+    version = "*",
     dependencies = {
       "nvim-lua/plenary.nvim",
       "nvim-telescope/telescope-ui-select.nvim",
+      "debugloop/telescope-undo.nvim",
     },
     event = "VeryLazy",
     config = function()
@@ -80,10 +93,18 @@ return {
           ["ui-select"] = {
             require("telescope.themes").get_dropdown(),
           },
+          undo = {
+            mappings = {
+              i = {
+                ["<cr>"] = require("telescope-undo.actions").restore,
+              }
+            }
+          }
         },
       })
       pcall(telescope.load_extension, "ui-select")
       pcall(telescope.load_extension, "git_grep")
+      pcall(telescope.load_extension, "undo")
     end,
   },
   {
