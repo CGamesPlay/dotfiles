@@ -6,19 +6,22 @@
 set -eu
 
 # @cmd Boot the specified cloud volume.
-# @arg    volume!                         Name or ID of bootable volume
+# @arg    volume!                         Name of bootable volume
 # @option -n --name <NAME>                Name of server to create (default: same as volume)
+# @option    --context                    Context to use (default: same as volume)
 # @option    --boot-image=ubuntu-24.04    <ID> ID of image to use for booting
-# @option -t --type=cpx51 <TYPE>          Type of machine to use
-# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @option -t --type=cpx62 <TYPE>          Type of machine to use
+# @option -k --ssh-key                    <ID> SSH key to use
 # @option    --firewall*                  ID or name of firewall to attach
 boot() {
 	server_name=${argc_name:-$argc_volume}
+	hcloud_args=(--context="${argc_context:-$argc_volume}")
+	ssh_key="${argc_ssh_key:-$(default_ssh_key "${hcloud_args[@]}")}"
 
 	set +e
-	volume_json=$(hcloud volume describe -o json "$argc_volume" 2>/dev/null)
+	volume_json=$(hcloud "${hcloud_args[@]}" volume describe -o json "$argc_volume" 2>/dev/null)
 	volume_status=$?
-	server_json=$(hcloud server describe -o json "$server_name" 2>/dev/null)
+	server_json=$(hcloud "${hcloud_args[@]}" server describe -o json "$server_name" 2>/dev/null)
 	server_status=$?
 	set -e
 
@@ -36,10 +39,10 @@ boot() {
 		server_volume=$(echo "$server_json" | jq -r '.volumes[0]')
 		ip=$(echo "$server_json" | jq -r '(.public_net.ipv4.ip // (.public_net.ipv6.ip | sub("::/64$"; "::1")))')
 		if [[ "$server_volume" != "$volume_id" ]]; then
-			echo "$server_name is not attached to $volume_name" >&2
+			echo "$0: Server $server_name already exists but is not attached to $volume_name" >&2
 			return 1
 		elif [[ "$server_power" != "running" ]]; then
-			echo "$server_name is $server_power" >&2
+			echo "$0: Server $server_name already exists but is $server_power" >&2
 			return 1
 		else
 			echo "$server_name is already running"
@@ -68,18 +71,18 @@ boot() {
 		--image "${argc_boot_image:?}"
 		--name "$server_name"
 		--type "${argc_type:?}"
-		--ssh-key "${argc_ssh_key:?}"
+		--ssh-key "$ssh_key"
 		--user-data-from-file "$user_data"
 		--start-after-create=false
 	)
 	for id in ${argc_firewall+"${argc_firewall[@]}"}; do
 		create_args+=(--firewall="$id")
 	done
-	hcloud server create "${create_args[@]}"
-	hcloud volume attach "$argc_volume" --server "$server_name"
-	hcloud server poweron "$server_name"
+	hcloud "${hcloud_args[@]}" server create "${create_args[@]}"
+	hcloud "${hcloud_args[@]}" volume attach "$argc_volume" --server "$server_name"
+	hcloud "${hcloud_args[@]}" server poweron "$server_name"
 	rm "$user_data"
-	ip=$(hcloud server ip "$server_name")
+	ip=$(hcloud "${hcloud_args[@]}" server ip "$server_name")
 	echo "Created $server_name with IP $ip"
 
 	update_ssh_config "$volume_name" "$ip"
@@ -126,16 +129,18 @@ update_ssh_config() {
 # Example:
 #   hcloud volume create --name myvol --size 50 --location nbg1
 #   hetzner-bootable-volume prepare-volume myvol
-# @arg    volume!                         Name or ID of volume to be formatted
+# @arg    volume!                         Name of volume to be formatted
 # @option    --image=ubuntu-24.04         Image to use for the volume
 # @option    --server-name                Preparation server name (default: same as volume)
-# @option    --server-type=cpx11          Preparation server type
+# @option    --server-type=cpx12          Preparation server type
 # @option    --user-data-from-file        <FILE> Filename containing user-data
 # @option    --login-user=root            <USERNAME> Username to log in with
-# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @option    --context                    Context to use (default: same as volume)
+# @option -k --ssh-key                    <ID> SSH key to use
 prepare-volume() {
 	set +e
-	volume_json=$(hcloud volume describe -o json "$argc_volume" 2>/dev/null)
+	hcloud_args=(--context="${argc_context:-$argc_volume}")
+	volume_json=$(hcloud "${hcloud_args[@]}" volume describe -o json "$argc_volume" 2>/dev/null)
 	volume_status=$?
 	set -e
 
@@ -148,8 +153,9 @@ prepare-volume() {
 	volume_id=$(echo "$volume_json" | jq -r '.id')
 	volume_name=$(echo "$volume_json" | jq -r '.name')
 	argc_server_name=${argc_server_name:-$volume_name}
+	ssh_key="${argc_ssh_key:-$(default_ssh_key "${hcloud_args[@]}")}"
 
-	if hcloud server describe "${argc_server_name:?}" >/dev/null 2>&1; then
+	if hcloud "${hcloud_args[@]}" server describe "${argc_server_name:?}" >/dev/null 2>&1; then
 		echo "$argc_server_name: server name in use" >&2
 		return 1
 	fi
@@ -160,25 +166,25 @@ prepare-volume() {
 		--image "${argc_image:?}"
 		--name "$argc_server_name"
 		--type "${argc_server_type:?}"
-		--ssh-key "${argc_ssh_key:?}"
+		--ssh-key "$ssh_key"
 		--start-after-create=false
 	)
 	if [[ ${argc_user_data_from_file+1} ]]; then
 		create_args+=(--user-data-from-file="$argc_user_data_from_file")
 	fi
-	hcloud server create "${create_args[@]}"
-	hcloud volume attach "$argc_volume" --server "$argc_server_name"
+	hcloud "${hcloud_args[@]}" server create "${create_args[@]}"
+	hcloud "${hcloud_args[@]}" volume attach "$argc_volume" --server "$argc_server_name"
 	# shellcheck disable=SC2317
 	cleanup() {
 		if [[ $? -eq 0 ]] || user_confirmation "Delete server $argc_server_name?'"; then
-			hcloud server delete "$argc_server_name"
+			hcloud "${hcloud_args[@]}" server delete "$argc_server_name"
 		fi
 	}
 	trap cleanup EXIT
 
-	hcloud server enable-rescue --ssh-key "$argc_ssh_key" "$argc_server_name"
-	hcloud server poweron "$argc_server_name"
-	ip=$(hcloud server ip "$argc_server_name")
+	hcloud "${hcloud_args[@]}" server enable-rescue --ssh-key "$ssh_key" "$argc_server_name"
+	hcloud "${hcloud_args[@]}" server poweron "$argc_server_name"
+	ip=$(hcloud "${hcloud_args[@]}" server ip "$argc_server_name")
 
 	# Wait for server to come up
 	echo "Waiting for server to boot into rescue mode"
@@ -190,7 +196,7 @@ prepare-volume() {
 	"$0" show-prepare-script "$volume_id" | ssh_once -l root "$ip"
 
 	# Perform initial boot
-	hcloud server reboot "$argc_server_name"
+	hcloud "${hcloud_args[@]}" server reboot "$argc_server_name"
 	echo "Waiting for server to boot into normal mode"
 	if ! wait_for_ssh "$ip"; then
 		echo "Timed out while waiting for server" >&2
@@ -382,16 +388,19 @@ show-prepare-script() {
 }
 
 # @cmd Migrate a volume between two Hetzner regions
-# @arg    src!        name or ID of source volume
+# @arg    src!        name of source volume
 # @arg    dst_region! region to create new volume in
 # @option -s --size   size of new volume to create, in GB
 # @option    --target-volume-id  ID of an existing volume to use
 # @option    --image=ubuntu-24.04         Image to use for the volume
-# @option    --server-type=cpx11          Preparation server type
-# @option -k --ssh-key=`default_ssh_key`  <ID> SSH key to use
+# @option    --server-type=cpx12          Preparation server type
+# @option    --context                    Context to use (default: same as volume)
+# @option -k --ssh-key                    <ID> SSH key to use
 # @option    --login-user=root            <USERNAME> Username to log in with
 migrate-volume() {
-	src_json=$(hcloud volume describe "${argc_src:?}" -o json)
+	hcloud_args=(--context="${argc_context:-$argc_src}")
+	ssh_key="${argc_ssh_key:-$(default_ssh_key "${hcloud_args[@]}")}"
+	src_json=$(hcloud "${hcloud_args[@]}" volume describe "${argc_src:?}" -o json)
 	src_id=$(echo "$src_json" | jq -r .id)
 	src_name=$(echo "$src_json" | jq -r .name)
 	src_loc=$(echo "$src_json" | jq -r .location.name)
@@ -404,10 +413,10 @@ migrate-volume() {
 		exit 1
 	fi
 	if [[ ${argc_target_volume_id:+1} ]]; then
-		dst_json=$(hcloud volume describe "${argc_target_volume_id:?}" -o json)
+		dst_json=$(hcloud "${hcloud_args[@]}" volume describe "${argc_target_volume_id:?}" -o json)
 	else
 		echo "Creating $argc_size GB volume in ${argc_dst_region:?}."
-		dst_json=$(hcloud volume create --name "${src_name}_migrate" --size "$src_size" --location "$argc_dst_region" -o json | jq .volume)
+		dst_json=$(hcloud "${hcloud_args[@]}" volume create --name "${src_name}_migrate" --size "$src_size" --location "$argc_dst_region" -o json | jq .volume)
 	fi
 	dst_id=$(echo "$dst_json" | jq -r .id)
 	dst_name=$(echo "$dst_json" | jq -r .name)
@@ -415,15 +424,15 @@ migrate-volume() {
 	echo "Mirroring onto $dst_id"
 	shared_args=(
 		--type "${argc_server_type:?}"
-		--ssh-key "${argc_ssh_key:?}"
+		--ssh-key "$ssh_key"
 		--image "${argc_image:?}"
 	)
-	hcloud server create "${shared_args[@]}" \
+	hcloud "${hcloud_args[@]}" server create "${shared_args[@]}" \
 		--name "${src_name}-src" --location "$src_loc" --volume "$src_id"
-	hcloud server create "${shared_args[@]}" \
+	hcloud "${hcloud_args[@]}" server create "${shared_args[@]}" \
 		--name "${src_name}-migrate" --location "$dst_loc" --volume "$dst_id"
-	src_ip=$(hcloud server ip "${src_name}-src")
-	dst_ip=$(hcloud server ip "${src_name}-migrate")
+	src_ip=$(hcloud "${hcloud_args[@]}" server ip "${src_name}-src")
+	dst_ip=$(hcloud "${hcloud_args[@]}" server ip "${src_name}-migrate")
 	wait_for_ssh "$src_ip"
 	wait_for_ssh "$dst_ip"
 	ssh_once -l "${argc_login_user:?}" "$dst_ip" -o ForwardAgent=yes <<-END_SCRIPT
@@ -437,7 +446,7 @@ migrate-volume() {
 	e2fsck -n /dev/sdb1
 	sync
 	END_SCRIPT
-	hcloud server delete "${src_name}-src" "${src_name}-migrate"
+	hcloud "${hcloud_args[@]}" server delete "${src_name}-src" "${src_name}-migrate"
 	echo "Volume has been cloned to ${dst_name} in region ${dst_loc}"
 }
 
@@ -447,7 +456,7 @@ default_ssh_key() {
 	for key in $(ssh-add -lE md5 | cut -d: -f2- | awk '{ print $1 }'); do
 		patterns+=(-e "$key")
 	done
-	hcloud ssh-key list | grep "${patterns[@]}" | awk '{ print $1 }'
+	hcloud "$@" ssh-key list | grep "${patterns[@]}" | awk '{ print $1 }'
 	if [[ "${PIPESTATUS[1]}" -ne 0 ]]; then
 		echo "No suitable ssh key found and none specified" >&2
 		return 1
@@ -477,19 +486,21 @@ user_confirmation() {
 # @cmd Basic integration test
 # @option  -n --name=hbv-test <NAME>       Name of volume/server to use for test
 # @option     --location=nbg1 <LOCATION>   Location to run test in
+# @option    --context                    Context to use (default: same as volume)
 integration-test() {
-	hcloud volume create --name "${argc_name:?}" --location "${argc_location:?}" --size 10
+	hcloud_args=(--context="${argc_context:-$argc_name}")
+	hcloud "${hcloud_args[@]}" volume create --name "${argc_name:?}" --location "${argc_location:?}" --size 10
 	# shellcheck disable=SC2317
 	cleanup() {
-		hcloud server delete "$argc_name"
-		hcloud volume delete "$argc_name"
+		hcloud "${hcloud_args[@]}" server delete "$argc_name"
+		hcloud "${hcloud_args[@]}" volume delete "$argc_name"
 	}
 	trap cleanup EXIT
 
 	"$0" prepare-volume "$argc_name"
 	echo "Bootable volume is created, performing test boot."
 	"$0" boot "$argc_name"
-	ip=$(hcloud server ip "$argc_name")
+	ip=$(hcloud "${hcloud_args[@]}" server ip "$argc_name")
 
 	ssh_once -l root "$ip" <<-'END_SCRIPT'
 	set -uex

@@ -61,6 +61,7 @@ user_data = {
     "packages": [
         "direnv",
         "docker.io",
+        "docker-compose-v2",
         "hcloud-cli",
         "jq",
         "net-tools",

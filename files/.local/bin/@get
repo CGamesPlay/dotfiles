@@ -151,7 +151,6 @@ direnv/direnv() {
 # Modern ls replacement
 # @alias eza
 eza-community/eza() {
-	eget -a '^sig' -a "$(musl_tag)" cargo-bins/cargo-quickinstall --tag eza --to="$BINDIR/"
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 

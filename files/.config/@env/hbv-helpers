@@ -28,7 +28,7 @@ up() {
 run-in-env() {
 	set +e
 	# Connect over QTM tunnel, disable idle timeout
-	ssh "$HBV_NAME" -o Hostname=localhost -o ServerAliveInterval=0 -p "$HBV_SSH_PORT" "$1"; status=$?
+	ssh "$HBV_NAME" -o Hostname=localhost -o ServerAliveInterval=0 -o ConnectTimeout=10 -p "$HBV_SSH_PORT" "$1"; status=$?
 	set -e
 	return $status
 }
@@ -40,7 +40,7 @@ upgrade-qtm() {
 
 # @cmd Show server status
 status() {
-	hcloud server describe "$HBV_NAME" -o format='{{.Status}}' || true
+	hcloud --context="$HBV_NAME" server describe "$HBV_NAME" -o format='{{.Status}}' || true
 }
 
 # @cmd Disconnect without stopping the environment
@@ -53,9 +53,9 @@ disconnect() {
 stop() {
 	qtm remove-peer "$HBV_NAME"
 	if [ ! ${argc_force+1} ]; then
-		hcloud server shutdown "$HBV_NAME"
+		hcloud --context="$HBV_NAME" server shutdown "$HBV_NAME"
 	else
-		hcloud server delete "$HBV_NAME"
+		hcloud --context="$HBV_NAME" server delete "$HBV_NAME"
 	fi
 }
 
