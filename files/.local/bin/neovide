@@ -39,9 +39,9 @@ else
 		EOF
 	fi
 
-	value="id=neovide:env=${ATENV_NAME:?}:dir=$(pwd)"
+	value="id=neovide:"
 	if [[ "${1:+1}" ]]; then
-		value="$value:filename=$1"
+		value="${value}filename=$1"
 	fi
 
 	printf "\033]1337;Custom=%s\a" "$value"

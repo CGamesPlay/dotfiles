@@ -1,0 +1,11 @@
+default-machine = "local"
+default-workspace-provider = "devcontainer"
+
+[workspace-provider.devcontainer.options]
+DOTFILES_REPOSITORY = "https://gitlab.com/CGamesPlay/dotfiles.git"
+
+[machine-provider.local.options]
+ATRIUM_HOME = "/Users/rpatterson/.local/state/atrium"
+
+[helper-provider.qtm.options]
+FORWARD_SSH_AUTH = "1"

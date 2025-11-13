@@ -1,0 +1,34 @@
+#!/bin/bash
+# Run nvim in an Atrium shell. Requires direnv installed in the remote
+# environment.
+set -eu
+
+target=()
+nvim_args=()
+directory=""
+for arg in "$@"; do
+	case "$arg" in
+		--atrium-workspace=*)
+			target=(exec "${arg#--atrium-workspace=}")
+			;;
+		--atrium-machine=*)
+			target=(machine exec "${arg#--atrium-workspace=}")
+			;;
+		--atrium-dir=*)
+			directory="${arg#--atrium-dir=}"
+			;;
+		*)
+			nvim_args+=("$arg")
+			;;
+	esac
+done
+if ! [ ${target+1} ]; then
+	echo "Must provide --atrium-workspace= or --atrium-machine=" >&2
+	exit 1
+fi
+script=(exec direnv exec . nvim "${nvim_args[@]}")
+script_str=$(printf '%q ' "${script[@]}")
+if [ ${directory+1} ]; then
+	script_str=$(printf 'cd %q && %s' "$directory" "$script_str")
+fi
+exec atrium "${target[@]}" -- sh -c "$script_str"

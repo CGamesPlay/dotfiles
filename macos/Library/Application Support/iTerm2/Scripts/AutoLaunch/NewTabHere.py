@@ -33,11 +33,15 @@ def shellquote(s: str) -> str:
     )
 
 
+def shelljoin(args: list[str]) -> str:
+    return " ".join(shellquote(a) for a in args)
+
+
+user_shell = get_user_shell()
+
+
 async def main(connection: iterm2.connection.Connection):
     app = await iterm2.async_get_app(connection)
-
-    # Fetch the user's shell. Note that non-fish shells may not support the -C argument.
-    user_shell = get_user_shell()
 
     @iterm2.RPC
     async def new_tab_here(session_id=iterm2.Reference("id?")):
@@ -53,30 +57,50 @@ async def main(connection: iterm2.connection.Connection):
         assert window is not None
 
         # What tab should we create?
-        atenv = await session.async_get_variable("user.atEnv")
-        if not atenv:
-            # Not a remote environment, so we use iTerm's default behavior
-            await window.async_create_tab()
-            return
-
         directory = await session.async_get_variable("path")
 
-        # Open the tab
-        args = ["exec", "@env", "shell", atenv]
-        if directory is not None:
-            args += ["--chdir", directory]
-        inner_command = " ".join(shellquote(a) for a in args)
-        command = " ".join([user_shell, "-c", shellquote(inner_command)])
-
-        profile = iterm2.profile.LocalWriteOnlyProfile()
-        profile.set_use_custom_command("Yes")
-        profile.set_command(command)
-        profile.set_initial_directory_mode(
-            iterm2.profile.InitialWorkingDirectory.INITIAL_WORKING_DIRECTORY_HOME
-        )
-        await window.async_create_tab(profile_customizations=profile)
+        if atrium := await session.async_get_variable("user.atrium"):
+            is_machine = atrium.startswith("machine:")
+            if is_machine:
+                atrium = atrium[8:]
+            await run_with_atrium(window, is_machine, atrium, directory)
+        elif atenv := await session.async_get_variable("user.atEnv"):
+            await run_with_atenv(window, atenv, directory)
+        else:
+            # Not a remote environment, so we use iTerm's default behavior
+            await window.async_create_tab()
 
     await new_tab_here.async_register(connection)
+
+
+async def run_with_atrium(window, is_machine, name, directory):
+    args = ["exec", "atrium"]
+    if is_machine:
+        args += ["machine", "shell", name]
+    else:
+        args += ["shell", name]
+    if directory is not None:
+        args += ["--chdir", directory]
+    await open_tab_with(window, args)
+
+
+async def run_with_atenv(window, atenv, directory):
+    args = ["exec", "@env", "shell", atenv]
+    if directory is not None:
+        args += ["--chdir", directory]
+    await open_tab_with(window, args)
+
+
+async def open_tab_with(window, args):
+    command = shelljoin([user_shell, "-c", shelljoin(args)])
+
+    profile = iterm2.profile.LocalWriteOnlyProfile()
+    profile.set_use_custom_command("Yes")
+    profile.set_command(command)
+    profile.set_initial_directory_mode(
+        iterm2.profile.InitialWorkingDirectory.INITIAL_WORKING_DIRECTORY_HOME
+    )
+    await window.async_create_tab(profile_customizations=profile)
 
 
 iterm2.run_forever(main)
