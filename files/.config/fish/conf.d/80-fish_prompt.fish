@@ -21,12 +21,13 @@ function fish_prompt --description 'Write out the prompt'
   prompt_part_sync
   if set -q async_prompt_loading; or contains -- --final-rendering $argv
     set_color normal --dim
-    string replace -ar '\x1b\[[0-9;]*[JKmsu]' '' $async_prompt_saved
+    echo -n "$async_prompt_saved" | string replace -ar '\x1b\[[0-9;]*[JKmsu]' ''
     set_color normal
   else
-    echo $async_prompt_saved
+    echo -n $async_prompt_saved
     set_color normal
   end
+  echo
   prompt_part_indicator
 end
 
@@ -85,7 +86,10 @@ function prompt_part_indicator --description 'Write out the indicator part of th
     set -f delim '$'
   end
 
-  echo -n -s (set_color $fish_color_cwd) $delim (set_color normal) ' '
+  # Required for iTerm2 to be able to select command output
+  set -f osc_marker (printf "\x1b]133;B\a")
+
+  echo -n -s (set_color $fish_color_cwd) $delim (set_color normal) ' ' $osc_marker
 end
 
 function prompt_postexec --on-event fish_postexec

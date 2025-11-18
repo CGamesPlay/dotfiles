@@ -44,5 +44,6 @@ else
 		value="${value}filename=$1"
 	fi
 
+	printf "\033]1337;RemoteHost=%s@%s\a\033]1337;CurrentDir=%s\a" "$USER" "$(hostname -f)" "$PWD"
 	printf "\033]1337;Custom=%s\a" "$value"
 fi
