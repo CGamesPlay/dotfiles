@@ -133,8 +133,8 @@ paste() {
 }
 
 # @cmd Save a file or directory to the machine where iTerm2 is running
-# @arg file! <FILE> File or directory to download
-download() {
+# @arg file! <FILE> File or directory to send
+send-file() {
 	filename="$(basename -- "${argc_file:?}")"
 	if [ -d "${argc_file:?}" ]; then
 		tar_file=$(mktemp)
@@ -151,9 +151,9 @@ download() {
 	tty_printf "\033]1337;FileEnd\a"
 }
 
-# @cmd Prompt for files to upload to the local machine
+# @cmd Send files or directories from iTerm2 to the local machine
 # @arg dest=. <DIR> Directory to place files into
-upload() {
+receive-file() {
 	# TODO: check that iterm is running
 	exec 9<> /dev/tty
 	_STTY=$(stty -g)

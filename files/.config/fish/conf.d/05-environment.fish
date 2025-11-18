@@ -26,3 +26,6 @@ end
 if ! set -q XDG_RUNTIME_DIR
   set -x XDG_RUNTIME_DIR $TMPDIR
 end
+if ! set -q XDG_BIN_HOME
+  set -x XDG_BIN_HOME ~/.local/bin
+end

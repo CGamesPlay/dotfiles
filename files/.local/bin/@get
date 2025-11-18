@@ -30,7 +30,7 @@ antonmedv/fx() {
 # @cmd Install uv
 # @alias uv
 astral-sh/uv() {
-	curl -LsSf https://astral.sh/uv/install.sh | INSTALLER_NO_MODIFY_PATH=1 sh
+	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh
 }
 
 # @cmd Install ripgrep
