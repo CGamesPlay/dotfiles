@@ -4,27 +4,99 @@
 
 set -eu
 
+# @cmd Perform an arbitrary device query
+# @arg    query!   Escape sequence to send
+# @option --prefix Expected prefix in response (default: ESC [)
+query() {
+	if ! _query "${argc_query:?}" ${argc_prefix+"$argc_prefix"}; then
+		echo "Terminal does not support query" >&2
+		exit 1
+	fi
+}
+
+# @cmd Copy to clipboard (not iTerm specific)
+copy() {
+	printf "\033]50;Copy=:" >/dev/tty
+	trap 'printf "\a" >/dev/tty' EXIT
+	base64 >/dev/tty
+}
+
+# @cmd Paste from clipboard (not iTerm specific)
+paste() {
+	if ! data=$(_query $'\033]52;c;?\a' $'\033]52;c;'); then
+		echo "Paste denied by terminal" >&2
+		exit 1
+	fi
+
+	# Strip OSC terminator (BEL or ST)
+	local ST=$'\033\x5c'
+	data="${data%$'\a'}"
+	data="${data%"$ST"}"
+
+	# Handle empty clipboard
+	[ "$data" = "(null)" ] && exit 0
+
+	# Decode and output
+	echo "$data" | base64 -d
+}
+
+# @cmd Control a progress bar
+# @flag --clear          Remove the progress bar
+# @flag --indeterminate  Set the progress bar to "indeterminate" state
+# @flag --warning        Set the progress bar to "warning" state
+# @flag --error          Set the progress bar to "error" state
+# @arg  value            Set progress bar percent
+progress() {
+	if [ ${argc_clear+1} ]; then
+		state="0"
+	elif [ ${argc_indeterminate+1} ]; then
+		state="3"
+	elif [ ${argc_warning+1} ]; then
+		state="4;${argc_value:?value required}"
+	elif [ ${argc_error+1} ]; then
+		state="2;${argc_value:?value required}"
+	else
+		state="1;${argc_value:?value required}"
+	fi
+	tty_printf "\033]9;4;${state}\a"
+}
+
+# @cmd Print the current color scheme (dark or light)
+color-scheme() {
+	if ! dsr=$(_query $'\033[?997n' $'\033['); then
+		exit 1
+	fi
+
+	# Parse the response
+	if [ "$dsr" = "?997;1" ]; then
+		echo "dark"
+	elif [ "$dsr" = "?997;2" ]; then
+		echo "light"
+	else
+		echo "unknown"
+		exit 1
+	fi
+}
+
 # @cmd Check if connected to iTerm
 # @option --min-version Minimum version of iTerm to accept
 check() {
-	argc_min_version="${argc_min_version:-2.9.20160304}"
-	prepare_for_response
-	printf "\033[1337n\033[5n" >&9
-	read -r -n 2 <&9 # Skip "\033["
-	read -r -dn dsr <&9
-	if [ "$dsr" = "0" ]; then
-		# The iTerm escape was ignored; this is not iterm
+	if ! dsr=$(_query $'\033[1337n' $'\033['); then
 		exit 1
 	fi
-	read -r -dn <&9 # Skip second DSR
-	clean_up
 
 	# Parse the response
-	read -r -a words <<< "$dsr"
-	if [ "${words[0]}" != "ITERM2" ]; then
+	if [[ "$dsr" != "ITERM2 "* ]]; then
+		echo "Terminal is not iTerm 2" >&2
 		exit 1
+	elif [ ${argc_min_version+1} ]; then
+		dsr="${dsr#ITERM2 }"
+		dsr="${dsr%n}"
+		if [ "$(printf "%s\n%s\n" "$argc_min_version" "$dsr" | sort -V | head -n 1)" != "$argc_min_version" ]; then
+			echo "iTerm 2 is too old ($dsr < $argc_min_version)" >&2
+			exit 1
+		fi
 	fi
-	[ "${words[1]}" \> "${argc_min_version:?}" ] || [ "${words[1]}" = "${argc_min_version:?}" ]
 }
 
 # @cmd Sets a mark
@@ -100,38 +172,6 @@ open() {
 	tty_printf "\033]1337;OpenURL=:%sa" "$(echo -n "${argc_url:?}" | base64)"
 }
 
-# @cmd Copy to clipboard (not iTerm specific)
-copy() {
-	printf "\033]50;Copy=:" >/dev/tty
-	trap 'printf "\a" >/dev/tty' EXIT
-	base64 >/dev/tty
-}
-
-# @cmd Paste from clipboard (not iTerm specific)
-paste() {
-	prepare_for_response
-	printf "\033]52;c;?\a\033[5n" >&9
-	read -r -d"$(printf "\033")" <&9 # Skip to start of next escape sequence
-	read -r -n1 response <&9
-	if [ "$response" = "]" ]; then
-		read -r -n5 response <&9 # Skip "52;c;"
-		if [ "$response" != "52;c;" ]; then
-			echo "Unexpected response" >&2
-			exit 1
-		fi
-		read -r -d"$(printf "\033")" data <&9
-		read -r -dn <&9 # Skip to end of DSR
-		clean_up
-		[ "$data" = "(null)" ] && exit 0
-		echo "$data" | base64 -d
-	else
-		read -r -dn <&9 # Skip to end of DSR
-		clean_up
-		echo "Paste denied by terminal" >&2
-		exit 1
-	fi
-}
-
 # @cmd Save a file or directory to the machine where iTerm2 is running
 # @arg file! <FILE> File or directory to send
 send-file() {
@@ -157,7 +197,7 @@ receive-file() {
 	# TODO: check that iterm is running
 	exec 9<> /dev/tty
 	_STTY=$(stty -g)
-	trap clean_up EXIT
+	trap 'stty "$_STTY" <&9' EXIT
 	stty -echo
 
 	printf "\033]1337;RequestUpload=format=tgz\a" >&9
@@ -212,34 +252,65 @@ play-sound() {
 	tty_printf "\033]1337;Custom=id=%s:%s\a" "play-sound" "${argc_sound:?}"
 }
 
+# Perform an arbitrary DSR query
+# $1: query escape sequence
+# $2: expected prefix in response
+_query() {
+	local query="${1:?}"
+	local prefix="${2:-$'\033['}"
+
+	# Must be connected to a TTY
+	if ! [ -c /dev/tty ]; then
+		echo "Not connected to a TTY" >&2
+		return 1
+	fi
+
+	# Set up TTY with proper cleanup
+	exec 9<> /dev/tty
+	local _saved_stty
+	_saved_stty=$(stty -g <&9)
+	stty -echo -icanon raw <&9
+
+	# Send query followed by DSR
+	printf "%s\033[5n" "$query" >&9
+
+	# Read all bytes until we get the DSR response
+	local buffer="" chunk
+	while true; do
+		read -r -dn chunk <&9
+		buffer="$buffer${chunk}n"
+
+		# Check if we've received the DSR response (ends with CSI 0 n)
+		if [[ "$buffer" == *$'\033[0n' ]]; then
+			break
+		fi
+	done
+
+	# Restore TTY
+	stty "$_saved_stty" <&9
+
+	# Remove the DSR response from the end
+	buffer="${buffer%$'\033[0n'}"
+
+	# Look for the prefix in the buffer
+	if [[ "${buffer}" == *"$prefix"* ]]; then
+		# Extract everything after the prefix
+		local result="${buffer#*"$prefix"}"
+		echo "$result"
+		return 0
+	else
+		return 1
+	fi
+}
+
 # Print to the tty
 tty_printf() {
+	if ! [ -c /dev/tty ]; then
+		echo "Not connected to a TTY" >&2
+		return 1
+	fi
 	# shellcheck disable=SC2059
 	printf "$@" >/dev/tty
-}
-
-# Restore the saved stty
-clean_up() {
-	stty "${_STTY:?prepare_for_response not called}" <&9
-}
-
-# Set up the tty to read an iTerm response.
-prepare_for_response() {
-	if ! [ -c /dev/tty ]; then
-		echo "$0: must be connected to a tty" >&2
-		exit 1
-	fi
-	exec 9<> /dev/tty
-
-	_STTY=$(stty -g <&9)
-	trap clean_up EXIT
-
-	# Silently read any (>=0) characters with no delay.
-	stty -echo -icanon raw min 0 time 0 <&9
-	while read -r <&9; do :; done
-	# Enter raw mode and turn off echo
-	clean_up
-	stty -echo -icanon raw <&9
 }
 
 # Get the filesize of the first argument
