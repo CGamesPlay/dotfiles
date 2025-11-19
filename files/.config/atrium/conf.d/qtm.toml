@@ -11,6 +11,11 @@ name = "FORWARDS"
 description = "Set to QTM forwarding arguments"
 scope = "instance"
 
+[[helper-driver.qtm.options]]
+name = "SINGULAR"
+description = "Set to nonempty to remove other workspaces from QTM when starting this helper (avoid port number conflicts)"
+scope = "provider"
+
 [helper-driver.qtm.commands]
 start = '''
 set -eu
@@ -22,10 +27,14 @@ fi
 qtm close
 RUST_LOG=qtm=debug qtm daemon --log-to-file=qtm.log --background
 EOF
-qtm add "${ATRIUM_WORKSPACE:?}" --helper "!atrium exec ${ATRIUM_WORKSPACE:?} sh" \
+if [ ${SINGULAR:+1} ]; then
+	echo "Removing other QTM peers"
+	qtm status -f json | jq --raw-output0 ".peers[].name | select(startswith(\"atrium-\"))" | xargs -0 qtm remove-peer
+fi
+qtm add "atrium-${ATRIUM_WORKSPACE:?}" --helper "!atrium exec ${ATRIUM_WORKSPACE:?} sh" \
 	${FORWARD_SSH_AUTH:+-R"/tmp/ssh-1000/ssh-auth.sock:$SSH_AUTH_SOCK#ssh-auth"} \
 	${FORWARDS:-}
 '''
 stop = '''
-qtm remove-peer "${ATRIUM_WORKSPACE:?}"
+qtm remove-peer "atrium-${ATRIUM_WORKSPACE:?}"
 '''

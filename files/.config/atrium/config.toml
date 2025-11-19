@@ -1,5 +1,19 @@
+default-command = ["start-working"]
 default-machine = "local"
 default-workspace-provider = "devcontainer"
+default-helpers = ["qtm"]
+
+[aliases]
+start-working = ["util", "exec", "--", "sh", "-c", '''
+if [ ${1:+1} ]; then
+	workspace="$1"
+else
+	workspace=$(atrium list -f json | jq --raw-output0 '.[].name' | \
+		fzf --read0 --height "50%" --layout reverse --preview "atrium inspect {}") \
+		|| exit 0
+fi
+atrium start "$workspace" && atrium shell "$workspace"
+''', "start-working"]
 
 [workspace-provider.devcontainer.options]
 DOTFILES_REPOSITORY = "https://gitlab.com/CGamesPlay/dotfiles.git"
@@ -9,3 +23,4 @@ ATRIUM_HOME = "/Users/rpatterson/.local/state/atrium"
 
 [helper-provider.qtm.options]
 FORWARD_SSH_AUTH = "1"
+SINGULAR = "1" # only 1 active workspace at a time
