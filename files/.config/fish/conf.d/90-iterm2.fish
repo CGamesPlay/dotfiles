@@ -20,6 +20,5 @@ function iterm2_refresh_vars --on-event fish_postexec
   else
     iterm2_set_user_var atrium ""
   end
-  iterm2_set_user_var atEnv $ATENV_NAME
 end
 iterm2_refresh_vars

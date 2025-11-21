@@ -64,8 +64,6 @@ async def main(connection: iterm2.connection.Connection):
             if is_machine:
                 atrium = atrium[8:]
             await run_with_atrium(window, is_machine, atrium, directory)
-        elif atenv := await session.async_get_variable("user.atEnv"):
-            await run_with_atenv(window, atenv, directory)
         else:
             # Not a remote environment, so we use iTerm's default behavior
             await window.async_create_tab()
@@ -79,13 +77,6 @@ async def run_with_atrium(window, is_machine, name, directory):
         args += ["machine", "shell", name]
     else:
         args += ["shell", name]
-    if directory is not None:
-        args += ["--chdir", directory]
-    await open_tab_with(window, args)
-
-
-async def run_with_atenv(window, atenv, directory):
-    args = ["exec", "@env", "shell", atenv]
     if directory is not None:
         args += ["--chdir", directory]
     await open_tab_with(window, args)

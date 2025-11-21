@@ -49,8 +49,6 @@ async def monitor(app, connection, session_id):
                     if is_machine:
                         atrium = atrium[8:]
                     run_with_atrium(is_machine, atrium, directory, filename)
-                elif atenv := await session.async_get_variable("user.atEnv"):
-                    run_with_atenv(atenv, directory, filename)
 
             except Exception:
                 traceback.print_tb(sys.exc_info()[2])
@@ -76,17 +74,6 @@ def run_with_atrium(is_machine, name, directory, filename):
     if filename:
         args += ["--", filename]
     run_neovide("atrium-nvim", args)
-
-
-def run_with_atenv(atenv_name, directory, filename):
-    atenv_cmd = ["@env", "nvim"]
-    if directory is not None:
-        atenv_cmd.append(f"--chdir={directory}")
-    atenv_cmd.append(atenv_name)
-    args = [f"--prefix={shlex.join(atenv_cmd)}"]
-    if filename:
-        args += ["--", filename]
-    run_neovide("neovide", args, {"NEOVIDE_LAUNCHER": "1"})
 
 
 def run_neovide(neovim_bin, args, env={}):

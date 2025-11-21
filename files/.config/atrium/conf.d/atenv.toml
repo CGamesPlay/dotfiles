@@ -1,9 +1,0 @@
-[machine-driver.atenv]
-# This is still necessary because @env handles the qtm tunnel.
-description = "@env machine helper"
-
-[machine-driver.atenv.commands]
-exec = """exec @env exec "${MACHINE_NAME:?}" exec sh -c "${COMMAND:?}" """
-start = """@env up "${MACHINE_NAME:?}" """
-stop = """@env stop "${MACHINE_NAME:?}" """
-status = """@env status "${MACHINE_NAME:?}" """

@@ -1,0 +1,40 @@
+[machine-driver.hbv]
+description = "hetzner-bootable-volume with QTM access"
+
+[[machine-driver.hbv.options]]
+name = "FORWARDS"
+description = "Set to QTM forwarding arguments"
+scope = "instance"
+
+[machine-driver.hbv.commands]
+start = '''
+# Trace-level logging for debugging
+RUST_LOG=qtm=trace qtm daemon --background --log-to-file=/Users/rpatterson/Projects/qtm/qtm/logs/qtm.log 2>/dev/null || true
+hetzner-bootable-volume boot "${MACHINE_NAME:?}" --firewall=ssh-only
+if ! atrium machine exec "${MACHINE_NAME:?}" -- true 2>/dev/null; then
+	qtm --no-auto-start remove-peer "${MACHINE_NAME:?}" || true
+	qtm --no-auto-start add "${MACHINE_NAME:?}" --helper ssh -L "0:22#ssh" ${FORWARDS:-}
+	sleep 1 # Wait for service to be accepted
+fi
+atrium machine exec "${MACHINE_NAME:?}" -- cat /run/motd.dynamic
+'''
+stop = '''
+qtm remove-peer "${MACHINE_NAME:?}"
+# TODO: no way to specify additional arguments to atrium machine stop
+if [ ! ${ATRIUM_FORCE+1} ]; then
+	hcloud --context="${MACHINE_NAME:?}" server shutdown "${MACHINE_NAME:?}"
+else
+	hcloud --context="${MACHINE_NAME:?}" server delete "${MACHINE_NAME:?}"
+fi
+'''
+exec = '''
+port=$(set -o pipefail; qtm status "${MACHINE_NAME:?}" --format=json | jq -r '.remote_services[] | select(.description.label == "ssh") | .source.port') || exit 1
+# Connect over QTM tunnel, disable idle timeout
+ssh ${FORCE_TTY+-t} "${MACHINE_NAME:?}" \
+	-o Hostname=localhost -p "$port" \
+	-o ServerAliveInterval=0 -o ConnectTimeout=10 \
+	-- exec "${COMMAND:?}"
+'''
+status = '''
+hcloud --context="${MACHINE_NAME:?}" server describe "${MACHINE_NAME:?}" -o format='{{.Status}}' || true
+'''

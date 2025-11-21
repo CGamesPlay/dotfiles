@@ -11,6 +11,7 @@ else
 	workspace=$(atrium list -f json | jq --raw-output0 '.[].name' | \
 		fzf --read0 --height "50%" --layout reverse --preview "atrium inspect {}") \
 		|| exit 0
+	echo "$ atrium start-working $workspace"
 fi
 atrium start "$workspace" && atrium shell "$workspace"
 ''', "start-working"]
