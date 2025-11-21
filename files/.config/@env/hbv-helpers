@@ -6,7 +6,6 @@ set -eu
 . "$ATENV_HELPER_LIB"
 
 HBV_NAME=${HBV_NAME:?}
-HBV_SSH_PORT=${HBV_SSH_PORT:?}
 
 # @cmd Start the environment
 up() {
@@ -16,7 +15,7 @@ up() {
 		qtm --no-auto-start remove-peer "$HBV_NAME"
 		qtm --no-auto-start add "$HBV_NAME" \
 			--helper ssh \
-			-L "$HBV_SSH_PORT:22#ssh" \
+			-L "0:22#ssh" \
 			${HBV_TUNNELS+"${HBV_TUNNELS[@]}"}
 		sleep 1 # Wait for service to be accepted
 	fi
@@ -26,11 +25,9 @@ up() {
 # @cmd Execute a command in the environment
 # @arg command! Command to run
 run-in-env() {
-	set +e
+	port=$(set -o pipefail; qtm status gigs --format=json | jq -r '.remote_services[] | select(.description.label == "ssh") | .source.port') || return 1
 	# Connect over QTM tunnel, disable idle timeout
-	ssh "$HBV_NAME" -o Hostname=localhost -o ServerAliveInterval=0 -o ConnectTimeout=10 -p "$HBV_SSH_PORT" "$1"; status=$?
-	set -e
-	return $status
+	ssh "$HBV_NAME" -o Hostname=localhost -o ServerAliveInterval=0 -o ConnectTimeout=10 -p "$port" "$1"
 }
 
 # @cmd Upgrade qtm
