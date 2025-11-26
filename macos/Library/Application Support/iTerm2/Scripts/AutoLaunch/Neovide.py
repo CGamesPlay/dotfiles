@@ -73,7 +73,7 @@ def run_with_atrium(is_machine, name, directory, filename):
         args += [f"--atrium-workspace={name}"]
     if filename:
         args += ["--", filename]
-    run_neovide("atrium-nvim", args)
+    run_neovide("nvim-atrium", args)
 
 
 def run_neovide(neovim_bin, args, env={}):

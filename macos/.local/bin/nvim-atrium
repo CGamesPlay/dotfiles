@@ -28,7 +28,7 @@ if ! [ ${target+1} ]; then
 fi
 script=(exec direnv exec . nvim ${nvim_args+"${nvim_args[@]}"})
 script_str=$(printf '%q ' "${script[@]}")
-if [ ${directory+1} ]; then
+if [ ${directory:+1} ]; then
 	script_str=$(printf 'cd %q && %s' "$directory" "$script_str")
 fi
 exec atrium "${target[@]}" -- sh -c "$script_str"
