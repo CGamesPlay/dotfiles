@@ -87,6 +87,16 @@ blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
 
+# Interactively select an operation ot restore
+rewind = ["util", "exec", "--", "sh", "-c", '''
+choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "\0"' | \
+  fzf --read0 --delimiter='\07' --with-nth=2 --accept-nth=1 \
+  --preview='jj --color=always --at-op={1}')
+if [ $? -eq 0 ]; then
+  jj op restore "$choice"
+fi
+''']
+
 # Advance a bookmark to the closest pushable commit from @. If no bookmark is
 # specified, automatically select the nearest one. It's called "tug" because
 # it's pulling the bookmark to be closer to @, and because "prepare-to-push" is
