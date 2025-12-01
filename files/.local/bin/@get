@@ -167,6 +167,12 @@ golang-migrate/migrate() {
 	eget golang-migrate/migrate --to="$BINDIR"
 }
 
+# @cmd Install helm
+# @alias helm
+helm/helm() {
+	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | HELM_INSTALL_DIR="$BINDIR" USE_SUDO="false" bash
+}
+
 # @cmd Install hcloud
 # Hetzner Cloud CLI
 # @alias hcloud
@@ -229,6 +235,12 @@ newren/git-filter-repo() {
 	cp -rv git-filter-repo/Documentation/man1 "$MANDIR/man1/"
 
 	rm -rf git-filter-repo
+}
+
+# @cmd Install hl
+# @alias hl
+pamburus/hl() {
+	eget pamburus/hl -a "$(musl_tag)" --to=$BINDIR
 }
 
 # @cmd Install goose

@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path' | xargs git add --intent-to-add"
+            "command": "if git rev-parse --show-toplevel >/dev/null 2>&1; then jq -r '.tool_input.file_path' | xargs git add --intent-to-add; fi"
           }
         ]
       }
@@ -31,4 +31,3 @@
     "lastShownTime": 2114380800000
   }
 }
-
