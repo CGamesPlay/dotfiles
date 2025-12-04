@@ -11,7 +11,7 @@ function iterm2_set_user_var
 end
 
 function iterm2_refresh_vars --on-event fish_postexec
-  printf "\x1b]1337;RemoteHost=%s@%s\a\x1b]1337;CurrentDir=%s\a" $USER $hostname $PWD
+  printf "\x1b]7;file://%s%s\a" $host (string escape --style=url -- $PWD)
 
   if set -q ATRIUM_WORKSPACE
     iterm2_set_user_var atrium $ATRIUM_WORKSPACE
