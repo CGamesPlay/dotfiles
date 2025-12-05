@@ -95,7 +95,21 @@ choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "
 if [ $? -eq 0 ]; then
   jj op restore "$choice"
 fi
-''']
+''', "rewind"]
+
+# Checkout a Github PR
+gh-pr = ["util", "exec", "--", "sh", "-c", '''
+remote="origin"
+if [ $# -gt 1 ]; then
+  remote="$1"
+  shift
+elif git remote get-url upstream >/dev/null 2>&2; then
+  remote="upstream"
+fi
+id="${1:?Usage: jj gh-pr [REMOTE] ID}"
+git fetch "$remote" "refs/pull/$id/head:pr-$id"
+jj log -T log_oneline_with_status --config ui.paginate=never -r "wip() & ::pr-$id" --reversed
+''', "jj gh-pr"]
 
 # Advance a bookmark to the closest pushable commit from @. If no bookmark is
 # specified, automatically select the nearest one. It's called "tug" because
@@ -112,7 +126,14 @@ fi
 
 # Open the web repo associated with this repository.
 web = ["util", "exec", "--", "sh", "-c", """
-git remote get-url ${1:-origin} | sed -r \
+if [ $# -gt 1 ]; then
+  remote="$1"
+elif git remote get-url upstream >/dev/null 2>&2; then
+  remote="upstream"
+else
+  remote="origin"
+fi
+git remote get-url "$remote" | sed -r \
   -e 's$git@gitlab.com:$https://gitlab.com/$' \
   -e 's$git@github.com:$https://github.com/$' \
   -e 's$ssh://(git@)?([^:]+)(:[0-9]+)?/$https://\\2/$' \
