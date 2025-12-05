@@ -12,7 +12,7 @@ for arg in "$@"; do
 			target=(exec "${arg#--atrium-workspace=}")
 			;;
 		--atrium-machine=*)
-			target=(machine exec "${arg#--atrium-workspace=}")
+			target=(machine exec "${arg#--atrium-machine=}")
 			;;
 		--atrium-dir=*)
 			directory="${arg#--atrium-dir=}"

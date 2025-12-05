@@ -1,24 +1,32 @@
-default-command = ["start-working"]
+default-command = ["choose-workspace"]
 default-machine = "local"
 default-workspace-provider = "devcontainer"
 default-helpers = ["qtm"]
 
 [aliases]
-start-working = ["util", "exec", "--", "sh", "-c", '''
+choose-workspace = ["util", "exec", "--", "sh", "-c", '''
 if [ ${1:+1} ]; then
 	workspace="$1"
 else
 	workspace=$(atrium list -f json | jq --raw-output0 '.[].name' | \
 		fzf --read0 --height "50%" --layout reverse --preview "atrium inspect {}") \
 		|| exit 0
-	echo "$ atrium start-working $workspace"
+	echo "$ atrium shell --start $workspace"
 fi
-atrium start "$workspace" && atrium shell "$workspace"
+atrium shell --start "$workspace" && atrium shell "$workspace"
 ''', "start-working"]
 neovide = ["util", "exec", "--", "sh", "-c", '''
 workspace="${1:?Usage: atrium neovide WORKSPACE}"
 shift
-open -na Neovide --args --wsl --neovim-bin=nvim-atrium -- --atrium-workspace="$workspace" "$@"
+case "$workspace" in
+  machine:*)
+	locator_arg="--atrium-machine=${workspace//machine:/}"
+    ;;
+  *)
+	locator_arg="--atrium-workspace=$workspace"
+    ;;
+esac
+open -na Neovide --args --wsl --neovim-bin=nvim-atrium -- "$locator_arg" "$@"
 ''', "neovide"]
 
 [workspace-provider.devcontainer.options]

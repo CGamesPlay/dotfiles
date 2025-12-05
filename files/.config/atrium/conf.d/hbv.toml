@@ -11,7 +11,7 @@ start = '''
 # Trace-level logging for debugging
 RUST_LOG=qtm=trace qtm daemon --background --log-to-file=/Users/rpatterson/Projects/qtm/qtm/logs/qtm.log 2>/dev/null || true
 hetzner-bootable-volume boot "${MACHINE_NAME:?}" --firewall=ssh-only
-if ! atrium machine exec "${MACHINE_NAME:?}" -- true 2>/dev/null; then
+if ! timeout 5 atrium machine exec "${MACHINE_NAME:?}" -- true 2>/dev/null; then
 	qtm --no-auto-start remove-peer "${MACHINE_NAME:?}" || true
 	qtm --no-auto-start add "${MACHINE_NAME:?}" --helper ssh -L "0:22#ssh" ${FORWARDS:-}
 	sleep 1 # Wait for service to be accepted
