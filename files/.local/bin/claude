@@ -6,7 +6,7 @@
 # @version wrapper, use --claude-version for version information
 # @arg args~                Additional arguments, passed verbatim
 # @flag -c --continue       Continue the last conversation
-# @option -r --resume=QUERY Resume a conversation
+# @option -r --resume       Resume a conversation
 # @flag --claude-help       Show help for Claude Code
 # @flag --claude-version    Show version for Claude Code
 # @flag --claude-reinstall  Reinstall Claude Code even if already installed
@@ -42,8 +42,8 @@ main() {
 	exec claude \
 		${argc_claude_help+--help} \
 		${argc_claude_version+--version} \
-		${argc_continue+--continue} \
-		${argc_resume+--resume "$argc_resume"} \
+		${argc_continue:+--continue} \
+		${argc_resume:+--resume "$argc_resume"} \
 		${argc_args+"${argc_args[@]}"}
 }
 
