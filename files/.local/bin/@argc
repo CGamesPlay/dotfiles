@@ -72,6 +72,62 @@ create::cachedir-tag() {
 	echo "${argc_target}/CACHEDIR.TAG: created"
 }
 
+# @cmd Clone a git repository to a predictable location based on its URL.
+# @arg       url!              Git repository URL
+# @option    --root <DIR>      Root directory for cloned repositories
+# @flag   -n --dry-run         Print the target location without cloning
+clone() {
+	# Determine root directory
+	if [ -n "${argc_root:-}" ]; then
+		root="$argc_root"
+	elif [ -d "$HOME/Projects" ]; then
+		root="$HOME/Projects"
+	else
+		root="$HOME/src"
+	fi
+
+	url="${argc_url:?}"
+
+	# Remove protocol (http://, https://, git://, ssh://)
+	url_no_protocol="${url#*://}"
+
+	# Handle git@host:path format
+	if [[ "$url_no_protocol" =~ git@([^:]+):(.+) ]]; then
+		host="${BASH_REMATCH[1]}"
+		path="${BASH_REMATCH[2]}"
+		# Remove port number if present (e.g., 2222/path -> path)
+		if [[ "$path" =~ ^[0-9]+/(.+)$ ]]; then
+			path="${BASH_REMATCH[1]}"
+		fi
+	else
+		# Standard URL format: host/path/to/repo
+		host="${url_no_protocol%%/*}"
+		path="${url_no_protocol#*/}"
+	fi
+
+	# Remove .git suffix and trailing slashes
+	path="${path%.git}"
+	path="${path%/}"
+
+	# Construct target directory
+	target="$root/src/$host/$path"
+
+	# Dry run: just print the target
+	if [ "${argc_dry_run:-}" ]; then
+		echo "$target"
+		return
+	fi
+
+	# Clone if not already present
+	if [ -d "$target" ]; then
+		echo "$target: already exists"
+	else
+		mkdir -p "$(dirname "$target")"
+		git clone "$url" "$target"
+		echo "$target: cloned"
+	fi
+}
+
 # @cmd Commands for working with ruby/rails projects.
 #
 #   And on the pedestal, these words appear:
