@@ -49,6 +49,8 @@ paste() {
 progress() {
 	if [ ${argc_clear+1} ]; then
 		state="0"
+	elif [ ${argc_indeterminate+1} ] && [ ${argc_error+1} ]; then
+		state="2"
 	elif [ ${argc_indeterminate+1} ]; then
 		state="3"
 	elif [ ${argc_warning+1} ]; then
