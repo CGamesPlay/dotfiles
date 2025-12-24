@@ -1,16 +1,43 @@
 #!/usr/bin/env bash
-# @describe User-local package installers
-# Contains install scripts for packages that are installed by downloading
-# binaries from GitHub.
-# @option   --target=~/.local Root directory to install
+# @describe Install binaries from GitHub releases
+# @option   --target=~/.local   Installation target directory
+# @flag     -f --force          Force reinstall even if binary exists
+# @arg      packages+[?`_choice_package`]  Binary names to install
 
 set -eu
 export TMPDIR=${TMPDIR:-/tmp}
 export EGET_BIN=$TMPDIR
 
-# @cmd Install zoxide
-# @alias z, zoxide
-ajeetdsouza/zoxide() {
+# Completion function for argc
+_choice_package() {
+	awk '
+		/^# [^@]/ {
+			if (doc == "") {
+				doc = substr($0, 3)
+			} else {
+				has_more = 1
+			}
+		}
+		/^[a-zA-Z_][a-zA-Z0-9_-]*\(\)/ {
+			if ($0 !~ /^install_/) {
+				doc = ""
+				has_more = 0
+			}
+		}
+		/^install_[a-zA-Z0-9_-]+\(\)/ {
+			name = $0
+			sub(/^install_/, "", name)
+			sub(/\(\).*$/, "", name)
+			if (has_more) doc = doc "..."
+			printf "%s\t%s\n", name, doc
+			doc = ""
+			has_more = 0
+		}
+	' "$0"
+}
+
+# Smart directory jumper
+install_zoxide() {
 	eget ajeetdsouza/zoxide --file="*" --all --to=zoxide
 
 	cp zoxide/zoxide "$BINDIR/"
@@ -20,23 +47,18 @@ ajeetdsouza/zoxide() {
 	rm -rf zoxide
 }
 
-# @cmd Install fx
 # Terminal JSON viewer & processor
-# @alias fx
-antonmedv/fx() {
+install_fx() {
 	eget antonmedv/fx --to="$BINDIR"
 }
 
-# @cmd Install uv
-# @alias uv
-astral-sh/uv() {
+# Python package installer
+install_uv() {
 	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh
 }
 
-# @cmd Install ripgrep
-# Modern/faster grep alternative
-# @alias rg
-BurntSushi/ripgrep() {
+# Ripgrep - modern grep alternative
+install_rg() {
 	eget BurntSushi/ripgrep --file="*" --to=ripgrep
 
 	cp ripgrep/rg "$BINDIR/"
@@ -46,47 +68,33 @@ BurntSushi/ripgrep() {
 	rm -rf ripgrep
 }
 
-# @cmd Install cargo-binstall
-# Binary installer for rust. Mostly replaced by eget.
-# @alias cargo-binstall
-cargo-bins/cargo-binstall() {
+# Binary installer for rust
+install_cargo-binstall() {
 	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
 }
 
-# @cmd Install kbld
-# kbld seamlessly incorporates image building and image pushing into
-# your development and deployment workflows.
-# @alias kbld
-carvel-dev/kbld() {
+# Image building and pushing for k8s
+install_kbld() {
 	eget carvel-dev/kbld --to="$BINDIR"
 }
 
-# @cmd Install kapp
-# kapp is a simple deployment tool focused on the concept of "Kubernetes
-# application" — a set of resources with the same label
-# @alias kapp
-carvel-dev/kapp() {
+# simple deployment tool for k8s
+install_kapp() {
 	eget carvel-dev/kapp --to="$BINDIR"
 }
 
-# @cmd Install ytt
-# YAML templating tool that works on YAML structure instead of text
-# @alias ytt
-carvel-dev/ytt() {
+# YAML templating tool
+install_ytt() {
 	eget carvel-dev/ytt --to="$BINDIR"
 }
 
-# @cmd Install dfm
 # My dotfile manager
-# @alias dfm
-CGamesPlay/dfm() {
+install_dfm() {
 	eget CGamesPlay/dfm --to="$BINDIR"
 }
 
-# @cmd Install sd
 # Modern sed replacement
-# @alias sd
-chmln/sd() {
+install_sd() {
 	eget chmln/sd --file="*" --to=sd
 
 	cp sd/sd "$BINDIR/"
@@ -96,36 +104,28 @@ chmln/sd() {
 	rm -rf sd
 }
 
-# @cmd Install cocogitto
-# @alias cocogitto,cog
-cocogitto/cocogitto() {
+# Cocogitto - conventional commits tooling
+install_cog() {
 	eget -f 'cog' cocogitto/cocogitto --to="$BINDIR"
 }
 
-# @cmd Install argc
-# Procfile runner.
-# @alias hivemind
-DarthSim/hivemind() {
+# Procfile runner
+install_hivemind() {
 	eget DarthSim/hivemind --to="$BINDIR"
 }
 
-# @cmd Install delta
-# Git output filter.
-# @alias delta
-dandavision/delta() {
+# Git diff output filter
+install_delta() {
 	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
 }
 
-# @cmd Install k9s
-# @alias k9s
-derailed/k9s() {
+# Kubernetes cluster manager
+install_k9s() {
 	eget -a 'tar.gz' -a '^sbom' derailed/k9s --to="$BINDIR"
 }
 
-# @cmd Install xh
 # Friendly HTTP client
-# @alias xh
-ducaale/xh() {
+install_xh() {
 	eget ducaale/xh --to="$BINDIR"
 	eget ducaale/xh --file="*" --to=xh
 
@@ -136,9 +136,8 @@ ducaale/xh() {
 	rm -rf xh
 }
 
-# @cmd Install direnv
-# @alias direnv
-direnv/direnv() {
+# Per-directory environment variables
+install_direnv() {
 	eget direnv/direnv --to="$BINDIR"
 
 	version=$(direnv --version)
@@ -147,10 +146,8 @@ direnv/direnv() {
 	done
 }
 
-# @cmd Install eza
 # Modern ls replacement
-# @alias eza
-eza-community/eza() {
+install_eza() {
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 
@@ -160,44 +157,33 @@ eza-community/eza() {
 	rm -rf eza
 }
 
-# @cmd Install migrate
-# Framework-agnostic database migration tool.
-# @alias migrate
-golang-migrate/migrate() {
+# Framework-agnostic database migrations
+install_migrate() {
 	eget golang-migrate/migrate --to="$BINDIR"
 }
 
-# @cmd Install helm
-# @alias helm
-helm/helm() {
+# Kubernetes package manager
+install_helm() {
 	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | HELM_INSTALL_DIR="$BINDIR" USE_SUDO="false" bash
 }
 
-# @cmd Install hcloud
 # Hetzner Cloud CLI
-# @alias hcloud
-hetznercloud/cli() {
+install_hcloud() {
 	eget hetznercloud/cli -f hcloud --to="$BINDIR"
 }
 
-# @cmd Install cdebug
-# A swiss army knife of container debugging.
-# @alias cdebug
-iximiuz/cdebug() {
+# Container debugging swiss army knife
+install_cdebug() {
 	eget iximiuz/cdebug --to="$BINDIR"
 }
 
-# @cmd Install lazygit
 # Friendly interface to git
-# @alias lazygit
-jesseduffield/lazygit() {
+install_lazygit() {
 	eget jesseduffield/lazygit --to="$BINDIR"
 }
 
-# @cmd Install jujutsu
-# A Git-compatible VCS that is both simple and powerful
-# @alias jj
-jj-vcs/jj() {
+# Jujutsu - git alternative
+install_jj() {
 	eget jj-vcs/jj --to="$BINDIR"
 
 	eget jj-vcs/jj -a 'docs' -d --to=jj-docs.tar.gz
@@ -208,27 +194,16 @@ jj-vcs/jj() {
 	jj util install-man-pages ~/.local/share/man
 }
 
-# @cmd Install fzf
 # Fuzzy file finder
-# @alias fzf
-junegunn/fzf() {
+install_fzf() {
 	eget junegunn/fzf --to="$BINDIR"
 
 	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
 	curl -fsSL "https://github.com/junegunn/fzf/raw/${fzf_version}/man/man1/fzf.1" -o "$MANDIR/man1/fzf.1"
 }
 
-# @cmd Install devpod CLI
-# Codespaces but client-only
-# @alias devpod
-loft-sh/devpod() {
-	# Desktop versions are called DevPod with capitals
-	eget loft-sh/devpod -a '^DevPod' --to="$BINDIR"
-}
-
-# @cmd Install git-filter-repo
-# @alias git-filter-repo
-newren/git-filter-repo() {
+# Rewrite git repository history
+install_git-filter-repo() {
 	eget newren/git-filter-repo --file="*" --to=git-filter-repo
 
 	cp git-filter-repo/git-filter-repo "$BINDIR/"
@@ -237,22 +212,18 @@ newren/git-filter-repo() {
 	rm -rf git-filter-repo
 }
 
-# @cmd Install hl
-# @alias hl
-pamburus/hl() {
-	eget pamburus/hl -a "$(musl_tag)" --to=$BINDIR
+# JSON log viewer
+install_hl() {
+	eget pamburus/hl -a "$(musl_tag)" --to="$BINDIR"
 }
 
-# @cmd Install goose
-# @alias goose
-pressly/goose() {
+# Database migration tool
+install_goose() {
 	eget pressly/goose --to="$BINDIR"
 }
 
-# @cmd Install bat
-# Modern cat/less replacement.
-# @alias bat
-sharkdp/bat() {
+# Modern cat/less replacement
+install_bat() {
 	eget -a "$(musl_tag)" sharkdp/bat --file="*" --all --to=bat
 
 	cp bat/bat "$BINDIR/"
@@ -262,10 +233,8 @@ sharkdp/bat() {
 	rm -rf bat
 }
 
-# @cmd Install fd
-# Modern find replacement.
-# @alias fd
-sharkdp/fd() {
+# Modern find replacement
+install_fd() {
 	eget sharkdp/fd --file="*" --all --to=fd
 
 	cp fd/fd "$BINDIR/"
@@ -275,16 +244,13 @@ sharkdp/fd() {
 	rm -rf fd
 }
 
-# @cmd Install argc
-# My primary command runner.
-# @alias argc
-sigoden/argc() {
+# Command runner
+install_argc() {
 	eget sigoden/argc --to="$BINDIR"
 }
 
-# @cmd Install sgpt
-# @alias sgpt
-tbckr/sgpt() {
+# Shell GPT integration
+install_sgpt() {
 	eget -a '^.json' tbckr/sgpt --file="*" --all --to=sgpt
 
 	cp sgpt/sgpt "$BINDIR/"
@@ -294,30 +260,18 @@ tbckr/sgpt() {
 	rm -rf sgpt
 }
 
-# @cmd Install robo
-# The command runner I used before switching to argc.
-# @alias robo
-tj/robo() {
-	eget tj/robo --to="$BINDIR"
-}
-
-# @cmd Install ecslog
-# @alias ecslog
-trentm/go-ecslog() {
+# ECS log formatter (replaced by hl)
+install_ecslog() {
 	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
 }
 
-# @cmd Install g
 # Go version manager
-# @alias g
-voidint/g() {
+install_g() {
 	eget voidint/g --to="$BINDIR"
 }
 
-# @cmd Install watchexec
 # File monitor and command runner
-# @alias watchexec
-watchexec/watchexec() {
+install_watchexec() {
 	eget -a "$(musl_tag)" -a '^b3' -a '^sha512' -a 'tar' watchexec/watchexec --file="*" --to=watchexec
 
 	cp watchexec/watchexec "$BINDIR/"
@@ -327,19 +281,31 @@ watchexec/watchexec() {
 	rm -rf watchexec
 }
 
-# @cmd Install difftastic
-# a structural diff that understands syntax
-# @alias difft
-Wilfred/difftastic() {
+# difftastic - structural diffs
+install_difft() {
 	eget Wilfred/difftastic --to="$BINDIR"
 }
 
-_argc_before() {
+main() {
 	cd "$TMPDIR"
 	BINDIR="${argc_target:?}/bin"
 	MANDIR="${argc_target:?}/share/man"
 	mkdir -p "$BINDIR" "$MANDIR/man1" "$MANDIR/man5"
-	set -x
+
+	for binary in "${argc_packages[@]}"; do
+		if ! declare -F "install_$binary" >/dev/null; then
+			echo "ERROR: Unknown binary: $binary" >&2
+			return 1
+		fi
+
+		if [[ ! "${argc_force:-}" ]] && command -v "$binary" >/dev/null 2>&1; then
+			echo "$binary: already installed (use --force to reinstall)"
+			continue
+		fi
+
+		echo "Installing $binary..."
+		(set -x; "install_$binary")
+	done
 }
 
 # Check if this system is darwin.
