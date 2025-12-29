@@ -175,22 +175,24 @@ open() {
 }
 
 # @cmd Save a file or directory to the machine where iTerm2 is running
-# @arg file! <FILE> File or directory to send
+# @arg file+ <FILE> File or directory to send
 send-file() {
-	filename="$(basename -- "${argc_file:?}")"
-	if [ -d "${argc_file:?}" ]; then
-		tar_file=$(mktemp)
-		trap 'rm "$tar_file"' EXIT
-		tar -czf "$tar_file" "$argc_file"
-		argc_file="$tar_file"
-		filename="$filename.tar.gz"
-	fi
-	st_size="$(filesize "${argc_file:?}")"
-	tty_printf "\033]1337;MultipartFile=name=%s;size=%d\a" "$(echo -n "$filename" | base64)" "${st_size}"
-	while read -r part; do
-		tty_printf "\033]1337;FilePart=%s\a" "$part"
-	done < <(base64 < "${argc_file:?}" | fold -w 200)
-	tty_printf "\033]1337;FileEnd\a"
+	for file in "${argc_file[@]}"; do
+		filename="$(basename -- "$file")"
+		if [ -d "$file" ]; then
+			tar_file=$(mktemp)
+			trap 'rm "$tar_file"' EXIT
+			tar -czf "$tar_file" "$file"
+			file="$tar_file"
+			filename="$filename.tar.gz"
+		fi
+		st_size="$(filesize "$file")"
+		tty_printf "\033]1337;MultipartFile=name=%s;size=%d\a" "$(echo -n "$filename" | base64)" "${st_size}"
+		while read -r part; do
+			tty_printf "\033]1337;FilePart=%s\a" "$part"
+		done < <(base64 < "$file" | fold -w 200)
+		tty_printf "\033]1337;FileEnd\a"
+	done
 }
 
 # @cmd Send files or directories from iTerm2 to the local machine
@@ -221,7 +223,7 @@ receive-file() {
 		fi
 		echo "$line" >> "$tar_file"
 	done
-	base64 -d <"$tar_file" | tar -xz -C "${argc_dest:?}"
+	base64 -d <"$tar_file" | tar -xvz -C "${argc_dest:?}"
 }
 
 # @cmd Rich file display
