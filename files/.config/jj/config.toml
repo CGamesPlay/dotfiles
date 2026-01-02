@@ -17,7 +17,7 @@ diff-formatter = "delta"
 
 [git]
 private-commits = "private()"
-fetch = ['regex:origin|upstream']
+fetch = ['regex:"origin|upstream"']
 
 [colors]
 commit_id = "magenta"
@@ -77,17 +77,12 @@ diff-formatter = ":git"
 e = ["edit"]
 # Log, but shorter.
 l = ["log", "-T", "log_oneline"]
-# My kind-of replacement for `git branch`. Shows mutable commits and their
-# immutable parents, plus unincorporated changes.
-wip = ["log", "-T", "log_oneline", "--config", "ui.paginate=never", "-r", "wip()"]
-# Add command, to work with auto-track = none().
-add = ["file", "track"]
 # Which revision is responsible for causing the problem I'm dealing with.
 blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
 
-# Interactively select an operation ot restore
+# Interactively select an operation to restore
 rewind = ["util", "exec", "--", "sh", "-c", '''
 choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "\0"' | \
   fzf --read0 --delimiter='\07' --with-nth=2 --accept-nth=1 \
@@ -111,18 +106,28 @@ git fetch "$remote" "+refs/pull/$id/head:pr-$id"
 jj log -T log_oneline_with_status --config ui.paginate=never -r "wip() & ::pr-$id" --reversed
 ''', "jj gh-pr"]
 
-# Advance a bookmark to the closest pushable commit from @. If no bookmark is
-# specified, automatically select the nearest one. It's called "tug" because
-# it's pulling the bookmark to be closer to @, and because "prepare-to-push" is
-# rather longer.
-tug = ["util", "exec", "--", "sh", "-c", """
+# Move some commits to prepare to push them to a remote. This will rebase
+# commits given with -s/-b/-r to come before any unpushable commits, then
+# update the nearest bookmark to include them. First argument may be a bookmark
+# name to use instead of the nearest bookmark. All other arguments are passed
+# to jj rebase; if none are given no commits are moved but the bookmark is
+# still updated.
+prepare = ["util", "exec", "--", "sh", "-c", """
 set -eu
-if [ ${1+1} ]; then
-  jj bookmark move --to "closest_pushable(@)" "$@"
-else
-  jj bookmark move --to "closest_pushable(@)" --from "closest_bookmark(@)"
+bookmark="closest_bookmark(@)"
+case ${1:--unset} in
+  -*)
+    ;;
+  *)
+    bookmark="$1"
+    shift
+    ;;
+esac
+if [ $# -gt 0 ]; then
+  jj rebase "$@" -B "roots(closest_pushable(@)..@)"
 fi
-""", "jj tug"]
+jj bookmark move --to "closest_pushable(@)" --from "$bookmark"
+""", "jj prepare"]
 
 # Open the web repo associated with this repository.
 web = ["util", "exec", "--", "sh", "-c", """
@@ -186,11 +191,11 @@ short-prefixes = 'mutable()'
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.
-'private()' = "description(glob:'wip:*') | description(glob:'private:*')"
+'private()' = "description(glob:'wip:*' | glob:'private:*')"
 
 # Find the latest "pushable" commit to the given one. Pushable means that all
 # ancestors are pushable.
-'closest_pushable(to)' = 'heads(..to ~ descendants(unpushable()))'
+'closest_pushable(to)' = 'heads(..to ~ unpushable()::)'
 'unpushable()' = 'mutable() & (description(exact:"") | (empty() & ~merges()) | conflicts() | private())'
 # Find the latest bookmark in the history leading to the given revs.
 'closest_bookmark(to)' = 'heads(::to & tracked_remote_bookmarks())'
@@ -211,8 +216,8 @@ label('node',
       ),
       coalesce(
         if(current_working_copy, '@'),
-        if(self.contained_in('private()'), '⊗'),
         if(immutable, '◆'),
+        if(self.contained_in('unpushable()'), '⊗'),
         if(conflict, '×'),
         '○',
       )
