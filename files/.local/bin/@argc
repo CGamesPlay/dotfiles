@@ -179,4 +179,37 @@ rails::rdoc() {
 	echo "RDoc generation complete. Open $index_file to browse the documentation."
 }
 
+# @cmd Set a reminder that notifies after a duration.
+# @arg duration!   Duration (e.g., 1h2m3s, 30m, 45s)
+# @arg message!    Message to display
+reminder() {
+	local duration="${argc_duration:?}"
+	local message="${argc_message:?}"
+
+	# Parse duration
+	local hours=0 minutes=0 seconds=0
+	if [[ $duration =~ ([0-9]+)h ]]; then
+		hours=${BASH_REMATCH[1]}
+	fi
+	if [[ $duration =~ ([0-9]+)m ]]; then
+		minutes=${BASH_REMATCH[1]}
+	fi
+	if [[ $duration =~ ([0-9]+)s ]]; then
+		seconds=${BASH_REMATCH[1]}
+	fi
+
+	# Calculate total seconds
+	local total_seconds=$((hours * 3600 + minutes * 60 + seconds))
+
+	if [ "$total_seconds" -eq 0 ]; then
+		echo "Error: Invalid duration" >&2
+		exit 1
+	fi
+
+	# Wait and notify
+	printf "Timer set for %d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
+	sleep "$total_seconds"
+	@iterm notify "$message"
+}
+
 eval "$(argc --argc-eval "$0" "$@")"

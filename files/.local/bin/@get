@@ -182,6 +182,12 @@ install_lazygit() {
 	eget jesseduffield/lazygit --to="$BINDIR"
 }
 
+# Command-line access to LLMs
+install_llm() {
+	@get uv
+	uv tool install llm --with llm-cmd-comp,llm-anthropic
+}
+
 # Jujutsu - git alternative
 install_jj() {
 	eget jj-vcs/jj --to="$BINDIR"
