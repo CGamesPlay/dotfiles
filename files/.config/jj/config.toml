@@ -106,17 +106,17 @@ git fetch "$remote" "+refs/pull/$id/head:pr-$id"
 jj log -T log_oneline_with_status --config ui.paginate=never -r "wip() & ::pr-$id" --reversed
 ''', "jj gh-pr"]
 
-# Move some commits to prepare to push them to a remote. This will rebase
-# commits given with -s/-b/-r to come before any unpushable commits, then
-# update the nearest bookmark to include them. First argument may be a bookmark
-# name to use instead of the nearest bookmark. All other arguments are passed
-# to jj rebase; if none are given no commits are moved but the bookmark is
-# still updated.
+# Move some commits to prepare to push them directly to a remote branch. This
+# will rebase commits given with -s/-b/-r to come before any unpushable
+# commits, then update the nearest bookmark to include them. First argument may
+# be a bookmark name to use instead of the nearest bookmark. All other
+# arguments are passed to jj rebase; if none are given no commits are moved but
+# the bookmark is still updated.
 prepare = ["util", "exec", "--", "sh", "-c", """
 set -eu
-bookmark="closest_bookmark(@)"
 case ${1:--unset} in
   -*)
+    bookmark="$(jj log -G -r 'closest_bookmark(@)' -T 'bookmarks.map(|b| b.name())')"
     ;;
   *)
     bookmark="$1"
@@ -128,6 +128,14 @@ if [ $# -gt 0 ]; then
 fi
 jj bookmark move --to "closest_pushable(@)" --from "$bookmark"
 """, "jj prepare"]
+
+# Move some commits to prepare to push them to a PR. This will rebase commits
+# given with -s/-b/-r to come before any unpushable commits, in parallel with
+# other changes. All arguments are passed to jj rebase.
+"prepare-pr" = ["util", "exec", "--", "sh", "-c", """
+set -eu
+jj rebase "$@" -A 'trunk()' -B 'roots(unpushable()::@)'
+""", "jj prepare-pr"]
 
 # Open the web repo associated with this repository.
 web = ["util", "exec", "--", "sh", "-c", """
