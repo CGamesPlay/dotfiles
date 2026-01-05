@@ -4,13 +4,14 @@
 # The wrapper is responsible for setting up CLAUDE_CONFIG_DIR, and can
 # auto-install claude when needed.
 # @version wrapper, use --claude-version for version information
-# @arg args~                Additional arguments, passed verbatim
 # @flag -c --continue       Continue the last conversation
-# @option -r --resume       Resume a conversation
+# @flag --yolo              "Dangerously" skip "permisisons".
+# @flag --skip-happy        Do not run via happy wrapper
 # @flag --claude-help       Show help for Claude Code
 # @flag --claude-version    Show version for Claude Code
 # @flag --claude-reinstall  Reinstall Claude Code even if already installed
 # @flag --claude-usage      Run ccusage instead of Claude Code.
+# @arg args~                Additional arguments, passed verbatim
 
 set -eu
 
@@ -31,6 +32,7 @@ main() {
 	set -u
 
 	export CLAUDE_CONFIG_DIR=~/.config/claude
+	local bin=claude allow_yolo= yolo=
 
 	if [[ "${argc_claude_usage+1}" ]]; then
 		exec @iterm open https://claude.ai/settings/usage
@@ -39,12 +41,29 @@ main() {
 		echo "Claude Code is not installed. Installing..." >&2
 		npm --no-update-notifier install -g @anthropic-ai/claude-code@latest
 	fi
-	exec claude \
+	if [[ ! ${argc_skip_happy+1} ]]; then
+		bin=happy
+		if [[ "${argc_claude_reinstall+1}" ]] || ! npm --no-update-notifier list -g happy-coder >/dev/null; then
+			echo "Happy is not installed. Installing..." >&2
+			npm --no-update-notifier install -g happy-coder@latest
+		fi
+	fi
+
+	if [[ ${ATRIUM_WORKSPACE+1} ]]; then
+		allow_yolo=1
+	fi
+	if [[ ${argc_yolo+1} ]]; then
+		yolo=1
+	fi
+
+	exec "$bin" \
 		${argc_claude_help+--help} \
 		${argc_claude_version+--version} \
 		${argc_continue:+--continue} \
 		${argc_resume:+--resume "$argc_resume"} \
-		${argc_args+"${argc_args[@]}"}
+		${argc_args+"${argc_args[@]}"} \
+		${allow_yolo:+--allow-dangerously-skip-permissions} \
+		${yolo:+--dangerously-skip-permissions}
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
