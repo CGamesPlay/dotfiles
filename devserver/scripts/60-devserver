@@ -24,7 +24,7 @@ for service in ansible.service hbv-ephemeral-drive.service restic-backup.service
             time_ago=$(systemd-analyze timestamp "$inactive_exit" 2>/dev/null | grep -o '[0-9]\+[a-z]* ago' || echo "recently")
             echo "✓ $service: finished $time_ago"
         else
-            echo "✓ $service: exited successfully"
+            echo "✗ $service: never run"
         fi
     else
         echo "✗ $service: failed or not run"

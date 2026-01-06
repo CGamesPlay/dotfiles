@@ -7,10 +7,8 @@
       - name: check for hbv-self-destruct.env
         stat: path=/etc/hbv-self-destruct.env
         register: self_destruct_env
-      - name: fail if hbv-self-destruct.env is missing
-        fail: msg="/etc/hbv-self-destruct.env is not configured"
-        when: not self_destruct_env.stat.exists
       - name: install self-destruct service
+        when: self_destruct_env.stat.exists
         copy:
           dest: /etc/systemd/system/hbv-self-destruct.service
           content: |
@@ -38,11 +36,13 @@
           src: scripts/hbv-self-destruct
           dest: /usr/local/sbin/hbv-self-destruct
           mode: 0755
+        when: self_destruct_env.stat.exists
       - systemd:
           daemon_reload: yes
           name: hbv-self-destruct
           enabled: true
           state: started
+        when: self_destruct_env.stat.exists
 
       - name: install ansible systemd service
         copy:
@@ -78,6 +78,7 @@
             value: "true"
 
       - name: install auto-shutdown service
+        when: self_destruct_env.stat.exists
         copy:
           src: scripts/hbv-auto-shutdown
           dest: /usr/local/bin/hbv-auto-shutdown
@@ -101,16 +102,18 @@
 
             [Install]
             WantedBy=multi-user.target
+        when: self_destruct_env.stat.exists
       - systemd:
           daemon_reload: yes
           name: hbv-auto-shutdown
           enabled: true
           state: started
+        when: self_destruct_env.stat.exists
         register: auto_shutdown_unit
       - systemd:
           name: hbv-auto-shutdown
           state: restarted
-        when: not auto_shutdown_unit.changed and auto_shutdown_bin.changed
+        when: self_destruct_env.stat.exists and not auto_shutdown_unit.changed and auto_shutdown_bin.changed
 
       - name: configure restic user
         user:
@@ -178,6 +181,10 @@
             EnvironmentFile=/etc/restic/restic.conf
             AmbientCapabilities=CAP_DAC_READ_SEARCH
             CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+            ExecStartPre=/bin/sh -c 'test -n "$RESTIC_REPOSITORY" || { echo "RESTIC_REPOSITORY not configured in /etc/restic/restic.conf"; exit 1; }'
+            ExecStartPre=/bin/sh -c 'test -n "$RESTIC_PASSWORD" || { echo "RESTIC_PASSWORD not configured in /etc/restic/restic.conf"; exit 1; }'
+            ExecStartPre=/bin/sh -c 'test -n "$AWS_ACCESS_KEY_ID" || { echo "AWS_ACCESS_KEY_ID not configured in /etc/restic/restic.conf"; exit 1; }'
+            ExecStartPre=/bin/sh -c 'test -n "$AWS_SECRET_ACCESS_KEY" || { echo "AWS_SECRET_ACCESS_KEY not configured in /etc/restic/restic.conf"; exit 1; }'
             ExecStart=restic backup --exclude-file exclude --exclude-caches /home/ubuntu
             CacheDirectory=restic
             CacheDirectoryMode=0750
