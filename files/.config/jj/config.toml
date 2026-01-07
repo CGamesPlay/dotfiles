@@ -17,7 +17,7 @@ diff-formatter = "delta"
 
 [git]
 private-commits = "private()"
-fetch = ['regex:"origin|upstream"']
+fetch = ['regex:origin|upstream']
 
 [colors]
 commit_id = "magenta"

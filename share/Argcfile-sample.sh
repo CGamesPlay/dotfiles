@@ -18,13 +18,13 @@ main() {
 # @flag   -f --flag           Optional flag
 # @option -p --port=80 <PORT> Named argument with default value
 example() {
-	echo "Filename: $argc_filename"
+	echo "Filename: ${argc_filename:?}"
 	if [[ "${argc_flag+1}" ]]; then
 		echo "Flag: passed"
 	else
 		echo "Flag: not passed"
 	fi
-	echo "Named argument: $argc_port"
+	echo "Named argument: ${argc_port:?}"
 }
 
 # @cmd Command with complex arguments
