@@ -126,7 +126,7 @@ esac
 if [ $# -gt 0 ]; then
   jj rebase "$@" -B "roots(closest_pushable(@)..@)"
 fi
-jj bookmark move --to "closest_pushable(@)" --from "$bookmark"
+jj bookmark set --to "closest_pushable(@)" "$bookmark"
 """, "jj prepare"]
 
 # Move some commits to prepare to push them to a PR. This will rebase commits
