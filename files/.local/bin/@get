@@ -276,6 +276,11 @@ install_g() {
 	eget voidint/g --to="$BINDIR"
 }
 
+# CLI to manage Vultr resources
+install_vultr-cli() {
+	eget vultr/vultr-cli --to="$BINDIR"
+}
+
 # File monitor and command runner
 install_watchexec() {
 	eget -a "$(musl_tag)" -a '^b3' -a '^sha512' -a 'tar' watchexec/watchexec --file="*" --to=watchexec
