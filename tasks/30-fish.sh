@@ -2,8 +2,8 @@
 # Install fish v3 and set it as the default shell.
 set -e
 
-preferred_version="(4\\.[1-9]\\.)"
-preferred_version_check="4.1"
+preferred_version_check="(4\\.[1-9]\\.)"
+preferred_version="4.3"
 
 is_installed() {
 	command -v "$1" >/dev/null
@@ -71,7 +71,9 @@ set_shell() {
 }
 
 default_variables() {
+	echo "Fish first-run" >&2
 	fish ~/.config/fish/defaults.fish
+	echo "Fish Success"
 }
 
 install_fish
