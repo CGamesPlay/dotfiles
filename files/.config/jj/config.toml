@@ -17,7 +17,7 @@ diff-formatter = "delta"
 
 [git]
 private-commits = "private()"
-fetch = ['regex:origin|upstream']
+fetch = ['regex:"origin|upstream"']
 
 [colors]
 commit_id = "magenta"
@@ -141,7 +141,7 @@ jj rebase "$@" -A 'trunk()' -B 'roots(unpushable()::@)'
 web = ["util", "exec", "--", "sh", "-c", """
 if [ $# -gt 1 ]; then
   remote="$1"
-elif git remote get-url upstream >/dev/null 2>&2; then
+elif git remote get-url upstream >/dev/null 2>/dev/null; then
   remote="upstream"
 else
   remote="origin"
