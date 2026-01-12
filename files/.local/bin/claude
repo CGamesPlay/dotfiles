@@ -31,6 +31,7 @@ main() {
 	nvm use --lts > /dev/null
 	set -u
 
+	# Keep ~ clean
 	export CLAUDE_CONFIG_DIR=~/.config/claude
 	local bin=claude allow_yolo= yolo=
 
@@ -54,6 +55,30 @@ main() {
 	fi
 	if [[ ${argc_yolo+1} ]]; then
 		yolo=1
+	fi
+
+	# Workaround for https://github.com/anthropics/claude-code/issues/14485
+	local marketplace_file="$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+	if [[ ! -f "$marketplace_file" ]]; then
+		mkdir -p "$CLAUDE_CONFIG_DIR/plugins/marketplaces"
+		local now
+		now=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+		cat > "$marketplace_file" <<EOF
+{
+  "claude-plugins-official": {
+    "source": {
+      "source": "git",
+      "url": "https://github.com/anthropics/claude-plugins-official.git"
+    },
+    "installLocation": "$HOME/.config/claude/plugins/marketplaces/claude-plugins-official",
+    "lastUpdated": "$now"
+  }
+}
+EOF
+		git clone "https://github.com/anthropics/claude-plugins-official.git" "$CLAUDE_CONFIG_DIR/plugins/marketplaces/claude-plugins-official"
+	else
+		jq 'walk(if type == "object" and has("repo") then .source = "git" | .url = ("https://github.com/" + .repo + ".git") | del(.repo) else . end)' \
+			"$marketplace_file" > "$marketplace_file.tmp" && mv "$marketplace_file.tmp" "$marketplace_file"
 	fi
 
 	exec "$bin" \
