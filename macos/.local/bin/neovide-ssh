@@ -1,0 +1,54 @@
+#!/bin/bash
+# @describe Launch Neovide via SSH using the iTerm2 extension script
+#
+# This script allows you to launch Neovide and connect to a remote host via
+# SSH, with support for changing to a specific directory and opening files.
+#
+# @option --ssh-args  SSH arguments to pass (e.g., "-l ubuntu")
+# @option --chdir     Directory to change to on the remote host
+# @arg host!          Hostname or IP address to SSH into
+# @arg files*         Files to open in nvim
+
+set -ue
+
+if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
+	# Running as trampoline - extract prefix and execute via ssh
+	args=()
+	for arg in "$@"; do
+		case "$arg" in
+			--prefix=*)
+				prefix=${arg#--prefix=}
+				;;
+			*)
+				args+=("$arg")
+				;;
+		esac
+	done
+	unset NEOVIDE_LAUNCHER
+	exec sh -c "$prefix $(printf '%q ' "${args[@]}")"
+fi
+
+main() {
+	# Build the SSH command for the prefix
+	local ssh_cmd="ssh"
+	if [[ "${argc_ssh_args:+1}" ]]; then
+		ssh_cmd="$ssh_cmd ${argc_ssh_args}"
+	fi
+	ssh_cmd="$ssh_cmd ${argc_host:?}"
+
+	# Add chdir command if specified
+	local remote_cmd=""
+	if [[ "${argc_chdir:+1}" ]]; then
+		remote_cmd="cd $(printf %q "${argc_chdir}") ';' "
+	fi
+	remote_cmd="${remote_cmd}nvim"
+
+	# Launch Neovide with the trampoline
+	NEOVIDE_LAUNCHER=1 open -na Neovide --args --wsl --neovim-bin="$0" -- --prefix="$ssh_cmd -- $remote_cmd" ${argc_files+"${argc_files[@]}"}
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

@@ -255,6 +255,11 @@ install_argc() {
 	eget sigoden/argc --to="$BINDIR"
 }
 
+# Terminal screen recorder
+install_asciinema() {
+	eget asciinema/asciinema --to="$BINDIR"
+}
+
 # Shell GPT integration
 install_sgpt() {
 	eget -a '^.json' tbckr/sgpt --file="*" --all --to=sgpt
