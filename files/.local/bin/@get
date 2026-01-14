@@ -36,36 +36,25 @@ _choice_package() {
 	' "$0"
 }
 
-# Smart directory jumper
-install_zoxide() {
-	eget ajeetdsouza/zoxide --file="*" --all --to=zoxide
-
-	cp zoxide/zoxide "$BINDIR/"
-	cp -r zoxide/man/* "$MANDIR/"
-	cp zoxide/completions/zoxide.fish "$HOME/.config/fish/completions/"
-
-	rm -rf zoxide
+# Command runner
+install_argc() {
+	eget sigoden/argc --to="$BINDIR"
 }
 
-# Terminal JSON viewer & processor
-install_fx() {
-	eget antonmedv/fx --to="$BINDIR"
+# Terminal screen recorder
+install_asciinema() {
+	eget asciinema/asciinema --to="$BINDIR"
 }
 
-# Python package installer
-install_uv() {
-	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh
-}
+# Modern cat/less replacement
+install_bat() {
+	eget -a "$(musl_tag)" sharkdp/bat --file="*" --all --to=bat
 
-# Ripgrep - modern grep alternative
-install_rg() {
-	eget BurntSushi/ripgrep --file="*" --to=ripgrep
+	cp bat/bat "$BINDIR/"
+	cp bat/bat.1 "$MANDIR/man1/"
+	cp bat/autocomplete/bat.fish "$HOME/.config/fish/completions/"
 
-	cp ripgrep/rg "$BINDIR/"
-	cp ripgrep/doc/rg.1 "$MANDIR/man1/"
-	cp ripgrep/complete/rg.fish "$HOME/.config/fish/completions/"
-
-	rm -rf ripgrep
+	rm -rf bat
 }
 
 # Binary installer for rust
@@ -73,35 +62,34 @@ install_cargo-binstall() {
 	eget -a full -a '^sig' cargo-bins/cargo-binstall --to="$BINDIR"
 }
 
-# Image building and pushing for k8s
-install_kbld() {
-	eget carvel-dev/kbld --to="$BINDIR"
+# Container debugging swiss army knife
+install_cdebug() {
+	eget iximiuz/cdebug --to="$BINDIR"
 }
 
-# simple deployment tool for k8s
-install_kapp() {
-	eget carvel-dev/kapp --to="$BINDIR"
-}
+# CLI for accessing coder server (client only)
+install_coder() {
+	# Download the slim build of coder.
+	# https://github.com/coder/coder/blob/0c5809726d61c628ecbd359ae47bb85e83700681/.github/workflows/release.yaml#L672
+	local version os arch
+	version=$(curl -fsSL https://api.github.com/repos/coder/coder/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+	os=$(uname -s | tr '[:upper:]' '[:lower:]')
+	arch=$(uname -m)
 
-# YAML templating tool
-install_ytt() {
-	eget carvel-dev/ytt --to="$BINDIR"
-}
+	# Map architecture names
+	case "$arch" in
+		x86_64) arch="amd64" ;;
+		aarch64|arm64) arch="arm64" ;;
+		armv7l) arch="armv7" ;;
+	esac
 
-# My dotfile manager
-install_dfm() {
-	eget CGamesPlay/dfm --to="$BINDIR"
-}
+	# Construct binary name as shown in releases.coder.com
+	local binary_name="coder-${os}-${arch}"
+	local url="https://releases.coder.com/coder-cli/${version}/${binary_name}"
 
-# Modern sed replacement
-install_sd() {
-	eget chmln/sd --file="*" --to=sd
-
-	cp sd/sd "$BINDIR/"
-	cp sd/sd.1 "$MANDIR/man1/"
-	cp sd/completions/sd.fish "$HOME/.config/fish/completions/"
-
-	rm -rf sd
+	# Download binary directly
+	curl -fsSL "$url" -o "$BINDIR/coder"
+	chmod +x "$BINDIR/coder"
 }
 
 # Cocogitto - conventional commits tooling
@@ -109,31 +97,19 @@ install_cog() {
 	eget -f 'cog' cocogitto/cocogitto --to="$BINDIR"
 }
 
-# Procfile runner
-install_hivemind() {
-	eget DarthSim/hivemind --to="$BINDIR"
-}
-
 # Git diff output filter
 install_delta() {
 	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
 }
 
-# Kubernetes cluster manager
-install_k9s() {
-	eget -a 'tar.gz' -a '^sbom' derailed/k9s --to="$BINDIR"
+# My dotfile manager
+install_dfm() {
+	eget CGamesPlay/dfm --to="$BINDIR"
 }
 
-# Friendly HTTP client
-install_xh() {
-	eget ducaale/xh --to="$BINDIR"
-	eget ducaale/xh --file="*" --to=xh
-
-	cp xh/xh "$BINDIR/"
-	cp xh/doc/xh.1 "$MANDIR/man1/"
-	cp xh/completions/xh.fish "$HOME/.config/fish/completions/"
-
-	rm -rf xh
+# difftastic - structural diffs
+install_difft() {
+	eget Wilfred/difftastic --to="$BINDIR"
 }
 
 # Per-directory environment variables
@@ -144,6 +120,11 @@ install_direnv() {
 	for page in direnv-fetchurl direnv-stdlib direnv direnv.toml; do
 		curl -fsSL "https://github.com/direnv/direnv/raw/v${version}/man/$page.1" -o "$MANDIR/man1/$page.1"
 	done
+}
+
+# ECS log formatter (replaced by hl)
+install_ecslog() {
+	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
 }
 
 # Modern ls replacement
@@ -157,14 +138,48 @@ install_eza() {
 	rm -rf eza
 }
 
-# Framework-agnostic database migrations
-install_migrate() {
-	eget golang-migrate/migrate --to="$BINDIR"
+# Modern find replacement
+install_fd() {
+	eget sharkdp/fd --file="*" --all --to=fd
+
+	cp fd/fd "$BINDIR/"
+	cp fd/fd.1 "$MANDIR/man1/"
+	cp fd/autocomplete/fd.fish "$HOME/.config/fish/completions/"
+
+	rm -rf fd
 }
 
-# Kubernetes package manager
-install_helm() {
-	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | HELM_INSTALL_DIR="$BINDIR" USE_SUDO="false" bash
+# Terminal JSON viewer & processor
+install_fx() {
+	eget antonmedv/fx --to="$BINDIR"
+}
+
+# Fuzzy file finder
+install_fzf() {
+	eget junegunn/fzf --to="$BINDIR"
+
+	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
+	curl -fsSL "https://github.com/junegunn/fzf/raw/${fzf_version}/man/man1/fzf.1" -o "$MANDIR/man1/fzf.1"
+}
+
+# Go version manager
+install_g() {
+	eget voidint/g --to="$BINDIR"
+}
+
+# Rewrite git repository history
+install_git-filter-repo() {
+	eget newren/git-filter-repo --file="*" --to=git-filter-repo
+
+	cp git-filter-repo/git-filter-repo "$BINDIR/"
+	cp -rv git-filter-repo/Documentation/man1 "$MANDIR/man1/"
+
+	rm -rf git-filter-repo
+}
+
+# Database migration tool
+install_goose() {
+	eget pressly/goose --to="$BINDIR"
 }
 
 # Hetzner Cloud CLI
@@ -172,20 +187,19 @@ install_hcloud() {
 	eget hetznercloud/cli -f hcloud --to="$BINDIR"
 }
 
-# Container debugging swiss army knife
-install_cdebug() {
-	eget iximiuz/cdebug --to="$BINDIR"
+# Kubernetes package manager
+install_helm() {
+	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | HELM_INSTALL_DIR="$BINDIR" USE_SUDO="false" bash
 }
 
-# Friendly interface to git
-install_lazygit() {
-	eget jesseduffield/lazygit --to="$BINDIR"
+# Procfile runner
+install_hivemind() {
+	eget DarthSim/hivemind --to="$BINDIR"
 }
 
-# Command-line access to LLMs
-install_llm() {
-	@get uv
-	uv tool install llm --with llm-cmd-comp,llm-anthropic
+# JSON log viewer
+install_hl() {
+	eget pamburus/hl -a "$(musl_tag)" --to="$BINDIR"
 }
 
 # Jujutsu - git alternative
@@ -200,64 +214,57 @@ install_jj() {
 	jj util install-man-pages ~/.local/share/man
 }
 
-# Fuzzy file finder
-install_fzf() {
-	eget junegunn/fzf --to="$BINDIR"
-
-	fzf_version=$(fzf --version | awk -F '[()]' '{print $2}')
-	curl -fsSL "https://github.com/junegunn/fzf/raw/${fzf_version}/man/man1/fzf.1" -o "$MANDIR/man1/fzf.1"
+# Kubernetes cluster manager
+install_k9s() {
+	eget -a 'tar.gz' -a '^sbom' derailed/k9s --to="$BINDIR"
 }
 
-# Rewrite git repository history
-install_git-filter-repo() {
-	eget newren/git-filter-repo --file="*" --to=git-filter-repo
-
-	cp git-filter-repo/git-filter-repo "$BINDIR/"
-	cp -rv git-filter-repo/Documentation/man1 "$MANDIR/man1/"
-
-	rm -rf git-filter-repo
+# simple deployment tool for k8s
+install_kapp() {
+	eget carvel-dev/kapp --to="$BINDIR"
 }
 
-# JSON log viewer
-install_hl() {
-	eget pamburus/hl -a "$(musl_tag)" --to="$BINDIR"
+# Image building and pushing for k8s
+install_kbld() {
+	eget carvel-dev/kbld --to="$BINDIR"
 }
 
-# Database migration tool
-install_goose() {
-	eget pressly/goose --to="$BINDIR"
+# Friendly interface to git
+install_lazygit() {
+	eget jesseduffield/lazygit --to="$BINDIR"
 }
 
-# Modern cat/less replacement
-install_bat() {
-	eget -a "$(musl_tag)" sharkdp/bat --file="*" --all --to=bat
-
-	cp bat/bat "$BINDIR/"
-	cp bat/bat.1 "$MANDIR/man1/"
-	cp bat/autocomplete/bat.fish "$HOME/.config/fish/completions/"
-
-	rm -rf bat
+# Command-line access to LLMs
+install_llm() {
+	@get uv
+	uv tool install llm --with llm-cmd-comp,llm-anthropic
 }
 
-# Modern find replacement
-install_fd() {
-	eget sharkdp/fd --file="*" --all --to=fd
-
-	cp fd/fd "$BINDIR/"
-	cp fd/fd.1 "$MANDIR/man1/"
-	cp fd/autocomplete/fd.fish "$HOME/.config/fish/completions/"
-
-	rm -rf fd
+# Framework-agnostic database migrations
+install_migrate() {
+	eget golang-migrate/migrate --to="$BINDIR"
 }
 
-# Command runner
-install_argc() {
-	eget sigoden/argc --to="$BINDIR"
+# Ripgrep - modern grep alternative
+install_rg() {
+	eget BurntSushi/ripgrep --file="*" --to=ripgrep
+
+	cp ripgrep/rg "$BINDIR/"
+	cp ripgrep/doc/rg.1 "$MANDIR/man1/"
+	cp ripgrep/complete/rg.fish "$HOME/.config/fish/completions/"
+
+	rm -rf ripgrep
 }
 
-# Terminal screen recorder
-install_asciinema() {
-	eget asciinema/asciinema --to="$BINDIR"
+# Modern sed replacement
+install_sd() {
+	eget chmln/sd --file="*" --to=sd
+
+	cp sd/sd "$BINDIR/"
+	cp sd/sd.1 "$MANDIR/man1/"
+	cp sd/completions/sd.fish "$HOME/.config/fish/completions/"
+
+	rm -rf sd
 }
 
 # Shell GPT integration
@@ -271,14 +278,9 @@ install_sgpt() {
 	rm -rf sgpt
 }
 
-# ECS log formatter (replaced by hl)
-install_ecslog() {
-	eget trentm/go-ecslog -f ecslog --to="$BINDIR"
-}
-
-# Go version manager
-install_g() {
-	eget voidint/g --to="$BINDIR"
+# Python package installer
+install_uv() {
+	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh
 }
 
 # CLI to manage Vultr resources
@@ -297,9 +299,32 @@ install_watchexec() {
 	rm -rf watchexec
 }
 
-# difftastic - structural diffs
-install_difft() {
-	eget Wilfred/difftastic --to="$BINDIR"
+# Friendly HTTP client
+install_xh() {
+	eget ducaale/xh --to="$BINDIR"
+	eget ducaale/xh --file="*" --to=xh
+
+	cp xh/xh "$BINDIR/"
+	cp xh/doc/xh.1 "$MANDIR/man1/"
+	cp xh/completions/xh.fish "$HOME/.config/fish/completions/"
+
+	rm -rf xh
+}
+
+# YAML templating tool
+install_ytt() {
+	eget carvel-dev/ytt --to="$BINDIR"
+}
+
+# Smart directory jumper
+install_zoxide() {
+	eget ajeetdsouza/zoxide --file="*" --all --to=zoxide
+
+	cp zoxide/zoxide "$BINDIR/"
+	cp -r zoxide/man/* "$MANDIR/"
+	cp zoxide/completions/zoxide.fish "$HOME/.config/fish/completions/"
+
+	rm -rf zoxide
 }
 
 main() {
