@@ -81,7 +81,7 @@ clone() {
 	if [ -n "${argc_root:-}" ]; then
 		root="$argc_root"
 	elif [ -d "$HOME/Projects" ]; then
-		root="$HOME/Projects"
+		root="$HOME/Projects/src"
 	else
 		root="$HOME/src"
 	fi
@@ -110,7 +110,7 @@ clone() {
 	path="${path%/}"
 
 	# Construct target directory
-	target="$root/src/$host/$path"
+	target="$root/$host/$path"
 
 	# Dry run: just print the target
 	if [ "${argc_dry_run:-}" ]; then

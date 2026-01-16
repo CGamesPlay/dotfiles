@@ -50,7 +50,7 @@ main() {
 		fi
 	fi
 
-	if [[ ${ATRIUM_WORKSPACE+1} ]]; then
+	if [[ ${ATRIUM_WORKSPACE+1} ]] || [[ ${CODER+1} ]]; then
 		allow_yolo=1
 	fi
 	if [[ ${argc_yolo+1} ]]; then

@@ -30,7 +30,11 @@ fi
 if [ ! -L ~/.local/share ]; then
 	if [ -e ~/.local/share ]; then
 		echo "Replacing existing ~/.local/share with existing $WORKSPACE_DIR/.local/share" >&2
-		rm -rf ~/.local/share
+		if ! rm -rf ~/.local/share; then
+			echo "Well, that's cursed."
+			ls -ld ~/.local/share
+			ls -la ~/.local/share
+		fi
 	fi
 	ln -s "$WORKSPACE_DIR/.local/share" ~/.local/share
 fi

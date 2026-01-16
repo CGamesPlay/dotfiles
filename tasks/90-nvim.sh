@@ -26,9 +26,8 @@ install_neovim() {
 	cd "${TMPDIR:-/tmp}"
 	mkdir nvim
 	cd nvim
-	~/.local/bin/eget neovim/neovim -a "$tag" --to="./nvim"
-	./nvim --appimage-extract
-	sudo rsync -a squashfs-root/usr/ /usr/local/
+	~/.local/bin/eget neovim/neovim -a "tar.gz" -a "$tag" -d --to=nvim.tar.gz
+	sudo tar xzf nvim.tar.gz --strip-components=1 -C /usr/local
 	export PATH="/usr/local/bin:$PATH"
 }
 

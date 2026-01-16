@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# @describe Open Neovide in Coder workspaces
+# @arg workspace![?`_workspaces`] Workspace to open
+# @arg directory                  Directory to change to
+# @arg rest~                      Arguments passed to nvim
+
+set -eu
+
+main() {
+	exec open -na Neovide --args --wsl --neovim-bin=nvim-coder -- \
+		--coder-workspace="${argc_workspace:?}" \
+		${argc_directory+--coder-dir="$argc_directory"} \
+		${argc_rest+"${argc_rest[@]}"}
+}
+
+_workspaces() {
+	coder list -o json | \
+		jq -r '.[] | .owner_name as $owner | .name as $workspace | .latest_build.resources[]?.agents[]? | "\(.name).\($workspace).\($owner)"'
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

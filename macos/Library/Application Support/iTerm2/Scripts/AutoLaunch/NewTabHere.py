@@ -59,7 +59,9 @@ async def main(connection: iterm2.connection.Connection):
         # What tab should we create?
         directory = await session.async_get_variable("path")
 
-        if atrium := await session.async_get_variable("user.atrium"):
+        if coder := await session.async_get_variable("user.coder"):
+            await run_with_coder(window, coder, directory)
+        elif atrium := await session.async_get_variable("user.atrium"):
             is_machine = atrium.startswith("machine:")
             if is_machine:
                 atrium = atrium[8:]
@@ -69,6 +71,13 @@ async def main(connection: iterm2.connection.Connection):
             await window.async_create_tab()
 
     await new_tab_here.async_register(connection)
+
+
+async def run_with_coder(window, name, directory):
+    args = ["exec", "ssh", "-t", f"{name}.coder"]
+    if directory is not None:
+        args += ["--", "cd", directory, "&&", "exec", "$SHELL"]
+    await open_tab_with(window, args)
 
 
 async def run_with_atrium(window, is_machine, name, directory):

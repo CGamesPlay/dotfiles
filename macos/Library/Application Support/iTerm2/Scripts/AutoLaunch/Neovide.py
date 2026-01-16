@@ -44,6 +44,9 @@ async def monitor(app, connection, session_id):
 
                 directory = await session.async_get_variable("path")
 
+                if coder := await session.async_get_variable("user.coder"):
+                    run_with_coder(coder, directory, filename)
+
                 if atrium := await session.async_get_variable("user.atrium"):
                     is_machine = atrium.startswith("machine:")
                     if is_machine:
@@ -63,6 +66,13 @@ async def monitor_termination(connection):
             del tasks[session_id]
             task.cancel()
             await task
+
+
+def run_with_coder(name, directory, filename):
+    args = [f"--coder-dir={directory}", f"--coder-workspace={name}"]
+    if filename:
+        args += ["--", filename]
+    run_neovide("nvim-coder", args)
 
 
 def run_with_atrium(is_machine, name, directory, filename):

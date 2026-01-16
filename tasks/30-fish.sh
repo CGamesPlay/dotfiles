@@ -71,9 +71,7 @@ set_shell() {
 }
 
 default_variables() {
-	echo "Fish first-run" >&2
 	fish ~/.config/fish/defaults.fish
-	echo "Fish Success"
 }
 
 install_fish
