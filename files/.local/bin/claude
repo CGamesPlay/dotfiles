@@ -86,9 +86,9 @@ EOF
 		${argc_claude_version+--version} \
 		${argc_continue:+--continue} \
 		${argc_resume:+--resume "$argc_resume"} \
-		${argc_args+"${argc_args[@]}"} \
 		${allow_yolo:+--allow-dangerously-skip-permissions} \
-		${yolo:+--dangerously-skip-permissions}
+		${yolo:+--dangerously-skip-permissions} \
+		${argc_args+-- "${argc_args[@]}"}
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
