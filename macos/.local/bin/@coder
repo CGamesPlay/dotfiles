@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# @describe Access Coder workspaces
+
+set -eu
+
+main() { :; }
+
+# @cmd Open SSH in a Coder workspace
+# @arg workspace![?`_workspaces`] Workspace to open
+# @arg rest~                      Arguments passed to ssh
+# @meta default-subcommand
+ssh() {
+	exec command ssh "${argc_workspace:?}.coder" ${argc_rest+-- "${argc_rest[@]}"}
+}
+
+# @cmd Open Neovide in a Coder workspace
+# @arg workspace![?`_workspaces`] Workspace to open
+# @arg directory                  Directory to change to
+# @arg rest~                      Arguments passed to nvim
+neovide() {
+	exec open -na Neovide --args --wsl --neovim-bin=nvim-coder -- \
+		--coder-workspace="${argc_workspace:?}" \
+		${argc_directory+--coder-dir="$argc_directory"} \
+		${argc_rest+"${argc_rest[@]}"}
+}
+
+_workspaces() {
+	coder list -o json | \
+		jq -r '.[] | .owner_name as $owner | .name as $workspace | (.latest_build.resources[]?.agents[]?.name // "main") | "\(.).\($workspace).\($owner)"'
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"
