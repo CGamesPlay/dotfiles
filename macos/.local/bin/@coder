@@ -5,12 +5,33 @@ set -eu
 
 main() { :; }
 
+_choose_workspace() {
+	_workspaces | \
+		fzf --height "50%" --layout reverse \
+			--preview '@coder preview {}' \
+			--preview-window=right:60%
+}
+
+# @cmd Preview a workspace (for fzf)
+# @arg workspace! Workspace to preview
+# @meta hidden
+preview() {
+	# Extract workspace name (middle component: agent.workspace.owner -> workspace)
+	local ws_name="${argc_workspace#*.}"
+	ws_name="${ws_name%.*}"
+	coder show "$ws_name" 2>&1 || echo "Workspace not found or stopped"
+}
+
 # @cmd Open SSH in a Coder workspace
-# @arg workspace![?`_workspaces`] Workspace to open
-# @arg rest~                      Arguments passed to ssh
+# @arg workspace[?`_workspaces`] Workspace to open
+# @arg rest~                     Arguments passed to ssh
 # @meta default-subcommand
 ssh() {
-	exec command ssh "${argc_workspace:?}.coder" ${argc_rest+-- "${argc_rest[@]}"}
+	if [[ -z "${argc_workspace:-}" ]]; then
+		argc_workspace=$(_choose_workspace) || exit 0
+		echo "$ @coder ssh $argc_workspace"
+	fi
+	exec command ssh "${argc_workspace}.coder" ${argc_rest+-- "${argc_rest[@]}"}
 }
 
 # @cmd Open Neovide in a Coder workspace
@@ -25,8 +46,14 @@ neovide() {
 }
 
 _workspaces() {
-	coder list -o json | \
-		jq -r '.[] | .owner_name as $owner | .name as $workspace | (.latest_build.resources[]?.agents[]?.name // "main") | "\(.).\($workspace).\($owner)"'
+	{
+		# Current workspaces from coder
+		coder list -o json | \
+			jq -r '.[] | .owner_name as $owner | .name as $workspace | .latest_build.resources[]?.agents[]?.name | "\(.).\($workspace).\($owner)"'
+		# Historical workspaces from fish history (pattern: agent.workspace.owner)
+		fish -c 'history search --prefix "@coder "' 2>/dev/null | \
+			sed -nE 's/^@coder (ssh |neovide )?([^[:space:]]+\.[^[:space:]]+\.[^[:space:]]+).*/\2/p'
+	} | sort -u
 }
 
 if ! command -v argc >/dev/null; then
