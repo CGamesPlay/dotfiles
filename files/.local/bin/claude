@@ -10,15 +10,12 @@
 # @flag --claude-help       Show help for Claude Code
 # @flag --claude-version    Show version for Claude Code
 # @flag --claude-reinstall  Reinstall Claude Code even if already installed
-# @flag --claude-usage      Run ccusage instead of Claude Code.
+# @flag --claude-login      Force OAuth token setup flow
 # @arg args~                Additional arguments, passed verbatim
 
 set -eu
 
-# In the future, potentially look into integrating:
-# - mobile: https://github.com/slopus/happy
-#
-# ALso, other things
+# Things to potentially look into in the future:
 # - web: https://github.com/All-Hands-AI/OpenHands
 # - web: https://github.com/boldsoftware/sketch
 # - nvim: https://github.com/olimorris/codecompanion.nvim
@@ -32,12 +29,9 @@ main() {
 	set -u
 
 	# Keep ~ clean
-	export CLAUDE_CONFIG_DIR=~/.config/claude
-	local bin=claude allow_yolo= yolo=
+	export CLAUDE_CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME:?}/.config}/claude"
+	local bin=claude allow_yolo='' yolo=''
 
-	if [[ "${argc_claude_usage+1}" ]]; then
-		exec @iterm open https://claude.ai/settings/usage
-	fi
 	if [[ "${argc_claude_reinstall+1}" ]] || ! npm --no-update-notifier list -g @anthropic-ai/claude-code >/dev/null; then
 		echo "Claude Code is not installed. Installing..." >&2
 		npm --no-update-notifier install -g @anthropic-ai/claude-code@latest
@@ -79,6 +73,34 @@ EOF
 	else
 		jq 'walk(if type == "object" and has("repo") then .source = "git" | .url = ("https://github.com/" + .repo + ".git") | del(.repo) else . end)' \
 			"$marketplace_file" > "$marketplace_file.tmp" && mv "$marketplace_file.tmp" "$marketplace_file"
+	fi
+
+	# It seems that each Claude account can only have a single refresh token.
+	# This means that the short-lived tokens expire and the refresh token is
+	# invalid whenever I log in to another devcontainer. We circumvent this
+	# using the long-lived tokens designed for CI actions usage.
+	local token_file="$CLAUDE_CONFIG_DIR/long-lived-token"
+	if [[ ! ${CLAUDE_CODE_OAUTH_TOKEN+1} ]] && [[ -f "$token_file" ]]; then
+		CLAUDE_CODE_OAUTH_TOKEN="$(cat "$token_file")"
+		export CLAUDE_CODE_OAUTH_TOKEN
+	fi
+	if [[ ${argc_claude_login+1} ]] || [[ ! ${CLAUDE_CODE_OAUTH_TOKEN+1} ]]; then
+		claude setup-token
+
+		# Update claude config with preferred settings
+		local config_file="$CLAUDE_CONFIG_DIR/.claude.json"
+		node -e "
+			const fs = require('fs');
+			const config = JSON.parse(fs.readFileSync('$config_file', 'utf8'));
+			config.theme = 'light';
+			config.preferredNotifChannel = 'iterm2';
+			config.hasCompletedOnboarding = true;
+			fs.writeFileSync('$config_file', JSON.stringify(config, null, 2) + '\n');
+		"
+
+		echo "Write the long-lived OAuth token: pbpaste > $token_file" >&2
+		echo 'Then run claude again.' >&2
+		exit 100
 	fi
 
 	exec "$bin" \
