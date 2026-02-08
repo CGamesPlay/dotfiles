@@ -129,7 +129,7 @@ install_ecslog() {
 
 # Modern ls replacement
 install_eza() {
-	eget -a "$(musl_tag)" -a 'tar.gz' eza-community/eza --to="$BINDIR"
+	eget -a "$(musl_tag)" -a 'tar.gz' -a '^no_libgit' eza-community/eza --to="$BINDIR"
 	eget -a 'completions' eza-community/eza -f 'eza.fish' --to="$HOME/.config/fish/completions/"
 	eget -a 'man' eza-community/eza --file='*' --to=eza
 
