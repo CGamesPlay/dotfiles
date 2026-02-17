@@ -1,58 +1,64 @@
 ---
 name: Using `argc` / `Argcfile`
-description: Create and modify Argcfiles using the special syntax required. Use this when editing Argcfile.sh, @argc, or any shell script that contains `argc --argc-eval`.
+description: Create and modify Argcfiles using the special comment-driven syntax required. Use when editing Argcfile.sh, @argc, or any shell script that uses argc. Also use when creating CLI commands, task runners, bash scripts with argument parsing, or adding subcommands to an existing Argcfile.
 ---
 
 # Argc
 
 [Argc](https://github.com/sigoden/argc/) is a Bash command line framework that utilizes a special comment-driven syntax to provide a command runner and argument parser.
 
-Here is a simple Argcfile.sh:
+Use [assets/Argcfile-template.sh](assets/Argcfile-template.sh) as a starting point for new Argcfiles. The template includes the required boilerplate footer (argc check + eval) and `set -eu`.
+
+Here is a minimal example showing the key concepts:
 
 ```bash
-# @describe Example Argcfile
-# Arguments, options, and flags listed here apply to the main command and all
-# subcommands.
-#
-# For more information about argc, see https://github.com/sigoden/argc
-# @option    --name  Name to greet
-# @flag -F --foo  Flag param
-# @option --bar   Option param
-# @option --baz*  Option param (multi-occurs)
-# @arg val*       Positional param
+# @describe My CLI tool
+# @option --name  Name to greet
+# @flag -v --verbose  Enable verbose output
+# @arg target*  Target files
 
 main() {
-    echo foo: $argc_foo
-    echo bar: $argc_bar
-    echo baz: ${argc_baz[@]}
-    echo val: ${argc_val[@]}
+    echo "name: ${argc_name:-world}"
+    echo "verbose: ${argc_verbose:-0}"
+    echo "targets: ${argc_target[@]}"
 }
 
-if ! command -v argc >/dev/null; then
-	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
-	exit 100
-fi
-eval "$(argc --argc-eval "$0" "$@")"
+# ... boilerplate footer (see template)
 ```
 
-Run the script with some sample arguments:
+Argc parses the comment tags, generates `--help` automatically, and creates `argc_`-prefixed variables from the parsed arguments. Flags become `0` or `1`, options become strings, and multi-value params become arrays.
+
+## Subcommands
+
+Use `@cmd` before a function to define a subcommand. Nest subcommands using `::` in the function name:
 
 ```bash
-./example.sh -F --bar=xyz --baz a --baz b v1 v2
+# @cmd Deploy the application
+# @arg environment![staging|production]  Target environment
+deploy() {
+    echo "Deploying to ${argc_environment:?}"
+}
+
+# @cmd Database commands
+db() { :; }
+
+# @cmd Run pending migrations
+db::migrate() {
+    echo "Running migrations"
+}
+
+# @cmd Seed the database
+# @flag --reset  Drop existing data first
+db::seed() {
+    echo "Seeding (reset=${argc_reset:-0})"
+}
 ```
 
-Argc parses these arguments and creates variables prefixed with argc_:
+- `main()` is called when no subcommand is given.
+- Use `{ :; }` for parent commands that only exist to group subcommands (like `db` above).
+- Comment tags placed before `main()` or at the top level (before any `@cmd`) apply globally to the script and all subcommands.
 
-```
-foo: 1
-bar: xyz
-baz: a b
-val: v1 v2
-```
-
-You can also run ./example.sh --help to see the automatically generated help information for your CLI.
-
-## Bash idioms
+## Bash Idioms
 
 Prefer using Bash idioms when working with argc. For example, shellcheck isn't aware of the argc_foo variables, so prefer using `${argc_foo:?}` for required values and values where argc is known to provide the default. For others, use `${argc_foo:-default}`, as appropriate.
 
@@ -134,6 +140,11 @@ Use `@describe` at the top level of the script and `@cmd` for subcommands. The f
 
 ## Further Documentation
 
-- [Specification](https://github.com/sigoden/argc/blob/main/docs/specification.md) for the grammar and usage of all the comment tags.
-- [Variables](https://github.com/sigoden/argc/blob/main/docs/variables.md) that are predefined by argc.
-- [Examples](https://github.com/sigoden/argc/tree/main/examples) for particularly complex scenarios.
+- [Specification](https://github.com/sigoden/argc/blob/main/docs/specification.md) — formal grammar for all comment tags, modifiers (`!`, `*`, `+`), value notations, and `@meta` options.
+- [Variables](https://github.com/sigoden/argc/blob/main/docs/variables.md) — `argc_`-prefixed generated variables, built-in variables (`argc__args`, `argc__positionals`), and environment variables (`ARGC_PWD`, `ARGC_OS`).
+- [Examples](https://github.com/sigoden/argc/tree/main/examples) — individual scripts for specific features: nested commands, hooks, parallel execution, `@meta` options (`default-subcommand`, `inherit-flag-options`, `combine-shorts`).
+
+## Fixes
+
+- **`argc --argc-help` is argc's self-help, not your script's help.** The `--argc-help` flag prints information about the argc tool itself (its own usage, flags, etc.), NOT the auto-generated help for your Argcfile. Never use `argc --argc-help` inside an Argcfile to show script help — argc already auto-generates and displays help from your `@describe`/`@cmd` tags when the user runs the script without arguments or with `--help`.
+- **Omit `main()` when your script only has subcommands.** If every action is behind a `@cmd` subcommand, don't define a `main()` function. Without `main()`, argc's default behavior when no subcommand is given is to display the auto-generated help — which is the correct behavior. Only define `main()` when you want a meaningful default action (not help display).

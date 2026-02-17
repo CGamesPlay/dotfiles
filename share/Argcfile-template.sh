@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # @describe Example Argcfile
-# For more information about argc, see https://github.com/sigoden/argc
-# For a quick "cheat sheet" Argcfile, see dotfiles/share/Argc-sample.sh
 
 set -eu
 
