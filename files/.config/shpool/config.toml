@@ -1,0 +1,19 @@
+# https://github.com/shell-pool/shpool/blob/master/CONFIG.md
+# Known issues:
+# - PATH is always recreated. This breaks e.g. Coder's PATH modifications.
+prompt_prefix = ""
+default_dir = "."
+forward_env = [
+	"ATRIUM_MACHINE",
+	"ATRIUM_WORKSPACE",
+	"CODER",
+	"CODER_WORKSPACE_AGENT_NAME",
+	"CODER_WORKSPACE_NAME",
+	"CODER_WORKSPACE_OWNER_NAME",
+	"GIT_ASKPASS",
+	"GIT_SSH_COMMAND",
+	"LC_ALL",
+	"LC_TERMINAL",
+	"LC_TERMINAL_VERSION",
+	"VSCODE_PROXY_URI",
+]

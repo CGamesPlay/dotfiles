@@ -279,6 +279,27 @@ install_sgpt() {
 	rm -rf sgpt
 }
 
+# Terminal session manager with detach/reattach
+install_shpool() {
+	local arch os_triple
+	arch=$(uname -m)
+	case "$arch" in
+		arm64) arch="aarch64" ;;
+	esac
+
+	if is_darwin; then
+		os_triple="apple-darwin"
+	elif is_musl; then
+		os_triple="unknown-linux-musl"
+	else
+		os_triple="unknown-linux-gnu"
+	fi
+
+	local url="https://bin-029993131878.s3.eu-central-1.amazonaws.com/shpool/shpool-${arch}-${os_triple}.gz"
+	curl -fsSL "$url" | gunzip > "$BINDIR/shpool"
+	chmod +x "$BINDIR/shpool"
+}
+
 # Python package installer
 install_uv() {
 	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh

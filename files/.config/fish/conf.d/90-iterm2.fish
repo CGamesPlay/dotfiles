@@ -14,13 +14,17 @@ function iterm2_refresh_vars --on-event fish_postexec
   printf "\x1b]7;file://%s%s\a" $host (string escape --style=url -- $PWD)
 
   if set -q CODER
+    iterm2_set_user_var atrium ""
     iterm2_set_user_var coder "$CODER_WORKSPACE_AGENT_NAME.$CODER_WORKSPACE_NAME.$CODER_WORKSPACE_OWNER_NAME"
   else if set -q ATRIUM_WORKSPACE
     iterm2_set_user_var atrium $ATRIUM_WORKSPACE
+    iterm2_set_user_var coder ""
   else if set -q ATRIUM_MACHINE
     iterm2_set_user_var atrium "machine:$ATRIUM_MACHINE"
+    iterm2_set_user_var coder ""
   else
     iterm2_set_user_var atrium ""
+    iterm2_set_user_var coder ""
   end
 end
 iterm2_refresh_vars

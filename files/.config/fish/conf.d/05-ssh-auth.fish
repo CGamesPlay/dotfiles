@@ -9,7 +9,10 @@ end
 # same socket address even through reconnections.
 # Note that the location of SSH_AUTH_SOCK is hard-coded to be in /tmp:
 # https://github.com/openssh/openssh-portable/blob/01dbf3d46651b7d6ddf5e45d233839bbfffaeaec/session.c#L184
-if set -q SSH_CONNECTION && set -q SSH_AUTH_SOCK && test (basename $SSH_AUTH_SOCK) != ssh-auth.sock
+if set -q SSH_CONNECTION
+    and ! set -q SHPOOL_SESSION_NAME
+    and set -q SSH_AUTH_SOCK
+    and test (basename $SSH_AUTH_SOCK) != ssh-auth.sock
     set -l base_dir /tmp/ssh-(id -u)
     mkdir -p $base_dir
     chmod 700 $base_dir

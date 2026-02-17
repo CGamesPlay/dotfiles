@@ -23,7 +23,7 @@ end
 if ! set -q XDG_STATE_HOME
   set -x XDG_STATE_HOME ~/.local/state
 end
-if ! set -q XDG_RUNTIME_DIR
+if ! set -q XDG_RUNTIME_DIR; and set -q TMPDIR
   set -x XDG_RUNTIME_DIR $TMPDIR
 end
 if ! set -q XDG_BIN_HOME
