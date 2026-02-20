@@ -44,6 +44,7 @@ When you write an exception handler, first decide what category of exception it 
 
 - ALWAYS ask for clarification rather than making assumptions.
 - If you're having trouble with something, it's ok to stop and ask for help. Especially if it's something Ryan might be better at.
+- The Web Search tool is *probably not* the right way to find solutions to coding problems. Avoid using it unless we are in an exploratory design phase. Instead, leverage LSP, reading the code, and running isolated experiments.
 
 ## Testing
 
