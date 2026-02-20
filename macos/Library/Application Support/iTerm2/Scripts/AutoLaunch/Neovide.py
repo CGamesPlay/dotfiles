@@ -69,10 +69,11 @@ async def monitor_termination(connection):
 
 
 def run_with_coder(name, directory, filename):
-    args = [f"--coder-dir={directory}", f"--coder-workspace={name}"]
+    cmd = ["neovide-ssh", f"{name}.coder", f"--chdir={directory}"]
     if filename:
-        args += ["--", filename]
-    run_neovide("nvim-coder", args)
+        cmd += ["--", filename]
+    print(cmd)
+    subprocess.run(cmd, check=True)
 
 
 def run_with_atrium(is_machine, name, directory, filename):
@@ -83,22 +84,19 @@ def run_with_atrium(is_machine, name, directory, filename):
         args += [f"--atrium-workspace={name}"]
     if filename:
         args += ["--", filename]
-    run_neovide("nvim-atrium", args)
-
-
-def run_neovide(neovim_bin, args, env={}):
     cmd = [
         "open",
         "-na",
         "Neovide",
         "--args",
         "--wsl",
-        f"--neovim-bin={neovim_bin}",
+        "--neovim-bin=nvim-atrium",
         "--",
     ]
-    cmd += args
+    if len(args) > 0:
+        cmd += ["-"] + args
     print(cmd)
-    subprocess.run(cmd, check=True, env=env)
+    subprocess.run(cmd, check=True)
 
 
 iterm2.run_forever(main)

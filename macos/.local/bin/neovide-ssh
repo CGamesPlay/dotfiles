@@ -1,5 +1,5 @@
 #!/bin/bash
-# @describe Launch Neovide via SSH using the iTerm2 extension script
+# @describe Launch Neovide connected to nvim over SSH
 #
 # This script allows you to launch Neovide and connect to a remote host via
 # SSH, with support for changing to a specific directory and opening files.
