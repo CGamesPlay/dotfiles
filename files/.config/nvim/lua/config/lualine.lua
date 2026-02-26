@@ -21,7 +21,7 @@ local my_mode = {
 
 return {
   "nvim-lualine/lualine.nvim",
-  dependencies = { "CGamesPlay/rose-pine-vim", "AndreM222/copilot-lualine" },
+  dependencies = { "CGamesPlay/rose-pine-vim" },
   lazy = false,
   opts = {
     options = {
@@ -33,7 +33,7 @@ return {
       lualine_b = { "diagnostics" },
       lualine_c = { { "filename", path = 1 } },
       lualine_x = { "progress", "location" },
-      lualine_y = { "copilot", { "lsp_status", ignore_lsp = { "copilot" } } },
+      lualine_y = { "lsp_status" },
       lualine_z = { "filetype" },
     },
     inactive_sections = {

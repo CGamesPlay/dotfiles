@@ -1,65 +1,4 @@
-local function copilot_activate(cmp)
-  cmp.hide()
-  require("copilot.suggestion").next()
-  return true
-end
-
---- Activate copilot and show the next suggestion
-local function copilot_next(cmp)
-  if require("copilot.suggestion").is_visible() then
-    cmp.hide()
-    require("copilot.suggestion").next()
-    return true
-  end
-end
-
---- Show the previous copilot suggestion
-local function copilot_prev(cmp)
-  if require("copilot.suggestion").is_visible() then
-    cmp.hide()
-    require("copilot.suggestion").next()
-    return true
-  end
-end
-
---- Accept the current copilot suggestion
-local function copilot_accept()
-  if require("copilot.suggestion").is_visible() then
-    require("copilot.suggestion").accept()
-    return true
-  end
-end
-
---- Cancel the current copilot action
-local function copilot_dismiss()
-  if require("copilot.suggestion").is_visible() then
-    require("copilot.suggestion").dismiss()
-    return true
-  end
-end
-
 return {
-  -- Fully featured & enhanced replacement for copilot.vim complete with API for interacting with Github Copilot
-  {
-    "zbirenbaum/copilot.lua",
-    cmd = "Copilot",
-    event = "VeryLazy",
-    opts = {
-      suggestion = {
-        -- This prevents copilot from creating any keymaps. Instead, they get
-        -- configured with blink.cmp. This allows properly handling the
-        -- interaction between the two libraries.
-        keymap = {
-          accept = false,
-          next = false,
-          prev = false,
-          dismiss = false,
-        },
-      },
-      panel = { enabled = false },
-    },
-  },
-
   -- blink.cmp is a completion plugin with support for LSPs and external sources
   -- that updates on every keystroke with minimal overhead (0.5-4ms async).
   {
@@ -72,17 +11,17 @@ return {
       -- https://cmp.saghen.dev/configuration/keymap.html#presets
       keymap = {
         preset = "none",
-        ["<C-n>"] = { copilot_next, "show", "select_next", "fallback" },
-        ["<Esc>"] = { copilot_dismiss, "cancel", "fallback" },
-        ["<C-p>"] = { copilot_prev, "select_prev", "fallback" },
+        ["<C-n>"] = { "show", "select_next", "fallback" },
+        ["<Esc>"] = { "cancel", "fallback" },
+        ["<C-p>"] = { "select_prev", "fallback" },
         ["<Up>"] = { "select_prev", "fallback" },
         ["<Down>"] = { "select_next", "fallback" },
-        ["<C-e>"] = { copilot_dismiss, "cancel", "fallback" },
-        ["<C-y>"] = { copilot_accept, "accept", "fallback" },
-        ["<CR>"] = { copilot_accept, "accept", "fallback" },
-        ["<C-u>"] = { copilot_activate, "scroll_documentation_up", "fallback" },
+        ["<C-e>"] = { "cancel", "fallback" },
+        ["<C-y>"] = { "accept", "fallback" },
+        ["<CR>"] = { "accept", "fallback" },
+        ["<C-u>"] = { "scroll_documentation_up", "fallback" },
         ["<C-d>"] = { "scroll_documentation_down", "fallback" },
-        ["<Tab>"] = { copilot_accept, "select_and_accept", "snippet_forward", "fallback" },
+        ["<Tab>"] = { "select_and_accept", "snippet_forward", "fallback" },
         ["<S-Tab>"] = { "snippet_backward", "fallback" },
       },
       completion = {
