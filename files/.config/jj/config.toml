@@ -8,7 +8,7 @@ email = "cgamesplay@cgamesplay.com"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip()", "--reversed"]
+default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip() | ancestors(@, 10)", "--reversed"]
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
