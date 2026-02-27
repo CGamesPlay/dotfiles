@@ -5,6 +5,106 @@ set -eu
 
 main() { :; }
 
+_dotfiles_root() {
+	local path=${BASH_SOURCE[0]}
+	realpath -m "$path"/../../../..
+}
+
+_coder_list_json() {
+	if [[ -n "${CODER_LIST_FILE:-}" ]]; then
+		cat "$CODER_LIST_FILE"
+	else
+		coder list -o json
+	fi
+}
+
+_resolve_workspace() {
+	local input="${1:?}"
+
+	# Count dots to determine format
+	local dots="${input//[^.]/}"
+	local dot_count="${#dots}"
+
+	# Full form: pass through
+	if [[ "$dot_count" -ge 2 ]]; then
+		echo "$input"
+		return 0
+	fi
+
+	local json
+	json=$(_coder_list_json)
+
+	local ws_name agent_input agent_specified=false
+	if [[ "$dot_count" -eq 1 ]]; then
+		agent_input="${input%%.*}"
+		ws_name="${input#*.}"
+		agent_specified=true
+	else
+		ws_name="$input"
+	fi
+
+	# Find owners for this workspace name
+	local owners
+	owners=$(echo "$json" | jq -r --arg ws "$ws_name" \
+		'[.[] | select(.name == $ws) | .owner_name] | unique | .[]')
+
+	local owner_count
+	owner_count=$(echo "$owners" | grep -c . || true)
+
+	if [[ "$owner_count" -eq 0 ]]; then
+		echo "error: unknown workspace: $ws_name" >&2
+		return 1
+	elif [[ "$owner_count" -gt 1 ]]; then
+		echo "error: ambiguous workspace, specify owner:" >&2
+		echo "$json" | jq -r --arg ws "$ws_name" \
+			'.[] | select(.name == $ws) | .owner_name as $owner | .latest_build.resources[]?.agents[]?.name | "  \(.).\($ws).\($owner)"' >&2
+		return 1
+	fi
+
+	local owner
+	owner=$(echo "$owners" | head -1)
+
+	# If agent was specified, use it as-is
+	if [[ "$agent_specified" == true ]]; then
+		echo "${agent_input}.${ws_name}.${owner}"
+		return 0
+	fi
+
+	# Collect all agents
+	local all_agents
+	all_agents=$(echo "$json" | jq -r --arg ws "$ws_name" --arg own "$owner" \
+		'.[] | select(.name == $ws and .owner_name == $own) | .latest_build.resources[]?.agents[]?.name')
+
+	local agent_count
+	agent_count=$(echo "$all_agents" | grep -c . || true)
+
+	if [[ "$agent_count" -eq 0 ]]; then
+		echo "error: workspace is stopped: $ws_name" >&2
+		return 1
+	fi
+
+	# Filter out sysbox
+	local candidates
+	candidates=$(echo "$all_agents" | grep -v '^sysbox$' || true)
+	local candidate_count
+	candidate_count=$(echo "$candidates" | grep -c . || true)
+
+	if [[ "$candidate_count" -eq 0 ]]; then
+		echo "error: workspace not ready: $ws_name" >&2
+		return 1
+	elif [[ "$candidate_count" -gt 1 ]]; then
+		echo "error: ambiguous agent, specify agent:" >&2
+		echo "$candidates" | while read -r a; do
+			echo "  ${a}.${ws_name}.${owner}" >&2
+		done
+		return 1
+	fi
+
+	local agent
+	agent=$(echo "$candidates" | head -1)
+	echo "${agent}.${ws_name}.${owner}"
+}
+
 _choose_workspace() {
 	_workspaces | \
 		fzf --height "50%" --layout reverse \
@@ -16,16 +116,21 @@ _choose_workspace() {
 # @arg workspace! Workspace to preview
 # @meta hidden
 preview() {
-	# Extract workspace name (middle component: agent.workspace.owner -> workspace)
-	local ws_name="${argc_workspace#*.}"
-	ws_name="${ws_name%.*}"
+	local ws_name
+	local dots="${argc_workspace//[^.]/}"
+	case "${#dots}" in
+		0) ws_name="$argc_workspace" ;;
+		1) ws_name="${argc_workspace#*.}" ;;
+		*) ws_name="${argc_workspace#*.}"; ws_name="${ws_name%.*}" ;;
+	esac
 	coder show "$ws_name" 2>&1 || echo "Workspace not found or stopped"
 }
 
 # @cmd Open SSH in a Coder workspace
 #
 # Equivalent to ssh WORKSPACE.coder, with better tab completion and a default
-# picker TUI.
+# picker TUI. Supports shorthand: workspace, agent.workspace, or
+# agent.workspace.owner.
 # @arg workspace[?`_workspaces`] Workspace to open
 # @arg rest~                     Arguments passed to ssh
 # @meta default-subcommand
@@ -34,7 +139,8 @@ ssh() {
 		argc_workspace=$(_choose_workspace) || exit 0
 		echo "$ @coder ssh $argc_workspace"
 	fi
-	exec command ssh "${argc_workspace}.coder" ${argc_rest+-- "${argc_rest[@]}"}
+	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
+	exec command ssh "${argc_workspace}.coder" ${argc_rest+"${argc_rest[@]}"}
 }
 
 # @cmd Open Neovide in a Coder workspace
@@ -42,20 +148,165 @@ ssh() {
 # @arg directory                  Directory to change to
 # @arg rest~                      Arguments passed to nvim
 neovide() {
-	exec neovide-ssh "${argc_workspace:?}.coder" \
+	argc_workspace=$(_resolve_workspace "${argc_workspace:?}") || exit 1
+	exec neovide-ssh "${argc_workspace}.coder" \
 		${argc_directory+--chdir="$argc_directory"} \
 		${argc_rest+"${argc_rest[@]}"}
 }
 
 _workspaces() {
-	{
-		# Current workspaces from coder
-		coder list -o json | \
-			jq -r '.[] | .owner_name as $owner | .name as $workspace | .latest_build.resources[]?.agents[]?.name | "\(.).\($workspace).\($owner)"'
-		# Historical workspaces from fish history (pattern: agent.workspace.owner)
-		fish -c 'history search --prefix "@coder "' 2>/dev/null | \
-			sed -nE 's/^@coder (ssh |neovide )?([^[:space:]]+\.[^[:space:]]+\.[^[:space:]]+).*/\2/p'
-	} | sort -u
+	_coder_list_json | jq -r '
+		# Build owner count map across ALL workspaces (running + stopped)
+		(group_by(.name) | map({key: .[0].name, value: ([.[].owner_name] | unique | length)}) | from_entries) as $owner_counts |
+
+		.[] |
+		.owner_name as $owner |
+		.name as $ws |
+
+		# Collect all agents across all resources
+		[.latest_build.resources[]?.agents[]?.name] |
+
+		# Skip workspaces with no agents (stopped)
+		select(length > 0) |
+
+		# Separate non-sysbox agents
+		(map(select(. != "sysbox"))) as $non_sysbox |
+
+		# Skip if no non-sysbox agents
+		select(($non_sysbox | length) > 0) |
+
+		$non_sysbox[] |
+
+		if ($non_sysbox | length) == 1 then
+			# Single non-sysbox agent: omit agent name
+			if $owner_counts[$ws] == 1 then
+				$ws
+			else
+				"\(.).\($ws).\($owner)"
+			end
+		else
+			# Multiple non-sysbox agents: include agent name
+			if $owner_counts[$ws] == 1 then
+				"\(.).\($ws)"
+			else
+				"\(.).\($ws).\($owner)"
+			end
+		end
+	' | sort -u
+}
+
+# @cmd Run self-tests against fixture data
+selftest() {
+	local fixtures
+	fixtures="$(_dotfiles_root)/share/coder/fixtures.json"
+	if [[ ! -f "$fixtures" ]]; then
+		echo "error: fixtures not found: $fixtures" >&2
+		exit 1
+	fi
+	export CODER_LIST_FILE="$fixtures"
+
+	local pass=0 fail=0
+
+	_assert_resolve() {
+		local label="$1" expected="$2" input="$3"
+		local actual
+		if ! actual=$(_resolve_workspace "$input" 2>/dev/null); then
+			echo "FAIL: $label"
+			echo "  expected: $expected"
+			echo "  got error: $(_resolve_workspace "$input" 2>&1 || true)"
+			fail=$((fail + 1))
+			return
+		fi
+		if [[ "$expected" == "$actual" ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected: $expected"
+			echo "  actual:   $actual"
+			fail=$((fail + 1))
+		fi
+	}
+
+	_assert_fail() {
+		local label="$1" expected_err="$2" input="$3"
+		local output
+		if output=$(_resolve_workspace "$input" 2>&1); then
+			echo "FAIL: $label (expected failure, got: $output)"
+			fail=$((fail + 1))
+		elif [[ "$output" == *"$expected_err"* ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected error containing: $expected_err"
+			echo "  actual: $output"
+			fail=$((fail + 1))
+		fi
+	}
+
+	_assert_completions() {
+		local label="$1"
+		shift
+		local expected
+		expected=$(printf '%s\n' "$@" | sort)
+		local actual
+		actual=$(_workspaces)
+		if [[ "$expected" == "$actual" ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected:"
+			echo "$expected" | sed 's/^/    /'
+			echo "  actual:"
+			echo "$actual" | sed 's/^/    /'
+			fail=$((fail + 1))
+		fi
+	}
+
+	# Resolution tests
+	_assert_resolve "workspace shorthand" \
+		"main.dev.ry" "dev"
+
+	_assert_fail "sysbox-only workspace" \
+		"workspace not ready" "sysbox-only"
+
+	_assert_fail "stopped workspace" \
+		"workspace is stopped" "stopped"
+
+	_assert_fail "ambiguous owner" \
+		"ambiguous workspace" "shared"
+
+	_assert_resolve "agent.workspace shorthand" \
+		"main.dev.ry" "main.dev"
+
+	_assert_resolve "full form passthrough" \
+		"main.dev.ry" "main.dev.ry"
+
+	_assert_fail "invalid workspace" \
+		"unknown workspace" "nonexistent"
+
+	_assert_resolve "explicit sysbox agent" \
+		"sysbox.sysbox-only.ry" "sysbox.sysbox-only"
+
+	_assert_fail "ambiguous agent" \
+		"ambiguous agent" "multi-agent"
+
+	_assert_resolve "full form with ambiguous name" \
+		"main.shared.ry" "main.shared.ry"
+
+	# Completion test
+	_assert_completions "tab completions" \
+		"dev" \
+		"gpu.multi-agent" \
+		"main.multi-agent" \
+		"main.shared.alex" \
+		"main.shared.ry"
+
+	echo ""
+	echo "$pass passed, $fail failed"
+	[[ "$fail" -eq 0 ]]
 }
 
 if ! command -v argc >/dev/null; then

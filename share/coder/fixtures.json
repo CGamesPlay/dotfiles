@@ -1,0 +1,107 @@
+[
+  {
+    "name": "dev",
+    "owner_name": "ry",
+    "latest_build": {
+      "status": "running",
+      "transition": "start",
+      "resources": [
+        {
+          "name": "init_script",
+          "type": "kubernetes_config_map_v1",
+          "agents": [
+            { "name": "main", "status": "connected" },
+            { "name": "sysbox", "status": "connected" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "sysbox-only",
+    "owner_name": "ry",
+    "latest_build": {
+      "status": "running",
+      "transition": "start",
+      "resources": [
+        {
+          "name": "init_script",
+          "type": "kubernetes_config_map_v1",
+          "agents": [
+            { "name": "sysbox", "status": "connected" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "stopped",
+    "owner_name": "ry",
+    "latest_build": {
+      "status": "stopped",
+      "transition": "stop",
+      "resources": [
+        {
+          "name": "workspace",
+          "type": "kubernetes_persistent_volume_claim_v1",
+          "agents": []
+        }
+      ]
+    }
+  },
+  {
+    "name": "shared",
+    "owner_name": "ry",
+    "latest_build": {
+      "status": "running",
+      "transition": "start",
+      "resources": [
+        {
+          "name": "init_script",
+          "type": "kubernetes_config_map_v1",
+          "agents": [
+            { "name": "main", "status": "connected" },
+            { "name": "sysbox", "status": "connected" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "shared",
+    "owner_name": "alex",
+    "latest_build": {
+      "status": "running",
+      "transition": "start",
+      "resources": [
+        {
+          "name": "init_script",
+          "type": "kubernetes_config_map_v1",
+          "agents": [
+            { "name": "main", "status": "connected" },
+            { "name": "sysbox", "status": "connected" }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "multi-agent",
+    "owner_name": "ry",
+    "latest_build": {
+      "status": "running",
+      "transition": "start",
+      "resources": [
+        {
+          "name": "init_script",
+          "type": "kubernetes_config_map_v1",
+          "agents": [
+            { "name": "main", "status": "connected" },
+            { "name": "sysbox", "status": "connected" },
+            { "name": "gpu", "status": "connected" }
+          ]
+        }
+      ]
+    }
+  }
+]
