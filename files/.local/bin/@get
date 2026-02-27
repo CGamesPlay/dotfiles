@@ -378,11 +378,7 @@ is_darwin() {
 
 # Check if this system is musl-based.
 is_musl() {
-	if command -v ldd >/dev/null && [[ $(ldd --version || true) != *GLIBC* ]]; then
-		return 0
-	else
-		return 1
-	fi
+	[[ -f /lib/libc.musl-x86_64.so.1 ]] || [[ -f /lib/libc.musl-aarch64.so.1 ]] || ldd /bin/ls 2>&1 | grep -q musl
 }
 
 # If this system is musl-based, print "musl". Else print "^musl".

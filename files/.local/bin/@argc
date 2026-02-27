@@ -73,9 +73,10 @@ create::cachedir-tag() {
 }
 
 # @cmd Clone a git repository to a predictable location based on its URL.
-# @arg       url!              Git repository URL
 # @option    --root <DIR>      Root directory for cloned repositories
 # @flag   -n --dry-run         Print the target location without cloning
+# @arg       url!              Git repository URL
+# @arg       command~          Run this command in the directory
 clone() {
 	# Determine root directory
 	if [ -n "${argc_root:-}" ]; then
@@ -125,6 +126,10 @@ clone() {
 		mkdir -p "$(dirname "$target")"
 		git clone "$url" "$target"
 		echo "$target: cloned"
+	fi
+
+	if [ ${argc_command+1} ]; then
+		"$SHELL" -c "${argc_command[@]}"
 	fi
 }
 
