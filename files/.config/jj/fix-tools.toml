@@ -1,0 +1,23 @@
+# This config file is not included by jj, it's just providing a bunch of
+# example fix tools that can be copied into a per-repo config.
+# Use `jj config edit --repo` to edit a repo's config.
+
+[fix.tools.rustfmt]
+command = ["rustfmt", "--emit", "stdout"]
+patterns = ["glob:'**/*.rs'"]
+
+[fix.tools.prettier]
+command = ["npx", "prettier", "--stdin-filepath=$path"]
+patterns = ["glob:'**/*.tsx'", "glob:'**/*.ts'", "glob:'**/*.jsx'", "glob:'**/*.js'", "glob:'**/*.css'", "glob:'**/*.html'", "glob:'**/*.json'"]
+
+[fix.tools.biome-check]
+command = ["$root/node_modules/@biomejs/biome/bin/biome", "check", "--write", "--stdin-file-path=$path"]
+patterns = ["glob:'**/*.tsx'", "glob:'**/*.ts'", "glob:'**/*.jsx'", "glob:'**/*.js'", "glob:'**/*.css'", "glob:'**/*.html'", "glob:'**/*.json'"]
+
+[fix.tools.ruff-lint]
+command = ["uv", "run", "ruff", "check", "--fix", "--preview", "--quiet", "--stdin-filename=$path", "-"]
+patterns = ["glob:'**/*.py'"]
+
+[fix.tools.ruff-format]
+command = ["uv", "run", "ruff", "format", "--stdin-filename=$path", "-"]
+patterns = ["glob:'**/*.py'"]
