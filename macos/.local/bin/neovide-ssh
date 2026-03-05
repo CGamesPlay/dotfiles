@@ -39,7 +39,7 @@ main() {
 	# Add chdir command if specified
 	local remote_cmd=""
 	if [[ "${argc_chdir:+1}" ]]; then
-		remote_cmd="cd $(printf %q "${argc_chdir}") ';' "
+		remote_cmd="cd $(printf %q "${argc_chdir}") ';' direnv exec . "
 	fi
 	remote_cmd="${remote_cmd}nvim"
 

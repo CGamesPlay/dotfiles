@@ -74,9 +74,9 @@ async def main(connection: iterm2.connection.Connection):
 
 
 async def run_with_coder(window, name, directory):
-    args = ["exec", "ssh", "-t", f"{name}.coder"]
+    args = ["exec", "@coder", "shpool", name]
     if directory is not None:
-        args += ["--", "cd", directory, "&&", "exec", "$SHELL"]
+        args += ["--dir", directory]
     await open_tab_with(window, args)
 
 

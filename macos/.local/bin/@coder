@@ -133,7 +133,6 @@ preview() {
 # agent.workspace.owner.
 # @arg workspace[?`_workspaces`] Workspace to open
 # @arg rest~                     Arguments passed to ssh
-# @meta default-subcommand
 ssh() {
 	if [[ -z "${argc_workspace:-}" ]]; then
 		argc_workspace=$(_choose_workspace) || exit 0
@@ -141,6 +140,56 @@ ssh() {
 	fi
 	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
 	exec command ssh "${argc_workspace}.coder" ${argc_rest+"${argc_rest[@]}"}
+}
+
+# shellcheck disable=2032
+# @cmd SSH into a Coder workspace with a shpool session
+#
+# Like ssh, but creates/attaches a shpool session on the remote. Reconnects
+# automatically on connection failure; press any key to reconnect, or ^C to
+# quit.
+# @option --dir                     Directory to create session in
+# @arg    workspace[?`_workspaces`] Workspace to open
+# @arg    cmd                       Command to run in the shpool session
+# @meta default-subcommand
+shpool() {
+	if [[ ! "${argc_workspace+1}" ]]; then
+		argc_workspace=$(_choose_workspace) || exit 0
+		echo "$ @coder shpool $argc_workspace"
+	fi
+	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
+	local host="${argc_workspace}.coder"
+
+	local name
+	name="$(hostname -s):$(basename "$(tty)")"
+
+	local cmd_args=()
+	if [[ "${argc_cmd+1}" ]]; then
+		cmd_args+=(--cmd "$(printf "sh -c %q" "$argc_cmd")")
+	fi
+	if [[ "${argc_dir+1}" ]]; then
+		cmd_args+=(--dir "${argc_dir:?}")
+	fi
+
+	local shpool_args ssh_args
+	shpool_args=(shpool attach -f "$name" ${cmd_args+"${cmd_args[@]}"})
+	ssh_args="$(printf '%q ' "${shpool_args[@]}")"
+	echo ssh -t "$host" "$ssh_args"
+
+	while true; do
+		set +e
+		# shellcheck disable=2033
+		command ssh -t "$host" "$ssh_args"
+		local status=$?
+		if [[ "$status" -eq 0 ]]; then
+			break
+		fi
+		set -e
+		echo "ssh exited with $status. Press any key to reconnect, or ^C to quit."
+		if ! read -rsn1; then
+			break
+		fi
+	done
 }
 
 # @cmd Open Neovide in a Coder workspace

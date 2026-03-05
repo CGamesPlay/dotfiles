@@ -148,3 +148,10 @@ Use `@describe` at the top level of the script and `@cmd` for subcommands. The f
 
 - **`argc --argc-help` is argc's self-help, not your script's help.** The `--argc-help` flag prints information about the argc tool itself (its own usage, flags, etc.), NOT the auto-generated help for your Argcfile. Never use `argc --argc-help` inside an Argcfile to show script help — argc already auto-generates and displays help from your `@describe`/`@cmd` tags when the user runs the script without arguments or with `--help`.
 - **Omit `main()` when your script only has subcommands.** If every action is behind a `@cmd` subcommand, don't define a `main()` function. Without `main()`, argc's default behavior when no subcommand is given is to display the auto-generated help — which is the correct behavior. Only define `main()` when you want a meaningful default action (not help display).
+- **`command` + `set -e` is broken in bash 3.2.** On macOS's default bash (3.2.57), `command` causes `set -e` to fire even inside an `if` condition, which normally suppresses errexit. This means `if command foo; then ...` will kill the script if `foo` fails, instead of taking the else branch. Since argc scripts use `set -eu` and subcommand functions often share names with real commands (requiring `command` to bypass the function), wrap the call in a subshell to isolate the failure: `if (command foo); then ...`. Minimal repro:
+  ```bash
+  # Dies immediately — errexit fires despite the `if`
+  bash -eu -c 'if command false; then echo y; else echo caught; fi'
+  # Works — subshell isolates the failure
+  bash -eu -c 'if (command false); then echo y; else echo caught; fi'
+  ```
