@@ -3,13 +3,27 @@
 
 set -ue
 
-if [ -d /Applications/Neovide.app ]; then
-	# Running locally, run with a trampoline to support direnv
-	if [[ "${1:-}" == "--help" ]]; then
-		echo "neovide is a wrapper to integrate Neovide with iTerm2." 2>&1
-		exec /Applications/Neovide.app/Contents/MacOS/neovide neovide --help
-	fi
+if [[ "${1:-}" == "--help" ]]; then
+	cat <<-EOF >&2
+	neovide is a wrapper to integrate Neovide with iTerm2.
 
+	Usage:
+	  neovide [FILENAME]
+	EOF
+	exit 0
+fi
+
+rundir="${XDG_RUNTIME_DIR:-/tmp/nvim.${USER:?}}"
+# shellcheck disable=SC2174
+mkdir -pm 0700 "$rundir"
+socket="${rundir}/${PWD//\//-}"
+
+if [ -S "$socket" ] && fuser "$socket" >/dev/null 2>&1; then
+	echo "Nvim server socket exists, sending remote command"
+	exec nvim --server "$socket" --remote "$@"
+
+elif [ -d /Applications/Neovide.app ]; then
+	# Running locally, run with a trampoline to support direnv
 	if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
 		args=()
 		for arg in "$@"; do
@@ -25,20 +39,13 @@ if [ -d /Applications/Neovide.app ]; then
 		unset NEOVIDE_LAUNCHER
 		exec sh -c "$prefix $(printf '%q ' "${args[@]}")"
 	else
-		NEOVIDE_LAUNCHER=1 open -na Neovide --args --wsl --neovim-bin="$0" -- --prefix="cd $(printf %q "$(pwd)") && exec direnv exec . nvim" "$@"
+		prefix="$(printf "cd %q && exec direnv exec . nvim --listen %q" "$PWD" "$socket")"
+		NEOVIDE_LAUNCHER=1 exec open -na Neovide --args --wsl --neovim-bin="$0" -- --prefix="$prefix" "$@"
 	fi
 
 else
 	# Running in a remote environment, open using iTerm2 custom escape sequence.
-	if [[ "${1:-}" == "--help" ]]; then
-		cat <<-EOF >&2
-		neovide is a wrapper to integrate Neovide with iTerm2.
-
-		Usage:
-		  neovide [FILENAME]
-		EOF
-	fi
-
+	echo "Launching Neovide through iTerm custom escape"
 	value="id=neovide:"
 	if [[ "${1:+1}" ]]; then
 		value="${value}filename=$1"

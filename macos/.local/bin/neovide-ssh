@@ -11,21 +11,61 @@
 
 set -ue
 
+# Quotes each argument so that it will be interpreted as a single literal
+# argument in POSIX shells and fish.
+shellquote() {
+	while [ $# -gt 0 ]; do
+		arg="$1"
+		# Can't use printf %q because it produces strings that are not
+		# interpretable by dash. We can't use the POSIX-compliant way to
+		# escape with single quotes either because fish interprets them
+		# differently (which breaks double-quoted strings). So, we replace
+		# quotes with '\'' as normal but additionally replace backslash
+		# with '\\'.
+		# We will use `a` as a temporary escape character. `aa` will
+		# produce `a`, `a'` will produce `'\''` and `a\` will produce
+		# `'\\'`.
+		# 1. Quote special characters.
+		arg=${arg//a/aa}
+		arg=${arg//\'/a\'}
+		arg=${arg//\\/a\\}
+		# 2. Unquote.
+		arg=${arg//a\\/\'\\\\\'}
+		arg=${arg//a\'/\'\\\'\'}
+		arg=${arg//aa/a}
+		arg=\'$arg\'
+		echo -n "$arg "
+		shift
+	done
+}
+
 if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
 	# Running as trampoline - extract prefix and execute via ssh
 	args=()
 	for arg in "$@"; do
 		case "$arg" in
-			--prefix=*)
-				prefix=${arg#--prefix=}
+			--neovide-ssh=*)
+				ssh_cmd=${arg#--neovide-ssh=}
+				;;
+			--neovide-chdir=*)
+				dir=${arg#--neovide-chdir=}
 				;;
 			*)
 				args+=("$arg")
 				;;
 		esac
 	done
-	unset NEOVIDE_LAUNCHER
-	exec sh -c "$prefix $(printf '%q ' "${args[@]}")"
+
+	# The shell script to run on the remote system
+	# shellcheck disable=SC2016
+	sh_script='rundir=${XDG_RUNTIME_DIR:-/tmp/nvim.${USER:?}} && mkdir -pm 0700 "$rundir" && exec nvim --listen "$rundir/$(pwd | tr / -)" "$@"'
+	# The sh invocation to run on the remote system (as a shell-agnostic script)
+	sh_invocation="sh -c $(shellquote "$sh_script") neovide-ssh $(shellquote "${args[@]}")"
+	if [[ ${dir+1} ]]; then
+		sh_invocation="cd $(shellquote "$dir") ; exec direnv exec . $sh_invocation"
+	fi
+	echo "${ssh_cmd:?--neovide-ssh required} -- $(shellquote "$sh_invocation")" >&2
+	eval "exec ${ssh_cmd:?--neovide-ssh required} -- $(shellquote "$sh_invocation")"
 fi
 
 main() {
@@ -35,16 +75,8 @@ main() {
 		ssh_cmd="$ssh_cmd ${argc_ssh_args}"
 	fi
 	ssh_cmd="$ssh_cmd ${argc_host:?}"
-
-	# Add chdir command if specified
-	local remote_cmd=""
-	if [[ "${argc_chdir:+1}" ]]; then
-		remote_cmd="cd $(printf %q "${argc_chdir}") ';' direnv exec . "
-	fi
-	remote_cmd="${remote_cmd}nvim"
-
 	# Launch Neovide with the trampoline
-	NEOVIDE_LAUNCHER=1 open -na Neovide --args --wsl --neovim-bin="$0" -- --prefix="$ssh_cmd -- $remote_cmd" ${argc_files+"${argc_files[@]}"}
+	NEOVIDE_LAUNCHER=1 exec open -na Neovide --args --wsl --neovim-bin="$0" -- --neovide-ssh="$ssh_cmd" "${argc_chdir+--neovide-chdir=$argc_chdir}" ${argc_files+"${argc_files[@]}"}
 }
 
 if ! command -v argc >/dev/null; then
