@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# @describe Wrapper for Pi
+#
+# The wrapper auto-installs Pi and runs it.
+# @version wrapper, use --pi-version for version information
+# @flag --pi-help       Show help for Pi
+# @flag --pi-version    Show version for Pi
+# @flag --pi-reinstall  Reinstall Pi even if already installed
+# @arg args~            Additional arguments, passed verbatim
+
+set -eu
+
+PI_PACKAGE=@mariozechner/pi-coding-agent
+PI_ENV_FILE=~/.pi/agent/env
+
+main() {
+	set +u
+	# shellcheck disable=1091
+	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+	nvm use --lts > /dev/null
+	set -u
+
+	if [[ "${argc_pi_reinstall+1}" ]] || ! npm --no-update-notifier list -g "$PI_PACKAGE" >/dev/null; then
+		echo "Pi is not installed. Installing..." >&2
+		npm --no-update-notifier install -g "$PI_PACKAGE"
+	fi
+
+	if [[ -e "$PI_ENV_FILE" ]]; then
+		set -a && source "$PI_ENV_FILE" && set +a
+	else
+		echo "Warning: $PI_ENV_FILE does not exist." >&2
+	fi
+
+	exec pi \
+		${argc_pi_help+--help} \
+		${argc_pi_version+--version} \
+		${argc_args+"${argc_args[@]}"}
+}
+
+eval "$(argc --argc-eval "$0" "$@")"
