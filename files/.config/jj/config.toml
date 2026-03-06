@@ -183,6 +183,17 @@ fi
 jj status
 """, "jj split-index"]
 
+# Track the existence of a directory, but not any of the files in it. Creates a
+# gitignore file that ignores all files except itself in the directory, and
+# then untracks all the files already in the directory.
+gitkeep = ["util", "exec", "--", "sh", "-c", """
+set -e
+target="${1:?Usage: jj gitkeep DIRECTORY}"
+mkdir -p "$target"
+printf '*\n!.gitignore\n' > "$target/.gitignore"
+find "$target" -maxdepth 1 -mindepth 1 -not -name '.gitignore' -print0 | xargs -0 jj file untrack
+""", "jj gitkeep"]
+
 [revsets]
 # Default revset works just like `git log`
 log = '::@'
