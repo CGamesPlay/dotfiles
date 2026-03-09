@@ -5,6 +5,8 @@
 #
 # On macOS, it automatically sandboxes the agent using agent-safehouse.
 # @version wrapper, use --pi-version for version information
+# @flag --continue        Passed to Pi
+# @flag --resume          Passed to Pi
 # @flag --pi-help         Show help for Pi
 # @flag --pi-version      Show version for Pi
 # @flag --pi-reinstall    Reinstall Pi even if already installed
@@ -13,7 +15,7 @@
 
 set -eu
 
-DFM_DIR=$(realpath -m "${BASH_SOURCE[0]}"/../..)
+DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../.." && pwd)
 PI_PACKAGE=@mariozechner/pi-coding-agent
 PI_ENV_FILE=~/.pi/agent/env
 
@@ -29,26 +31,45 @@ main() {
 		npm --no-update-notifier install -g "$PI_PACKAGE"
 	fi
 
+	# Install dependencies for any pi extensions that have a package.json
+	while IFS= read -r pkg_json; do
+		deps=$(node -e "const p=require('$pkg_json'); const d=p.dependencies||{}; const k=Object.keys(d); if(k.length) console.log(k.join(' '))" 2>/dev/null)
+		if [[ -n "$deps" ]]; then
+			# shellcheck disable=2086
+			npm --no-update-notifier --silent install -g $deps
+		fi
+	done < <(find ~/.pi/agent/extensions -name package.json -maxdepth 2)
+	export NODE_PATH="${NODE_PATH:+$NODE_PATH:}$(npm root -g)"
+
 	if [[ ${argc_pi_help+1} ]] || [[ ${args_pi_version+1} ]]; then
 		exec pi \
 			${argc_pi_help+--help} \
 			${argc_pi_version+--version}
 	fi
 
+	local args
+	args=(pi ${argc_resume+--resume} ${argc_continue+--continue})
+
 	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
 		if ! command -v safehouse >/dev/null; then
 			echo "Agent Safehouse is not installed. Installing..." >&2
 			@get safehouse
 		fi
+		script="set -a && source '$PI_ENV_FILE' && exec \"\$@\""
 		args=(
 			safehouse 
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"
 			--add-dirs-ro "$DFM_DIR"
+			--add-dirs-ro ~/.config/nvim
+			--add-dirs-ro ~/.local/share/nvim
+			--add-dirs ~/.local/state/nvim
+			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.pi
-			--env-pass "NVM_DIR,DFM_DIR"
-			-- "${args[@]}"
+			--env-pass "EDITOR,NVM_DIR,DFM_DIR,NODE_PATH"
+			-- sh -c "$script" "pi-wrapper"
+			"${args[@]}"
 		)
 	fi
 
@@ -58,10 +79,7 @@ main() {
 		echo "Warning: $PI_ENV_FILE does not exist." >&2
 	fi
 
-	exec pi \
-		${argc_pi_help+--help} \
-		${argc_pi_version+--version} \
-		${argc_args+"${argc_args[@]}"}
+	exec "${args[@]}" ${argc_args+"${argc_args[@]}"}
 }
 
 eval "$(argc --argc-eval "$0" "$@")"

@@ -1,5 +1,5 @@
 ---
-name: Using `argc` / `Argcfile`
+name: argc
 description: Create and modify Argcfiles using the special comment-driven syntax required. Use when editing Argcfile.sh, @argc, or any shell script that uses argc. Also use when creating CLI commands, task runners, bash scripts with argument parsing, or adding subcommands to an existing Argcfile.
 ---
 
