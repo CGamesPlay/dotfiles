@@ -2,14 +2,18 @@
 # @describe Wrapper for Pi
 #
 # The wrapper auto-installs Pi and runs it.
+#
+# On macOS, it automatically sandboxes the agent using agent-safehouse.
 # @version wrapper, use --pi-version for version information
-# @flag --pi-help       Show help for Pi
-# @flag --pi-version    Show version for Pi
-# @flag --pi-reinstall  Reinstall Pi even if already installed
-# @arg args~            Additional arguments, passed verbatim
+# @flag --pi-help         Show help for Pi
+# @flag --pi-version      Show version for Pi
+# @flag --pi-reinstall    Reinstall Pi even if already installed
+# @flag --skip-safehouse  Don't run in agent-safehouse
+# @arg args~              Additional arguments, passed verbatim
 
 set -eu
 
+DFM_DIR=$(realpath -m "${BASH_SOURCE[0]}"/../..)
 PI_PACKAGE=@mariozechner/pi-coding-agent
 PI_ENV_FILE=~/.pi/agent/env
 
@@ -23,6 +27,29 @@ main() {
 	if [[ "${argc_pi_reinstall+1}" ]] || ! npm --no-update-notifier list -g "$PI_PACKAGE" >/dev/null; then
 		echo "Pi is not installed. Installing..." >&2
 		npm --no-update-notifier install -g "$PI_PACKAGE"
+	fi
+
+	if [[ ${argc_pi_help+1} ]] || [[ ${args_pi_version+1} ]]; then
+		exec pi \
+			${argc_pi_help+--help} \
+			${argc_pi_version+--version}
+	fi
+
+	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
+		if ! command -v safehouse >/dev/null; then
+			echo "Agent Safehouse is not installed. Installing..." >&2
+			@get safehouse
+		fi
+		args=(
+			safehouse 
+			--add-dirs-ro ~/.local/bin
+			--add-dirs-ro ~/.local/bin-after
+			--add-dirs-ro "$NVM_DIR"
+			--add-dirs-ro "$DFM_DIR"
+			--add-dirs ~/.pi
+			--env-pass "NVM_DIR,DFM_DIR"
+			-- "${args[@]}"
+		)
 	fi
 
 	if [[ -e "$PI_ENV_FILE" ]]; then

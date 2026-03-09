@@ -67,6 +67,11 @@ install_cdebug() {
 	eget iximiuz/cdebug --to="$BINDIR"
 }
 
+# Anthropic's coding agent
+install_claude() {
+	curl -fsSL https://claude.ai/install.sh | bash
+}
+
 # CLI for accessing coder server (client only)
 install_coder() {
 	# Download the slim build of coder.
@@ -255,6 +260,14 @@ install_rg() {
 	cp ripgrep/complete/rg.fish "$HOME/.config/fish/completions/"
 
 	rm -rf ripgrep
+}
+
+# macOS Sandboxing tool
+install_safehouse() {
+	SAFEHOUSE_SHA=3560f28d6d93a286bb764768c1f2aa1ee0080d4e
+	SAFEHOUSE_URL=https://raw.githubusercontent.com/eugene1g/agent-safehouse/$SAFEHOUSE_SHA/dist/safehouse.sh
+	curl -fsSL "$SAFEHOUSE_URL" -o ~/.local/bin/safehouse
+	chmod +x ~/.local/bin/safehouse
 }
 
 # Modern sed replacement

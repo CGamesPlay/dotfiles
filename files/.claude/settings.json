@@ -6,6 +6,7 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "model": "opus",
   "hooks": {
     "Notification": [
       {
@@ -29,8 +30,14 @@
       }
     ]
   },
+  "enabledPlugins": {
+    "explanatory-output-style@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "alwaysThinkingEnabled": false,
+  "skipDangerousModePermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 2114380800000
-  },
-  "alwaysThinkingEnabled": false
+  }
 }
