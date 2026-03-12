@@ -119,6 +119,7 @@ EOF
 			--add-dirs ~/.local/share/claude
 			--add-dirs ~/.claude
 			--add-dirs ~/.claude.json
+			--add-dirs "$DFM_DIR/files/.claude"
 			--env-pass "EDITOR,NVM_DIR,DFM_DIR,CLAUDE_CODE_OAUTH_TOKEN"
 			-- "${args[@]}"
 		)

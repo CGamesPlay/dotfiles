@@ -1,172 +1,275 @@
-# Subagent Example
+# Pi Subagent
 
-Delegate tasks to specialized subagents with isolated context windows.
+**Delegate tasks to specialized subagents with configurable context modes (`spawn` / `fork`).**
 
-## Features
+There are many subagent extensions for pi, this one is mine.
 
-- **Isolated context**: Each subagent runs in a separate `pi` process
-- **Streaming output**: See tool calls and progress as they happen
-- **Parallel streaming**: All parallel tasks stream updates simultaneously
-- **Markdown rendering**: Final output rendered with proper formatting (expanded view)
-- **Usage tracking**: Shows turns, tokens, cost, and context usage per agent
-- **Abort support**: Ctrl+C propagates to kill subagent processes
+## Why Pi Subagent
 
-## Structure
+**Specialization** — Use tailored agents for specific tasks like refactoring, documentation, or research.
 
-```
-subagent/
-├── README.md            # This file
-├── index.ts             # The extension (entry point)
-├── agents.ts            # Agent discovery logic
-├── agents/              # Sample agent definitions
-│   ├── scout.md         # Fast recon, returns compressed context
-│   ├── planner.md       # Creates implementation plans
-│   ├── reviewer.md      # Code review
-│   └── worker.md        # General-purpose (full capabilities)
-└── prompts/             # Workflow presets (prompt templates)
-    ├── implement.md     # scout -> planner -> worker
-    ├── scout-and-plan.md    # scout -> planner (no implementation)
-    └── implement-and-review.md  # worker -> reviewer -> worker
-```
+**Context Control** — Choose `spawn` (fresh context) or `fork` (inherit current session context), depending on the task.
 
-## Installation
+**Parallel Execution** — Run multiple agents at once.
 
-From the repository root, symlink the files:
+**A Simpler Fork** — This extension intentionally trims features from other implementations (like chaining and scope selectors) to keep the surface area small and predictable. If you want the minimal, “just delegate” experience, this is it.
+
+## Install
+
+### Option 1: Install from npm (recommended)
 
 ```bash
-# Symlink the extension (must be in a subdirectory with index.ts)
-mkdir -p ~/.pi/agent/extensions/subagent
-ln -sf "$(pwd)/packages/coding-agent/examples/extensions/subagent/index.ts" ~/.pi/agent/extensions/subagent/index.ts
-ln -sf "$(pwd)/packages/coding-agent/examples/extensions/subagent/agents.ts" ~/.pi/agent/extensions/subagent/agents.ts
-
-# Symlink agents
-mkdir -p ~/.pi/agent/agents
-for f in packages/coding-agent/examples/extensions/subagent/agents/*.md; do
-  ln -sf "$(pwd)/$f" ~/.pi/agent/agents/$(basename "$f")
-done
-
-# Symlink workflow prompts
-mkdir -p ~/.pi/agent/prompts
-for f in packages/coding-agent/examples/extensions/subagent/prompts/*.md; do
-  ln -sf "$(pwd)/$f" ~/.pi/agent/prompts/$(basename "$f")
-done
+pi install npm:@mjakl/pi-subagent
 ```
 
-## Security Model
+### Option 2: Install via git
 
-This tool executes a separate `pi` subprocess with a delegated system prompt and tool/model configuration.
-
-**Project-local agents** (`.pi/agents/*.md`) are repo-controlled prompts that can instruct the model to read files, run bash commands, etc.
-
-**Default behavior:** Only loads **user-level agents** from `~/.pi/agent/agents`.
-
-To enable project-local agents, pass `agentScope: "both"` (or `"project"`). Only do this for repositories you trust.
-
-When running interactively, the tool prompts for confirmation before running project-local agents. Set `confirmProjectAgents: false` to disable.
-
-## Usage
-
-### Single agent
-```
-Use scout to find all authentication code
+```bash
+pi install git:github.com/mjakl/pi-subagent
 ```
 
-### Parallel execution
-```
-Run 2 scouts in parallel: one to find models, one to find providers
-```
+### Option 3: Manual Installation
 
-### Chained workflow
-```
-Use a chain: first have scout find the read tool, then have planner suggest improvements
-```
+Clone this repository to your Pi extensions directory:
 
-### Workflow prompts
-```
-/implement add Redis caching to the session store
-/scout-and-plan refactor auth to support OAuth
-/implement-and-review add input validation to API endpoints
+```bash
+cd ~/.pi/agent/extensions
+git clone https://github.com/mjakl/pi-subagent.git
+cd pi-subagent
+npm install
 ```
 
-## Tool Modes
+## Configuration
 
-| Mode | Parameter | Description |
-|------|-----------|-------------|
-| Single | `{ agent, task }` | One agent, one task |
-| Parallel | `{ tasks: [...] }` | Multiple agents run concurrently (max 8, 4 concurrent) |
-| Chain | `{ chain: [...] }` | Sequential with `{previous}` placeholder |
+### Delegation Guards (Depth + Cycle Prevention)
 
-## Output Display
+By default, this extension enforces two runtime guards:
 
-**Collapsed view** (default):
-- Status icon (✓/✗/⏳) and agent name
-- Last 5-10 items (tool calls and text)
-- Usage stats: `3 turns ↑input ↓output RcacheRead WcacheWrite $cost ctx:contextTokens model`
+1. **Depth guard** (`--subagent-max-depth`, default `3`)
+   - Main agent starts at depth `0`
+   - Delegation is allowed while `currentDepth < maxDepth`
+   - With default depth `3`: depth `0`, `1`, and `2` can delegate; depth `3` cannot
+2. **Cycle guard** (`--subagent-prevent-cycles`, default `true`)
+   - Blocks delegating to any agent name already present in the current delegation stack
+   - Prevents self-recursion (`writer -> writer`) and loops (`planner -> reviewer -> planner`)
 
-**Expanded view** (Ctrl+O):
-- Full task text
-- All tool calls with formatted arguments
-- Final output rendered as Markdown
-- Per-task usage (for chain/parallel)
+You can configure depth with either:
 
-**Parallel mode streaming**:
-- Shows all tasks with live status (⏳ running, ✓ done, ✗ failed)
-- Updates as each task makes progress
-- Shows "2/3 done, 1 running" status
+- CLI flag: `--subagent-max-depth <n>`
+- Environment variable: `PI_SUBAGENT_MAX_DEPTH=<n>`
 
-**Tool call formatting** (mimics built-in tools):
-- `$ command` for bash
-- `read ~/path:1-10` for read
-- `grep /pattern/ in ~/path` for grep
-- etc.
+`n` must be a non-negative integer.
 
-## Agent Definitions
+You can configure cycle prevention with either:
 
-Agents are markdown files with YAML frontmatter:
+- CLI flag: `--subagent-prevent-cycles` / `--no-subagent-prevent-cycles`
+- Environment variable: `PI_SUBAGENT_PREVENT_CYCLES=true|false`
+
+Internal env vars managed by the extension and propagated to child processes:
+
+- `PI_SUBAGENT_DEPTH`
+- `PI_SUBAGENT_MAX_DEPTH`
+- `PI_SUBAGENT_STACK` (JSON array of ancestor agent names, e.g. `["scout","planner"]`)
+- `PI_SUBAGENT_PREVENT_CYCLES`
+
+Examples:
+
+```bash
+# Default behavior: depth 3 + cycle prevention enabled
+pi
+
+# Restrict to one nested level (main -> child -> grandchild)
+pi --subagent-max-depth 2
+
+# Disable subagent delegation entirely
+pi --subagent-max-depth 0
+
+# Allow depth 3 but disable cycle prevention (not recommended)
+pi --subagent-max-depth 3 --no-subagent-prevent-cycles
+```
+
+### Context Mode (`spawn` vs `fork`)
+
+`subagent` supports a top-level `mode` switch:
+
+- `spawn` (default) — Child receives only the task string (`Task: ...`). Best for isolated, reproducible work; typically lower token/cost and less context leakage.
+- `fork` — Child receives a forked snapshot of the current session context **plus** the task string. Best for follow-up work that depends on prior context; typically higher token/cost and may include sensitive context.
+
+Quick rule of thumb:
+
+- Start with `spawn` for one-off tasks.
+- Use `fork` when the delegated task depends on the current session's prior discussion, reads, or decisions.
+
+Examples:
+
+```json
+{ "agent": "writer", "task": "Document the API", "mode": "spawn" }
+```
+
+```json
+{ "agent": "review", "task": "Double-check this migration", "mode": "fork" }
+```
+
+If omitted, mode defaults to `spawn`.
+
+### Subagent Definitions
+
+Subagents are defined as Markdown files with YAML frontmatter.
+
+**User Agents:** `~/.pi/agent/agents/*.md`
+**Project Agents:** `.pi/agents/*.md`
+
+The extension always loads agents from both locations. If a project agent shares a name with a user agent, the project agent wins. When project agents are requested, Pi will prompt for confirmation before running them.
+
+Example agent (`~/.pi/agent/agents/writer.md`):
 
 ```markdown
 ---
-name: my-agent
-description: What this agent does
-tools: read, grep, find, ls
-model: claude-haiku-4-5
+name: writer
+description: Expert technical writer and editor
+model: anthropic/claude-3-5-sonnet
+tools: read, write
 ---
 
-System prompt for the agent goes here.
+You are an expert technical writer. Your task is to improve the clarity and conciseness of the provided text.
 ```
 
-**Locations:**
-- `~/.pi/agent/agents/*.md` - User-level (always loaded)
-- `.pi/agents/*.md` - Project-level (only with `agentScope: "project"` or `"both"`)
+Note: this repository includes a sample agent in `agents/oracle.md` for reference.
 
-Project agents override user agents with the same name when `agentScope: "both"`.
+### Frontmatter Fields
 
-## Sample Agents
+| Field         | Required | Default                          | Description                                                                                                                                                                |
+| ------------- | -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | Yes      | —                                | Agent identifier used in tool calls (must match exactly)                                                                                                                   |
+| `description` | Yes      | —                                | What the agent does (shown to the main agent)                                                                                                                              |
+| `model`       | No       | Uses the default pi model        | Overrides the model for this agent. You can include a provider prefix (e.g. `anthropic/claude-3-5-sonnet` or `openrouter/claude-3.5-sonnet`) to force a specific provider. |
+| `thinking`    | No       | Uses Pi's default thinking level | Sets the thinking level (`off`, `minimal`, `low`, `medium`, `high`, `xhigh`). Equivalent to `--thinking`.                                                                  |
+| `tools`       | No       | `read,bash,edit,write`           | Comma-separated list of **built-in** tools to enable for this agent. If omitted, defaults apply.                                                                           |
 
-| Agent | Purpose | Model | Tools |
-|-------|---------|-------|-------|
-| `scout` | Fast codebase recon | Haiku | read, grep, find, ls, bash |
-| `planner` | Implementation plans | Sonnet | read, grep, find, ls |
-| `reviewer` | Code review | Sonnet | read, grep, find, ls, bash |
-| `worker` | General-purpose | Sonnet | (all default) |
+Notes:
 
-## Workflow Prompts
+- `model` accepts `provider/model` syntax — this is a Pi feature. Use it when multiple providers offer the same model ID.
+- `thinking` uses the same values as Pi's `--thinking` flag; it's recommended to set it explicitly since thinking support varies by model.
+- `tools` only controls built-in tools. Extension tools remain available unless extensions are disabled.
+- The Markdown body below the frontmatter becomes the agent's system prompt and is **appended** to Pi's default system prompt (it does **not** replace it).
 
-| Prompt | Flow |
-|--------|------|
-| `/implement <query>` | scout → planner → worker |
-| `/scout-and-plan <query>` | scout → planner |
-| `/implement-and-review <query>` | worker → reviewer → worker |
+### Writing a Good Agent File
 
-## Error Handling
+- **Description matters** — the main agent uses the `description` to decide which subagent to call, so be specific about what the agent is good at.
+- **Tool scope is optional but helpful** — reducing tools can keep the agent focused, but you can leave defaults if unsure.
+- **Model + thinking is the power combo** — selecting the right model and thinking level is often the biggest quality boost.
 
-- **Exit code != 0**: Tool returns error with stderr/output
-- **stopReason "error"**: LLM error propagated with error message
-- **stopReason "aborted"**: User abort (Ctrl+C) kills subprocess, throws error
-- **Chain mode**: Stops at first failing step, reports which step failed
+### Available Built-in Tools
 
-## Limitations
+Available Tools (default: `read`, `bash`, `edit`, `write`):
 
-- Output truncated to last 10 items in collapsed view (expand to see all)
-- Agents discovered fresh on each invocation (allows editing mid-session)
-- Parallel mode limited to 8 tasks, 4 concurrent
+- `read` — Read file contents
+- `bash` — Execute bash commands
+- `edit` — Edit files with find/replace
+- `write` — Write files (creates/overwrites)
+- `grep` — Search file contents (read-only, off by default)
+- `find` — Find files by glob pattern (read-only, off by default)
+- `ls` — List directory contents (read-only, off by default)
+
+Tip: for a read-only tool selection, use `read,find,ls,grep`. As soon as you include `edit`, `write`, or `bash`, the agent can practically go wild.
+
+## How Communication Works
+
+### The Isolation Model
+
+Each subagent always runs in a **separate `pi` process**:
+
+- ❌ No shared memory/state with the parent process
+- ❌ No visibility into sibling subagents
+- ✅ Its own model/tool/runtime loop
+- ✅ Started with `PI_OFFLINE=1` to skip startup network operations and reduce spawn latency
+
+What it can see depends on `mode`:
+
+- `spawn` (default)
+  - ✅ Receives: subagent system prompt + `Task: ...`
+  - ❌ Does **not** receive parent session history
+- `fork`
+  - ✅ Receives: forked snapshot of current parent session context + `Task: ...`
+
+### What Gets Sent to Subagents
+
+#### `spawn` mode (default)
+
+`subagent({ agent: "writer", task: "Document the API" })` sends:
+
+```
+[System Prompt from ~/.pi/agent/agents/writer.md]
+
+User: Task: Document the API
+```
+
+No parent conversation history is included. In `spawn`, include all required context in `task`.
+
+#### `fork` mode
+
+`subagent({ agent: "writer", task: "Document the API", mode: "fork" })` sends:
+
+```
+[Forked snapshot of current session context]
+[System Prompt from ~/.pi/agent/agents/writer.md]
+
+User: Task: Document the API
+```
+
+Note: `fork` copies session context, not transient runtime-only prompt mutations from the parent process.
+
+### What Comes Back to the Main Agent
+
+| Data                        | Main Agent Sees          | TUI Shows              |
+| --------------------------- | ------------------------ | ---------------------- |
+| Final text output           | ✅ Yes — full, unbounded | ✅ Yes                 |
+| Tool calls made by subagent | ❌ No                    | ✅ Yes (expanded view) |
+| Token usage / cost          | ❌ No                    | ✅ Yes                 |
+| Reasoning/thinking steps    | ❌ No                    | ❌ No                  |
+| Error messages              | ✅ Yes (on failure)      | ✅ Yes                 |
+
+**Key point:** The main agent receives **only the final assistant text** from each subagent. Not the tool calls, not the reasoning, not the intermediate steps. This prevents context pollution while still giving you the results.
+
+### Parallel Mode Behavior
+
+When running multiple agents in parallel:
+
+- All subagents start simultaneously (up to 4 concurrent)
+- The top-level `mode` applies to all tasks in that call
+- Main agent receives a combined result after all finish:
+
+```
+Parallel: 3/3 succeeded
+
+[writer] completed: Full output text here...
+[tester] completed: Full output text here...
+[reviewer] completed: Full output text here...
+```
+
+## Features
+
+- **Auto-Discovery** — Agents are found at startup and their descriptions are injected into the main agent's system prompt.
+- **Context Mode Switch** — `spawn` (fresh context) and `fork` (session snapshot + task) per call.
+- **Depth + Cycle Guards** — Depth limiting and ancestry-cycle checks prevent runaway recursive delegation by default.
+- **Streaming Updates** — Watch subagent progress in real-time as tool calls and outputs stream in.
+- **Rich TUI Rendering** — Collapsed/expanded views with usage stats, tool call previews, and markdown output.
+- **Security Confirmation** — Project-local agents require explicit user approval before execution.
+
+## Project Structure
+
+```
+index.ts    — Extension entry point: lifecycle hooks, tool registration, mode orchestration
+agents.ts   — Agent discovery: reads and parses .md files from user/project directories
+runner.ts   — Process runner: starts `pi` subprocesses in spawn/fork context modes and streams JSON events
+render.ts   — TUI rendering: renderCall and renderResult for the subagent tool
+types.ts    — Shared types and pure helper functions
+```
+
+## Attribution
+
+Inspired by implementations from [vaayne/agent-kit](https://github.com/vaayne/agent-kit) and [mariozechner/pi-mono](https://github.com/badlogic/pi-mono).
+
+## License
+
+MIT

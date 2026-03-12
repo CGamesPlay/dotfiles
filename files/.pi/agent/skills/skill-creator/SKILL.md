@@ -1,17 +1,18 @@
 ---
 name: skill-creator
-description: Create, improve, and troubleshoot Claude Code agent skills. Use when asked to make a new skill, write a SKILL.md file, improve skill discoverability, debug why a skill isn't activating, answer questions about skills, or review skill best practices.
+description: Create, improve, and troubleshoot agent skills. Use when asked to make a new skill, write a SKILL.md file, improve skill discoverability, debug why a skill isn't activating, answer questions about skills, or review skill best practices.
 # https://github.com/j-r-beckett/SpeedReader/tree/main/.claude/skills/skill-creator
+# https://github.com/tmustier/pi-extensions/blob/main/extending-pi/skill-creator/SKILL.md
 ---
 
 # Skill Creator
 
-Create well-structured Claude Code skills that are discoverable and effective.
+Create well-structured agent skills that are discoverable and effective.
 
 ## Skill Setup
 
 ```
-.claude/skills/my-skill-name/
+$CONFIG_DIR/skills/my-skill-name/
 ├── SKILL.md                    # Required: main definition file
 ├── scripts/                    # Optional: automation scripts
 │   └── build.py
@@ -24,8 +25,10 @@ Create well-structured Claude Code skills that are discoverable and effective.
 Use the template at [assets/SKILL.template.md](assets/SKILL.template.md) as a starting SKILL.md file.
 
 ```bash
-mkdir -p .claude/skills/my-skill-name
-cp .claude/skills/skill-creator/assets/SKILL.template.md .claude/skills/my-skill-name/SKILL.md
+mkdir -p .agents/skills/my-skill-name
+# If claude code is in use
+mkdir -p .claude/skills && ln -s ../../.agents/skills/my-skill-name .claude/skills/my-skill-name
+cp .agents/skills/skill-creator/assets/SKILL.template.md .agents/skills/my-skill-name/SKILL.md
 ```
 
 ## Writing Discoverable Descriptions
@@ -34,7 +37,7 @@ The only things we'll see before using a skill are the name and description in t
 
 Don't rely on the user saying magic words. Think about what *situations* call for this skill, including ones where the agent should decide to use it on its own, then write a description that captures those scenarios.
 
-Note that the description must be 1024 characters or less, and it must be on a single line (Claude Code does not support multiline YAML).
+Note that the description must be 1024 characters or less, and it must be on a single line (some agents do not support multiline YAML).
 
 Here are some good examples of discoverable frontmatters:
 
@@ -70,7 +73,7 @@ A knowledge injection is when you give the agent a batch of valuable knowledge t
 2. Give the agent a knowledge dump to make it instantly an expert on a topic
 3. Guide the agent through a complex, nuanced workflow
 
-Use `references/` to store documents. If appropriate, use progressive disclosure (e.g. "Depending on the platform, read docs/gcp.md, docs/azure.md, or docs/aws.md").
+Use `references/` to store documents. If appropriate, use progressive disclosure (e.g. "Depending on the platform, read docs/gcp.md, docs/azure.md, or docs/aws.md"). ~500 lines is a practical ceiling for SKILL.md; beyond that, split content into references.
 
 ## Principles
 

@@ -1,18 +1,3 @@
-# Subagent Extension — Provenance
-
-## Source
-
-- **URL**: https://github.com/mjakl/pi-subagent
-- **Commit**: 04cb357c6ce1c7e63d81101cda91d337e1b3a903
-
-Vendored from a shallow clone of the repository at the above commit.
-
-## Companion Files
-
-None. Agent definitions in `files/.pi/agent/agents/` are independently maintained and were not installed by this extension.
-
-## License
-
 MIT License
 
 Copyright (c) 2026 Michael Jakl

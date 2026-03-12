@@ -211,6 +211,22 @@ export default function (pi: ExtensionAPI) {
 		refreshWidget(ctx);
 	});
 
+	// Inject current todo reminder into system prompt before agent starts
+	pi.on("before_agent_start", async (event) => {
+		// Find first unfinished todo
+		const firstUnfinished = todos.find((t) => !t.done);
+
+		if (firstUnfinished) {
+			return {
+				systemPrompt:
+					event.systemPrompt +
+					`\n\nCurrent todo item is "#${firstUnfinished.id} ${firstUnfinished.text}". Remember to keep this up to date with the todo tool.`,
+			};
+		}
+
+		return undefined;
+	});
+
 	// Register the todo tool for the LLM
 	pi.registerTool({
 		name: "todo",
