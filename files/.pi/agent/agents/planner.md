@@ -50,3 +50,4 @@ List 3-5 files most critical for implementing this plan:
 - path/to/file2.ts - [Brief reason: e.g., "Interfaces to implement"]
 - path/to/file3.ts - [Brief reason: e.g., "Pattern to follow"]
 
+Don't create todo items with the todo tool. The user will not be able to read them. Instead, include your todo list as part of your final output.

@@ -56,8 +56,8 @@ The explore subagent is designed specifically for fast exploration of codebases.
 
 **Don't use the explore subagent when:**
 
-- You already know the exact file path (just use Read directly)
-- You're looking for a specific class/function and a quick Glob will find it
+- You already know the exact file path (just use read directly with a parallel tool call)
+- You're looking for a specific class/function and a quick glob will find it
 - You're about to write code (use explore first, then write separately)
 - The task is a simple one-off search (a simple find/read in main conversation is faster)
 
