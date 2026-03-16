@@ -13,3 +13,5 @@ This repository is organized as follows:
 DFM works by symlinking files from the DFM repos into the home directory. For example, `~/.config/nvim/init.lua` is a symlink to `files/.config/nvim/init.lua`. All files in the repository are linked automatically, there are no additional steps or configuration. `dfm link` is the only command necessary, and is always safe to run.
 
 If DFM gives "operation not permitted" errors, it's because the sandbox environment is enabled and restricting your operations. If this is blocking, ask Ryan to do the commands or to disable the sandbox.
+
+I use `@` as a prefix to several custom scripts in ~/.local/bin (so, located in one of files, macos, or linux directories under .local/bin).

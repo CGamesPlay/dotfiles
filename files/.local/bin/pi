@@ -26,20 +26,46 @@ main() {
 	nvm use --lts > /dev/null
 	set -u
 
-	if [[ "${argc_pi_reinstall+1}" ]] || ! npm --no-update-notifier list -g "$PI_PACKAGE" >/dev/null; then
+	# Fast path: check by directory existence rather than slow `npm list -g`.
+	local npm_global_root
+	npm_global_root=$(npm root -g)
+
+	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -d "$npm_global_root/$PI_PACKAGE" ]]; then
 		echo "Pi is not installed. Installing..." >&2
 		npm --no-update-notifier install -g "$PI_PACKAGE"
 	fi
 
-	# Install dependencies for any pi extensions that have a package.json
+	# Install dependencies for any pi extensions that have a package.json.
+	# Fast path: check for missing deps by directory existence (no npm invocation).
+	# Slow path: acquire a lock to serialize concurrent installs, then re-check and install.
+	local missing_deps=() pkg_dep pkg_json lock_file=~/.pi/install.lock
+	export NODE_PATH="${NODE_PATH:+$NODE_PATH:}$npm_global_root"
+
+	# Serialize dep checks and installs so concurrent pi processes don't race.
+	# noclobber + > is atomic (O_EXCL) on local filesystems — no external tool needed.
+	until (set -o noclobber; echo $$ > "$lock_file") 2>/dev/null; do sleep 0.2; done
+	trap 'rm -f "$lock_file"' EXIT
+
 	while IFS= read -r pkg_json; do
-		deps=$(node -e "const p=require('$pkg_json'); const d=p.dependencies||{}; const k=Object.keys(d); if(k.length) console.log(k.join(' '))" 2>/dev/null)
-		if [[ -n "$deps" ]]; then
-			# shellcheck disable=2086
-			npm --no-update-notifier --silent install -g $deps
-		fi
+		while IFS= read -r pkg_dep; do
+			[[ -z "$pkg_dep" ]] && continue
+			# Scoped packages (@scope/name) map to $npm_global_root/@scope/name
+			if [[ ! -d "$npm_global_root/$pkg_dep" ]]; then
+				missing_deps+=("$pkg_dep")
+			fi
+		done < <(node -e "
+			const p=require('$pkg_json');
+			const d=p.dependencies||{};
+			Object.keys(d).forEach(k=>console.log(k));
+		" 2>/dev/null)
 	done < <(find ~/.pi/agent/extensions -name package.json -maxdepth 2)
-	export NODE_PATH="${NODE_PATH:+$NODE_PATH:}$(npm root -g)"
+
+	if [[ ${#missing_deps[@]} -gt 0 ]]; then
+		npm --no-update-notifier --quiet install -g "${missing_deps[@]}" >/dev/null
+	fi
+
+	rm -f "$lock_file"
+	trap - EXIT
 
 	if [[ ${argc_pi_help+1} ]] || [[ ${args_pi_version+1} ]]; then
 		exec pi \
@@ -58,6 +84,7 @@ main() {
 		script="set -a && source '$PI_ENV_FILE' && exec \"\$@\""
 		args=(
 			safehouse 
+			--enable=clipboard
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"

@@ -98,7 +98,7 @@ function parseArgs(cmd: string): string[] {
 export function git(
   cmd: string,
   cwd: string,
-  opts: { env?: NodeJS.ProcessEnv; input?: string } = {}
+  opts: { env?: NodeJS.ProcessEnv; input?: string } = {},
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const args = parseArgs(cmd);
@@ -304,7 +304,7 @@ function isPathAncestorOfAnyDir(path: string, dirs: Set<string>): boolean {
 
 function extractStatusPathAfterFields(
   record: string,
-  fieldsBeforePath: number
+  fieldsBeforePath: number,
 ): string | null {
   if (fieldsBeforePath <= 0) return null;
   let spaces = 0;
@@ -328,7 +328,7 @@ interface LargeUntrackedDir {
 function detectLargeUntrackedDirs(
   files: string[],
   dirs: string[],
-  threshold: number
+  threshold: number,
 ): LargeUntrackedDir[] {
   if (threshold <= 0 || files.length === 0) return [];
 
@@ -371,9 +371,7 @@ function detectLargeUntrackedDirs(
  * Note: This always uses the real git index to determine untracked status.
  * @param root - Repository root path
  */
-async function getUntrackedFiles(
-  root: string
-): Promise<string[]> {
+async function getUntrackedFiles(root: string): Promise<string[]> {
   try {
     // Get untracked files (respects .gitignore)
     // Don't pass custom env - we want to use the real index
@@ -406,7 +404,7 @@ async function captureStatusSnapshot(root: string): Promise<StatusSnapshot> {
 
   const output = await git(
     "status --porcelain=2 -z --untracked-files=all",
-    root
+    root,
   ).catch(() => "");
 
   if (!output) return snapshot;
@@ -505,26 +503,24 @@ interface FilesToAddResult {
  * that query the index state.
  * @param root - Repository root path
  */
-async function getFilesToAdd(
-  root: string
-): Promise<FilesToAddResult> {
+async function getFilesToAdd(root: string): Promise<FilesToAddResult> {
   const status = await captureStatusSnapshot(root);
 
   const largeDirEntries = detectLargeUntrackedDirs(
     status.untrackedFilesForDirScan,
     status.untrackedDirs,
-    MAX_UNTRACKED_DIR_FILES
+    MAX_UNTRACKED_DIR_FILES,
   );
 
   const skippedLargeDirs = largeDirEntries.map((entry) => entry.path);
   const skippedLargeDirsSet = new Set(skippedLargeDirs);
 
   const untrackedFilesForIndex = status.untrackedFilesForIndex.filter(
-    (path) => !isPathWithinAnyDir(path, skippedLargeDirsSet)
+    (path) => !isPathWithinAnyDir(path, skippedLargeDirsSet),
   );
 
   const skippedLargeFiles = status.skippedLargeFiles.filter(
-    (path) => !isPathWithinAnyDir(path, skippedLargeDirsSet)
+    (path) => !isPathWithinAnyDir(path, skippedLargeDirsSet),
   );
 
   const filesToAddSet = new Set<string>();
@@ -543,17 +539,22 @@ async function getFilesToAdd(
 // Checkpoint operations
 // ============================================================================
 
-export async function createCheckpoint(
-  root: string,
-  id: string,
-  turnIndex: number,
-  sessionId: string
-): Promise<CheckpointData> {
-  const timestamp = Date.now();
-  const isoTimestamp = new Date(timestamp).toISOString();
+interface WorktreeSnapshot {
+  headSha: string;
+  worktreeTreeSha: string;
+  filesToAdd: FilesToAddResult;
+}
 
+/**
+ * Build a temporary git index that mirrors the current working tree state
+ * (tracked files + untracked files, respecting size limits and ignore rules)
+ * and return the resulting tree SHA along with supporting metadata.
+ *
+ * This is the shared core used by both createCheckpoint and
+ * computeCurrentWorktreeTreeSha.
+ */
+async function buildWorktreeSnapshot(root: string): Promise<WorktreeSnapshot> {
   const headSha = await git("rev-parse HEAD", root).catch(() => ZEROS);
-  const indexTreeSha = await git("write-tree", root);
 
   const tmpDir = await mkdtemp(join(tmpdir(), "pi-checkpoint-"));
   const tmpIndex = join(tmpDir, "index");
@@ -561,96 +562,140 @@ export async function createCheckpoint(
   try {
     const tmpEnv = { ...process.env, GIT_INDEX_FILE: tmpIndex };
 
-    // Get files to add, filtering out ignored directories, large files, and large directories
     // Note: getFilesToAdd uses the real git index to determine tracked/untracked status
-    const { filtered: filesToAdd, allUntracked, skippedLargeFiles, skippedLargeDirs } = await getFilesToAdd(
-      root
-    );
-
-    // Filter untracked files to only include non-ignored, non-large ones for restore tracking
-    const skippedLargeDirsSet = new Set(skippedLargeDirs);
-    const skippedLargeFilesSet = new Set(skippedLargeFiles);
-    const preexistingUntrackedFiles = allUntracked.filter((f) => {
-      if (shouldIgnoreForSnapshot(f)) return false;
-      if (skippedLargeFilesSet.has(f)) return false;
-      if (isPathWithinAnyDir(f, skippedLargeDirsSet)) return false;
-      return true;
-    });
+    const filesToAdd = await getFilesToAdd(root);
 
     // Start with tracked files from HEAD (if it exists)
     if (headSha !== ZEROS) {
       await git(`read-tree ${headSha}`, root, { env: tmpEnv });
     }
 
-    // Add filtered files to the temporary index
-    if (filesToAdd.length > 0) {
-      // Add files in batches to avoid command line length limits
-      const BATCH_SIZE = 100;
-      for (let i = 0; i < filesToAdd.length; i += BATCH_SIZE) {
-        const batch = filesToAdd.slice(i, i + BATCH_SIZE);
-        // Use -- to separate paths from options
-        const pathArgs = batch.map((f) => `"${f}"`).join(" ");
-        await git(`add --all -- ${pathArgs}`, root, { env: tmpEnv });
-      }
+    // Add filtered files to the temporary index in batches to avoid
+    // command line length limits
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < filesToAdd.filtered.length; i += BATCH_SIZE) {
+      const batch = filesToAdd.filtered.slice(i, i + BATCH_SIZE);
+      const pathArgs = batch.map((f) => `"${f}"`).join(" ");
+      await git(`add --all -- ${pathArgs}`, root, { env: tmpEnv });
     }
 
     const worktreeTreeSha = await git("write-tree", root, { env: tmpEnv });
-
-    // Encode data as JSON for storage in commit message
-    const untrackedJson = JSON.stringify(preexistingUntrackedFiles);
-    const largeFilesJson = JSON.stringify(skippedLargeFiles);
-    const largeDirsJson = JSON.stringify(skippedLargeDirs);
-
-    const message = [
-      `checkpoint:${id}`,
-      `sessionId ${sessionId}`,
-      `turn ${turnIndex}`,
-      `head ${headSha}`,
-      `index-tree ${indexTreeSha}`,
-      `worktree-tree ${worktreeTreeSha}`,
-      `created ${isoTimestamp}`,
-      `untracked ${untrackedJson}`,
-      `largeFiles ${largeFilesJson}`,
-      `largeDirs ${largeDirsJson}`,
-    ].join("\n");
-
-    const commitEnv = {
-      ...process.env,
-      GIT_AUTHOR_NAME: "pi-checkpoint",
-      GIT_AUTHOR_EMAIL: "checkpoint@pi",
-      GIT_AUTHOR_DATE: isoTimestamp,
-      GIT_COMMITTER_NAME: "pi-checkpoint",
-      GIT_COMMITTER_EMAIL: "checkpoint@pi",
-      GIT_COMMITTER_DATE: isoTimestamp,
-    };
-
-    const commitSha = await git(`commit-tree ${worktreeTreeSha}`, root, {
-      input: message,
-      env: commitEnv,
-    });
-
-    await git(`update-ref ${REF_BASE}/${id} ${commitSha}`, root);
-
-    return {
-      id,
-      turnIndex,
-      sessionId,
-      headSha,
-      indexTreeSha,
-      worktreeTreeSha,
-      timestamp,
-      preexistingUntrackedFiles,
-      skippedLargeFiles: skippedLargeFiles.length > 0 ? skippedLargeFiles : undefined,
-      skippedLargeDirs: skippedLargeDirs.length > 0 ? skippedLargeDirs : undefined,
-    };
+    return { headSha, worktreeTreeSha, filesToAdd };
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
+/** Run `git diff --stat` between two tree SHAs. Returns the output or null on failure. */
+export async function getDiffStat(
+  root: string,
+  fromTree: string,
+  toTree: string,
+): Promise<string | null> {
+  try {
+    return await git(`diff --stat ${fromTree} ${toTree}`, root);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compute the git tree SHA that represents the current working tree state
+ * (tracked files + untracked files, same as what createCheckpoint captures).
+ * Returns null on failure.
+ */
+export async function computeCurrentWorktreeTreeSha(
+  root: string,
+): Promise<string | null> {
+  try {
+    const { worktreeTreeSha } = await buildWorktreeSnapshot(root);
+    return worktreeTreeSha;
+  } catch {
+    return null;
+  }
+}
+
+export async function createCheckpoint(
+  root: string,
+  id: string,
+  turnIndex: number,
+  sessionId: string,
+): Promise<CheckpointData> {
+  const timestamp = Date.now();
+  const isoTimestamp = new Date(timestamp).toISOString();
+
+  const indexTreeSha = await git("write-tree", root);
+
+  const {
+    headSha,
+    worktreeTreeSha,
+    filesToAdd: { allUntracked, skippedLargeFiles, skippedLargeDirs },
+  } = await buildWorktreeSnapshot(root);
+
+  // Filter untracked files to only include non-ignored, non-large ones for restore tracking
+  const skippedLargeDirsSet = new Set(skippedLargeDirs);
+  const skippedLargeFilesSet = new Set(skippedLargeFiles);
+  const preexistingUntrackedFiles = allUntracked.filter((f) => {
+    if (shouldIgnoreForSnapshot(f)) return false;
+    if (skippedLargeFilesSet.has(f)) return false;
+    if (isPathWithinAnyDir(f, skippedLargeDirsSet)) return false;
+    return true;
+  });
+
+  // Encode data as JSON for storage in commit message
+  const untrackedJson = JSON.stringify(preexistingUntrackedFiles);
+  const largeFilesJson = JSON.stringify(skippedLargeFiles);
+  const largeDirsJson = JSON.stringify(skippedLargeDirs);
+
+  const message = [
+    `checkpoint:${id}`,
+    `sessionId ${sessionId}`,
+    `turn ${turnIndex}`,
+    `head ${headSha}`,
+    `index-tree ${indexTreeSha}`,
+    `worktree-tree ${worktreeTreeSha}`,
+    `created ${isoTimestamp}`,
+    `untracked ${untrackedJson}`,
+    `largeFiles ${largeFilesJson}`,
+    `largeDirs ${largeDirsJson}`,
+  ].join("\n");
+
+  const commitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: "pi-checkpoint",
+    GIT_AUTHOR_EMAIL: "checkpoint@pi",
+    GIT_AUTHOR_DATE: isoTimestamp,
+    GIT_COMMITTER_NAME: "pi-checkpoint",
+    GIT_COMMITTER_EMAIL: "checkpoint@pi",
+    GIT_COMMITTER_DATE: isoTimestamp,
+  };
+
+  const commitSha = await git(`commit-tree ${worktreeTreeSha}`, root, {
+    input: message,
+    env: commitEnv,
+  });
+
+  await git(`update-ref ${REF_BASE}/${id} ${commitSha}`, root);
+
+  return {
+    id,
+    turnIndex,
+    sessionId,
+    headSha,
+    indexTreeSha,
+    worktreeTreeSha,
+    timestamp,
+    preexistingUntrackedFiles,
+    skippedLargeFiles:
+      skippedLargeFiles.length > 0 ? skippedLargeFiles : undefined,
+    skippedLargeDirs:
+      skippedLargeDirs.length > 0 ? skippedLargeDirs : undefined,
+  };
+}
+
 export async function restoreCheckpoint(
   root: string,
-  cp: CheckpointData
+  cp: CheckpointData,
 ): Promise<void> {
   // 1. Restore HEAD state
   if (cp.headSha !== ZEROS) {
@@ -666,7 +711,7 @@ export async function restoreCheckpoint(
     root,
     cp.preexistingUntrackedFiles || [],
     cp.skippedLargeFiles || [],
-    cp.skippedLargeDirs || []
+    cp.skippedLargeDirs || [],
   );
 
   // 4. Restore the index (staged state) without touching files
@@ -687,7 +732,7 @@ async function safeCleanUntrackedFiles(
   root: string,
   preexistingFiles: string[],
   skippedLargeFiles: string[] = [],
-  skippedLargeDirs: string[] = []
+  skippedLargeDirs: string[] = [],
 ): Promise<void> {
   // Get current untracked files
   const currentUntracked = await getUntrackedFiles(root);
@@ -755,13 +800,13 @@ async function safeCleanUntrackedFiles(
 export async function loadCheckpointFromRef(
   root: string,
   refName: string,
-  lowPriority = false
+  lowPriority = false,
 ): Promise<CheckpointData | null> {
   try {
     const gitFn = lowPriority ? gitLowPriority : git;
     const commitSha = await gitFn(
       `rev-parse --verify ${REF_BASE}/${refName}`,
-      root
+      root,
     );
     const commitMsg = await gitFn(`cat-file commit ${commitSha}`, root);
 
@@ -831,14 +876,14 @@ export async function loadCheckpointFromRef(
 
 export async function listCheckpointRefs(
   root: string,
-  lowPriority = false
+  lowPriority = false,
 ): Promise<string[]> {
   try {
     const prefix = `${REF_BASE}/`;
     const gitFn = lowPriority ? gitLowPriority : git;
     const stdout = await gitFn(
       `for-each-ref --format="%(refname)" ${prefix}`,
-      root
+      root,
     );
     return stdout
       .split("\n")
@@ -852,7 +897,7 @@ export async function listCheckpointRefs(
 export async function loadAllCheckpoints(
   root: string,
   sessionFilter?: string,
-  lowPriority = false
+  lowPriority = false,
 ): Promise<CheckpointData[]> {
   const refs = await listCheckpointRefs(root, lowPriority);
 
@@ -862,13 +907,13 @@ export async function loadAllCheckpoints(
     for (let i = 0; i < refs.length; i += BATCH_SIZE) {
       const batch = refs.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.all(
-        batch.map((ref) => loadCheckpointFromRef(root, ref, true))
+        batch.map((ref) => loadCheckpointFromRef(root, ref, true)),
       );
       results.push(
         ...batchResults.filter(
           (cp): cp is CheckpointData =>
-            cp !== null && (!sessionFilter || cp.sessionId === sessionFilter)
-        )
+            cp !== null && (!sessionFilter || cp.sessionId === sessionFilter),
+        ),
       );
       await new Promise((resolve) => setImmediate(resolve));
     }
@@ -876,11 +921,11 @@ export async function loadAllCheckpoints(
   }
 
   const results = await Promise.all(
-    refs.map((ref) => loadCheckpointFromRef(root, ref))
+    refs.map((ref) => loadCheckpointFromRef(root, ref)),
   );
   return results.filter(
     (cp): cp is CheckpointData =>
-      cp !== null && (!sessionFilter || cp.sessionId === sessionFilter)
+      cp !== null && (!sessionFilter || cp.sessionId === sessionFilter),
   );
 }
 
@@ -894,7 +939,7 @@ export const isSafeId = (id: string) => /^[\w-]+$/.test(id);
 /** Find the closest checkpoint to a target timestamp */
 export function findClosestCheckpoint(
   checkpoints: CheckpointData[],
-  targetTs: number
+  targetTs: number,
 ): CheckpointData {
   return checkpoints.reduce((best, cp) => {
     const bestDiff = Math.abs(best.timestamp - targetTs);

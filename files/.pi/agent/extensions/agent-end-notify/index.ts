@@ -2,14 +2,18 @@
  * Agent End Notify Extension
  *
  * Plays a sound, bounces the iTerm2 Dock icon, and sends a notification when
- * the agent finishes responding to a prompt — but only if no terminal input is
- * received within 30 seconds of the agent finishing.
+ * the agent finishes responding to a prompt — but only if the user hasn't
+ * engaged with the terminal within 15 seconds of the agent finishing.
+ *
+ * "Engaged" means: focus gained (via \e[?1004h focus reporting) or any
+ * keystroke. Focus lost does not cancel the timer — the notification will
+ * still fire if the user doesn't come back.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import path from "node:path";
 
-const DELAY_MS = 30_000;
+const DELAY_MS = 15_000;
 
 function notify(titleText: string, messageText = "I've finished working") {
   const title = Buffer.from(titleText).toString("base64");
@@ -34,14 +38,31 @@ export default function (pi: ExtensionAPI) {
   };
 
   pi.on("session_start", (_event, ctx) => {
-    // Keep a single terminal input listener alive for the whole session
-    ctx.ui.onTerminalInput(() => {
+    if (!ctx.hasUI) return;
+
+    // Enable terminal focus reporting
+    process.stdout.write("\x1b[?1004h");
+
+    ctx.ui.onTerminalInput((data) => {
+      if (data === "\x1b[O") {
+        // Focus lost — don't cancel the timer; consume the event silently
+        return { consume: true };
+      }
+      // Focus gained (\x1b[I) or any other input — user is engaged; cancel timer
       cancelTimer();
+      if (data === "\x1b[I") {
+        return { consume: true };
+      }
+      return undefined;
     });
   });
 
+  pi.on("session_shutdown", (_event, ctx) => {
+    if (!ctx.hasUI) return;
+    process.stdout.write("\x1b[?1004l");
+  });
+
   pi.on("agent_end", async (event, ctx) => {
-    // Skip in non-interactive (print/RPC) mode
     if (!ctx.hasUI) return;
 
     const sessionName = pi.getSessionName();
@@ -60,7 +81,6 @@ export default function (pi: ExtensionAPI) {
     const snippet = text.split(/\s+/).slice(0, 20).join(" ");
     const messageText = snippet.length > 0 ? snippet : "I've finished working";
 
-    // Replace any existing pending notification
     cancelTimer();
     timer = setTimeout(() => {
       timer = undefined;

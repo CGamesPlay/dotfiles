@@ -23,6 +23,8 @@ import {
   restoreCheckpoint,
   listCheckpointRefs,
   loadCheckpointFromRef,
+  computeCurrentWorktreeTreeSha,
+  getDiffStat,
   isSafeId,
   type CheckpointData,
 } from "./checkpoint-core.js";
@@ -32,27 +34,46 @@ import {
 // ============================================================================
 
 type ExtensionAPI = {
-  on: (event: string, handler: (event: any, ctx: ExtensionContext) => any) => void;
+  on: (
+    event: string,
+    handler: (event: any, ctx: ExtensionContext) => any,
+  ) => void;
 };
 
 interface SessionManager {
   getSessionFile(): string | undefined;
   getHeader(): { id?: string; parentSession?: string } | undefined;
-  getEntry(id: string): {
-    timestamp?: string;
-    turnIndex?: number;
-    turn?: number;
-    sessionId?: string;
-    role?: string;
-    type?: string;
-    kind?: string;
-    author?: string;
-    message?: { role?: string };
-  } | undefined;
+  getEntry(id: string):
+    | {
+        timestamp?: string;
+        turnIndex?: number;
+        turn?: number;
+        sessionId?: string;
+        role?: string;
+        type?: string;
+        kind?: string;
+        author?: string;
+        message?: { role?: string };
+      }
+    | undefined;
+}
+
+interface ExtensionUIDialogOptions {
+  signal?: AbortSignal;
+  timeout?: number;
 }
 
 interface ExtensionUI {
-  select(title: string, options: string[]): Promise<string>;
+  select(
+    title: string,
+    options: string[],
+    opts?: ExtensionUIDialogOptions,
+  ): Promise<string | undefined>;
+  confirm(
+    title: string,
+    message: string,
+    opts?: ExtensionUIDialogOptions,
+  ): Promise<boolean>;
   notify(message: string, type: "info" | "error" | "warning"): void;
 }
 
@@ -94,7 +115,6 @@ function addToCache(state: CheckpointState, cp: CheckpointData): void {
   if (state.checkpointCache.some((existing) => existing.id === cp.id)) return;
   state.checkpointCache.push(cp);
 }
-
 
 // Repo root cache (module-level for efficiency across sessions)
 let cachedRepoRoot: string | null = null;
@@ -143,7 +163,7 @@ interface CheckpointRefInfo {
 
 function getCachedCheckpointById(
   state: CheckpointState,
-  id: string
+  id: string,
 ): CheckpointData | undefined {
   return state.checkpointCache?.find((cp) => cp.id === id);
 }
@@ -158,7 +178,7 @@ function parseCheckpointTimestampFromId(id: string): number | undefined {
 
 function findClosestCheckpointRef(
   refs: CheckpointRefInfo[],
-  targetTs: number
+  targetTs: number,
 ): CheckpointRefInfo | undefined {
   if (refs.length === 0) return undefined;
   return refs.reduce((best, ref) => {
@@ -203,7 +223,10 @@ async function getSessionIdFromFile(sessionFile: string): Promise<string> {
 }
 
 /** Update session info from context */
-function updateSessionInfo(state: CheckpointState, sessionManager: SessionManager): void {
+function updateSessionInfo(
+  state: CheckpointState,
+  sessionManager: SessionManager,
+): void {
   state.currentSessionFile = sessionManager.getSessionFile();
   const header = sessionManager.getHeader();
   state.currentSessionId = header?.id && isSafeId(header.id) ? header.id : "";
@@ -219,7 +242,7 @@ async function loadCheckpointForTarget(
   cwd: string,
   header: { id?: string; parentSession?: string } | undefined,
   targetTs: number,
-  options: { targetTurnIndex?: number; targetSessionId?: string } = {}
+  options: { targetTurnIndex?: number; targetSessionId?: string } = {},
 ): Promise<CheckpointData | null> {
   if (state.pendingCheckpoint) await state.pendingCheckpoint;
 
@@ -321,19 +344,24 @@ async function saveAndRestore(
   state: CheckpointState,
   cwd: string,
   target: CheckpointData,
-  notify: (msg: string, type: "info" | "error" | "warning") => void
+  notify: (msg: string, type: "info" | "error" | "warning") => void,
 ): Promise<void> {
   try {
     const root = await getCachedRepoRoot(cwd);
     const beforeId = `${state.currentSessionId}-before-restore-${Date.now()}`;
-    const newCp = await createCheckpoint(root, beforeId, 0, state.currentSessionId);
+    const newCp = await createCheckpoint(
+      root,
+      beforeId,
+      0,
+      state.currentSessionId,
+    );
     addToCache(state, newCp);
     await restoreCheckpoint(root, target);
     notify("Files restored to checkpoint", "info");
   } catch (error) {
     notify(
       `Restore failed: ${error instanceof Error ? error.message : String(error)}`,
-      "error"
+      "error",
     );
   }
 }
@@ -343,11 +371,16 @@ async function createTurnCheckpoint(
   state: CheckpointState,
   cwd: string,
   turnIndex: number,
-  timestamp: number
+  timestamp: number,
 ): Promise<void> {
   const root = await getCachedRepoRoot(cwd);
   const id = `${state.currentSessionId}-turn-${turnIndex}-${timestamp}`;
-  const cp = await createCheckpoint(root, id, turnIndex, state.currentSessionId);
+  const cp = await createCheckpoint(
+    root,
+    id,
+    turnIndex,
+    state.currentSessionId,
+  );
   addToCache(state, cp);
 }
 
@@ -355,31 +388,18 @@ async function createTurnCheckpoint(
 // Restore UI
 // ============================================================================
 
-type RestoreChoice = "all" | "conv" | "code" | "cancel";
-
-const restoreOptions: { label: string; value: RestoreChoice }[] = [
-  { label: "Restore all (files + conversation)", value: "all" },
-  { label: "Conversation only (keep current files)", value: "conv" },
-  { label: "Code only (restore files, keep conversation)", value: "code" },
-  { label: "Cancel", value: "cancel" },
-];
-
 /** Handle restore prompt for fork/tree navigation */
 async function handleRestorePrompt(
   state: CheckpointState,
   ctx: ExtensionContext,
   getTargetEntryId: () => string,
-  options: { codeOnly: "cancel" | "skipConversationRestore"; requireUserEntry?: boolean }
-): Promise<{ cancel: true } | { skipConversationRestore: true } | undefined> {
+  options: { requireUserEntry?: boolean } = {},
+): Promise<undefined> {
   const targetEntry = ctx.sessionManager.getEntry(getTargetEntryId());
 
   if (options.requireUserEntry) {
     const isUser = isUserEntry(targetEntry);
     if (isUser !== true) {
-      ctx.ui.notify(
-        "Code restore is only available for user messages. Skipping code restore.",
-        "warning"
-      );
       return undefined;
     }
   }
@@ -387,20 +407,6 @@ async function handleRestorePrompt(
   const targetTs = targetEntry?.timestamp
     ? new Date(targetEntry.timestamp).getTime()
     : Date.now();
-
-  const choice = await ctx.ui.select(
-    "Restore code state?",
-    restoreOptions.map((o) => o.label)
-  );
-
-  const selected = restoreOptions.find((o) => o.label === choice)?.value ?? "cancel";
-
-  if (selected === "cancel") {
-    return { cancel: true };
-  }
-  if (selected === "conv") {
-    return undefined;
-  }
 
   const targetTurnIndex = targetEntry?.turnIndex ?? targetEntry?.turn;
   const targetSessionId = targetEntry?.sessionId;
@@ -414,21 +420,57 @@ async function handleRestorePrompt(
     {
       targetTurnIndex: exactTurnIndex,
       targetSessionId,
-    }
+    },
   );
 
   if (!checkpoint) {
-    ctx.ui.notify("No checkpoints available", "warning");
-    return selected === "code" ? { cancel: true } : undefined;
+    return undefined;
+  }
+
+  const root = await getCachedRepoRoot(ctx.cwd);
+
+  // Check whether the current working tree differs from the checkpoint snapshot.
+  let currentTreeSha: string | null = null;
+  try {
+    currentTreeSha = await computeCurrentWorktreeTreeSha(root);
+  } catch (error) {
+    ctx.ui.notify(
+      `Could not compare working tree to checkpoint: ${error instanceof Error ? error.message : String(error)}`,
+      "warning",
+    );
+  }
+
+  if (
+    currentTreeSha !== null &&
+    currentTreeSha === checkpoint.worktreeTreeSha
+  ) {
+    // Code is identical — no restore needed, proceed without prompting.
+    return undefined;
+  }
+
+  // Build the diff --stat message to show in the confirm dialog.
+  let message = "";
+  if (currentTreeSha !== null) {
+    const stat = await getDiffStat(
+      root,
+      checkpoint.worktreeTreeSha,
+      currentTreeSha,
+    );
+    if (stat) {
+      message = stat;
+    }
+  }
+
+  const confirmed = await ctx.ui.confirm(
+    "Restore working copy to snapshot from this message?",
+    message,
+  );
+  if (!confirmed) {
+    return undefined;
   }
 
   await saveAndRestore(state, ctx.cwd, checkpoint, ctx.ui.notify.bind(ctx.ui));
-
-  if (selected !== "code") return undefined;
-
-  return options.codeOnly === "skipConversationRestore"
-    ? { skipConversationRestore: true }
-    : { cancel: true };
+  return undefined;
 }
 
 // ============================================================================
@@ -445,7 +487,6 @@ export default function (pi: ExtensionAPI) {
     if (!state.gitAvailable) return;
 
     updateSessionInfo(state, ctx.sessionManager);
-
   });
 
   pi.on("session_switch", async (_event: any, ctx: ExtensionContext) => {
@@ -460,15 +501,12 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_before_fork", async (event: any, ctx: ExtensionContext) => {
     if (!state.gitAvailable) return undefined;
-    return handleRestorePrompt(state, ctx, () => event.entryId, {
-      codeOnly: "skipConversationRestore",
-    });
+    return handleRestorePrompt(state, ctx, () => event.entryId);
   });
 
   pi.on("session_before_tree", async (event: any, ctx: ExtensionContext) => {
     if (!state.gitAvailable) return undefined;
     return handleRestorePrompt(state, ctx, () => event.preparation.targetId, {
-      codeOnly: "cancel",
       requireUserEntry: true,
     });
   });
@@ -477,13 +515,20 @@ export default function (pi: ExtensionAPI) {
     if (!state.gitAvailable || state.checkpointingFailed) return;
 
     if (!state.currentSessionId && state.currentSessionFile) {
-      state.currentSessionId = await getSessionIdFromFile(state.currentSessionFile);
+      state.currentSessionId = await getSessionIdFromFile(
+        state.currentSessionFile,
+      );
     }
     if (!state.currentSessionId) return;
 
     state.pendingCheckpoint = (async () => {
       try {
-        await createTurnCheckpoint(state, ctx.cwd, event.turnIndex, event.timestamp);
+        await createTurnCheckpoint(
+          state,
+          ctx.cwd,
+          event.turnIndex,
+          event.timestamp,
+        );
       } catch {
         state.checkpointingFailed = true;
       }
