@@ -208,6 +208,22 @@ export default function planFilesExtension(pi: ExtensionAPI) {
       "It ends your turn and presents the user with options: implement now, reset context then implement, or cancel.",
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
+      const agentDir = getAgentDir();
+      const sessionId = _ctx.sessionManager.getSessionId();
+      const planFile = path.join(agentDir, "plans", `${sessionId}.md`);
+
+      if (!existsSync(planFile)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: No plan file found. Write your plan to ${planFile} before using this tool.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
       pendingFinishPlan = true;
       return {
         content: [

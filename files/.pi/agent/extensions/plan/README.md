@@ -1,6 +1,6 @@
 # plan
 
-Custom extension written for this dotfiles repo. Not vendored from an external source.
+Custom extension written that emulates Claude Code's 5-stage plan mode.
 
 ## Purpose
 
