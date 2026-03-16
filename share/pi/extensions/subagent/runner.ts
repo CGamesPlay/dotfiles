@@ -198,7 +198,6 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
     const available = agents.map((a) => `"${a.name}"`).join(", ") || "none";
     return {
       agent: agentName,
-      agentSource: "unknown",
       task,
       exitCode: 1,
       messages: [],
@@ -213,7 +212,6 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
   ) {
     return {
       agent: agentName,
-      agentSource: agent.source,
       task,
       exitCode: 1,
       messages: [],
@@ -229,7 +227,6 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
 
   const result: SingleResult = {
     agent: agentName,
-    agentSource: agent.source,
     task,
     exitCode: -1,
     messages: [],

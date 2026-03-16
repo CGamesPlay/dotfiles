@@ -24,9 +24,19 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
+
+// Directory of the package's bundled prompts (share/pi/prompts/)
+const PACKAGE_PROMPTS_DIR = path.resolve(
+  fileURLToPath(import.meta.url),
+  "..",
+  "..",
+  "..",
+  "prompts",
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,15 +81,20 @@ async function readTemplate(
   agentDir: string,
   name: string,
 ): Promise<string | null> {
-  try {
-    const raw = await fs.readFile(
-      path.join(agentDir, "prompts", `${name}.md`),
-      "utf8",
-    );
-    return stripFrontmatter(raw);
-  } catch {
-    return null;
+  // Try the package's own prompts directory first, then fall back to agentDir.
+  const candidates = [
+    path.join(PACKAGE_PROMPTS_DIR, `${name}.md`),
+    path.join(agentDir, "prompts", `${name}.md`),
+  ];
+  for (const filePath of candidates) {
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      return stripFrontmatter(raw);
+    } catch {
+      // try next candidate
+    }
   }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -381,13 +396,25 @@ export default function planFilesExtension(pi: ExtensionAPI) {
 
       await fs.mkdir(plansDir, { recursive: true });
 
-      const templatePath = path.join(agentDir, "prompts", "plan.md");
-      let templateContent: string;
-      try {
-        templateContent = await fs.readFile(templatePath, "utf8");
-      } catch (err) {
+      // Try the package's own prompts directory first, then fall back to agentDir.
+      const templateCandidates = [
+        path.join(PACKAGE_PROMPTS_DIR, "plan.md"),
+        path.join(agentDir, "prompts", "plan.md"),
+      ];
+      let templateContent: string | null = null;
+      let templatePath = "";
+      for (const candidate of templateCandidates) {
+        try {
+          templateContent = await fs.readFile(candidate, "utf8");
+          templatePath = candidate;
+          break;
+        } catch {
+          // try next
+        }
+      }
+      if (templateContent === null) {
         ctx.ui.notify(
-          `plan-files: could not read ${templatePath}: ${err}`,
+          `plan-files: could not read plan.md (tried: ${templateCandidates.join(", ")})`,
           "error",
         );
         return;

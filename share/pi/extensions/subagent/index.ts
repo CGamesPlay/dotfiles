@@ -85,13 +85,6 @@ const SubagentParams = Type.Object({
       default: DEFAULT_DELEGATION_MODE,
     }),
   ),
-  confirmProjectAgents: Type.Optional(
-    Type.Boolean({
-      description:
-        "Whether to prompt the user before running project-local agents. Default: true.",
-      default: true,
-    }),
-  ),
   cwd: Type.Optional(
     Type.String({
       description: "Working directory for the agent process (single mode only)",
@@ -308,21 +301,17 @@ function resolveDelegationDepthConfig(pi: ExtensionAPI): DelegationDepthConfig {
   };
 }
 
-function makeDetailsFactory(
-  projectAgentsDir: string | null,
-  delegationMode: DelegationMode,
-) {
+function makeDetailsFactory(delegationMode: DelegationMode) {
   return (mode: "single" | "parallel") =>
     (results: SingleResult[]): SubagentDetails => ({
       mode,
       delegationMode,
-      projectAgentsDir,
       results,
     });
 }
 
 function formatAgentNames(agents: AgentConfig[]): string {
-  return agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";
+  return agents.map((a) => a.name).join(", ") || "none";
 }
 
 function getCycleViolations(
@@ -332,35 +321,6 @@ function getCycleViolations(
   if (requestedNames.size === 0 || ancestorAgentStack.length === 0) return [];
   const stackSet = new Set(ancestorAgentStack);
   return Array.from(requestedNames).filter((name) => stackSet.has(name));
-}
-
-/** Get project-local agents referenced by the current request. */
-function getRequestedProjectAgents(
-  agents: AgentConfig[],
-  requestedNames: Set<string>,
-): AgentConfig[] {
-  return Array.from(requestedNames)
-    .map((name) => agents.find((a) => a.name === name))
-    .filter((a): a is AgentConfig => a?.source === "project");
-}
-
-/**
- * Prompt the user to confirm project-local agents if needed.
- * Returns false if the user declines.
- */
-async function confirmProjectAgentsIfNeeded(
-  projectAgents: AgentConfig[],
-  projectAgentsDir: string | null,
-  ctx: { ui: { confirm: (title: string, body: string) => Promise<boolean> } },
-): Promise<boolean> {
-  if (projectAgents.length === 0) return true;
-
-  const names = projectAgents.map((a) => a.name).join(", ");
-  const dir = projectAgentsDir ?? "(unknown)";
-  return ctx.ui.confirm(
-    "Run project-local agents?",
-    `Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -388,12 +348,11 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     if (!canDelegate) return;
 
-    const discovery = discoverAgents(ctx.cwd, "both");
-    discoveredAgents = discovery.agents;
+    discoveredAgents = discoverAgents();
 
     if (discoveredAgents.length > 0 && ctx.hasUI) {
       const list = discoveredAgents
-        .map((a) => `  - ${a.name} (${a.source})`)
+        .map((a) => `  - ${a.name}`)
         .join("\n");
       ctx.ui.notify(
         `Found ${discoveredAgents.length} subagent(s):\n${list}`,
@@ -472,15 +431,11 @@ Use single mode for one task, parallel mode when tasks are independent and can r
       parameters: SubagentParams,
 
       async execute(_toolCallId, params, signal, onUpdate, ctx) {
-        const discovery = discoverAgents(ctx.cwd, "both");
-        const { agents } = discovery;
+        const agents = discoverAgents();
 
         const delegationMode = parseDelegationMode(params.mode);
         if (!delegationMode) {
-          const fallbackDetails = makeDetailsFactory(
-            discovery.projectAgentsDir,
-            DEFAULT_DELEGATION_MODE,
-          );
+          const fallbackDetails = makeDetailsFactory(DEFAULT_DELEGATION_MODE);
           return {
             content: [
               {
@@ -493,10 +448,7 @@ Use single mode for one task, parallel mode when tasks are independent and can r
           };
         }
 
-        const makeDetails = makeDetailsFactory(
-          discovery.projectAgentsDir,
-          delegationMode,
-        );
+        const makeDetails = makeDetailsFactory(delegationMode);
 
         let forkSessionSnapshotJsonl: string | undefined;
         if (delegationMode === "fork") {
@@ -532,7 +484,7 @@ Use single mode for one task, parallel mode when tasks are independent and can r
           };
         }
 
-        // Security: guard project-local agents before running
+        // Cycle prevention guard
         const requested = new Set<string>();
         if (params.tasks) for (const t of params.tasks) requested.add(t.agent);
         if (params.agent) requested.add(params.agent);
@@ -555,45 +507,6 @@ Use single mode for one task, parallel mode when tasks are independent and can r
 Current stack: ${stackText}
 
 This guard prevents self-recursion and cyclic handoffs (for example A -> B -> A).`,
-                },
-              ],
-              details: makeDetails(hasTasks ? "parallel" : "single")([]),
-              isError: true,
-            };
-          }
-        }
-
-        const requestedProjectAgents = getRequestedProjectAgents(
-          agents,
-          requested,
-        );
-        const shouldConfirmProjectAgents = params.confirmProjectAgents ?? true;
-        if (requestedProjectAgents.length > 0 && shouldConfirmProjectAgents) {
-          if (ctx.hasUI) {
-            const approved = await confirmProjectAgentsIfNeeded(
-              requestedProjectAgents,
-              discovery.projectAgentsDir,
-              ctx,
-            );
-            if (!approved) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: "Canceled: project-local agents not approved.",
-                  },
-                ],
-                details: makeDetails(hasTasks ? "parallel" : "single")([]),
-              };
-            }
-          } else {
-            const names = requestedProjectAgents.map((a) => a.name).join(", ");
-            const dir = discovery.projectAgentsDir ?? "(unknown)";
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `Blocked: project-local agent confirmation is required in non-UI mode.\nAgents: ${names}\nSource: ${dir}\n\nRe-run with confirmProjectAgents: false only if this repository is trusted.`,
                 },
               ],
               details: makeDetails(hasTasks ? "parallel" : "single")([]),
@@ -735,7 +648,6 @@ This guard prevents self-recursion and cyclic handoffs (for example A -> B -> A)
     // Initialize placeholder results for streaming
     const allResults: SingleResult[] = tasks.map((t) => ({
       agent: t.agent,
-      agentSource: "unknown" as const,
       task: t.task,
       exitCode: -1,
       messages: [],

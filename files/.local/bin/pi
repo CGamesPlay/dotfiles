@@ -15,7 +15,7 @@
 
 set -eu
 
-DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../.." && pwd)
+DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../.." && pwd)
 PI_PACKAGE=@mariozechner/pi-coding-agent
 PI_ENV_FILE=~/.pi/agent/env
 
@@ -26,55 +26,38 @@ main() {
 	nvm use --lts > /dev/null
 	set -u
 
-	# Fast path: check by directory existence rather than slow `npm list -g`.
-	local npm_global_root
-	npm_global_root=$(npm root -g)
-
-	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -d "$npm_global_root/$PI_PACKAGE" ]]; then
-		echo "Pi is not installed. Installing..." >&2
-		npm --no-update-notifier install -g "$PI_PACKAGE"
+	if [[ -e "$PI_ENV_FILE" ]]; then
+		# shellcheck disable=SC1090
+		set -a && source "$PI_ENV_FILE" && set +a
+	else
+		echo "Warning: $PI_ENV_FILE does not exist." >&2
 	fi
 
-	# Install dependencies for any pi extensions that have a package.json.
-	# Fast path: check for missing deps by directory existence (no npm invocation).
-	# Slow path: acquire a lock to serialize concurrent installs, then re-check and install.
-	local missing_deps=() pkg_dep pkg_json lock_file=~/.pi/install.lock
-	export NODE_PATH="${NODE_PATH:+$NODE_PATH:}$npm_global_root"
-
-	# Serialize dep checks and installs so concurrent pi processes don't race.
-	# noclobber + > is atomic (O_EXCL) on local filesystems — no external tool needed.
+	lock_file=~/.pi/install.lock
 	until (set -o noclobber; echo $$ > "$lock_file") 2>/dev/null; do sleep 0.2; done
 	trap 'rm -f "$lock_file"' EXIT
 
-	while IFS= read -r pkg_json; do
-		while IFS= read -r pkg_dep; do
-			[[ -z "$pkg_dep" ]] && continue
-			# Scoped packages (@scope/name) map to $npm_global_root/@scope/name
-			if [[ ! -d "$npm_global_root/$pkg_dep" ]]; then
-				missing_deps+=("$pkg_dep")
-			fi
-		done < <(node -e "
-			const p=require('$pkg_json');
-			const d=p.dependencies||{};
-			Object.keys(d).forEach(k=>console.log(k));
-		" 2>/dev/null)
-	done < <(find ~/.pi/agent/extensions -name package.json -maxdepth 2)
+	PI_BIN="$DFM_DIR/share/pi/node_modules/.bin/pi"
 
-	if [[ ${#missing_deps[@]} -gt 0 ]]; then
-		npm --no-update-notifier --quiet install -g "${missing_deps[@]}" >/dev/null
+	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -x "$PI_BIN" ]]; then
+		echo "Pi is not installed. Installing..." >&2
+		pushd "$DFM_DIR/share/pi" >/dev/null
+		npm --no-update-notifier install --ignore-scripts --omit=dev
+		"$PI_BIN" install "$DFM_DIR/share/pi"
+		popd >/dev/null
 	fi
 
 	rm -f "$lock_file"
 	trap - EXIT
 
 	if [[ ${argc_pi_help+1} ]] || [[ ${args_pi_version+1} ]]; then
-		exec pi \
+		exec "$PI_BIN" \
 			${argc_pi_help+--help} \
 			${argc_pi_version+--version}
 	fi
 
 	local args
-	args=(pi ${argc_resume+--resume} ${argc_continue+--continue})
+	args=("$PI_BIN" ${argc_resume+--resume} ${argc_continue+--continue})
 
 	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
 		if ! command -v safehouse >/dev/null; then
@@ -94,16 +77,10 @@ main() {
 			--add-dirs ~/.local/state/nvim
 			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.pi
-			--env-pass "EDITOR,NVM_DIR,DFM_DIR,NODE_PATH"
+			--env-pass "EDITOR,NVM_DIR,DFM_DIR"
 			-- sh -c "$script" "pi-wrapper"
 			"${args[@]}"
 		)
-	fi
-
-	if [[ -e "$PI_ENV_FILE" ]]; then
-		set -a && source "$PI_ENV_FILE" && set +a
-	else
-		echo "Warning: $PI_ENV_FILE does not exist." >&2
 	fi
 
 	exec "${args[@]}" ${argc_args+"${argc_args[@]}"}

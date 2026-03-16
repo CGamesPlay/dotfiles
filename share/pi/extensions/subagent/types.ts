@@ -24,7 +24,6 @@ export interface UsageStats {
 /** Result of a single subagent invocation. */
 export interface SingleResult {
 	agent: string;
-	agentSource: "user" | "project" | "unknown";
 	task: string;
 	exitCode: number;
 	messages: Message[];
@@ -39,7 +38,6 @@ export interface SingleResult {
 export interface SubagentDetails {
 	mode: "single" | "parallel";
 	delegationMode: DelegationMode;
-	projectAgentsDir: string | null;
 	results: SingleResult[];
 }
 
