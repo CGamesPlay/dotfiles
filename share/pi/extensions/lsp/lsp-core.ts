@@ -5,7 +5,9 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as os from "node:os";
-import { pathToFileURL, fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import {
   createMessageConnection,
   StreamMessageReader,
@@ -44,24 +46,71 @@ import {
   DocumentDiagnosticReportKind,
 } from "vscode-languageserver-protocol";
 
-// Config
+// ─── Language config (loaded from languages.json) ────────────────────────────
+
+interface LanguageEntry {
+  id: string;
+  extensions: string[];
+  languageIds: Record<string, string>;
+  command?: string;
+  args?: string[];
+  spawnStrategy?: "dart" | "typescript" | "kotlin" | "swift";
+  rootStrategy?: "swift";
+  rootMarkers?: string[];
+  rootMarkersPreferred?: string[];   // Kotlin: try these first, fall back to rootMarkers
+  rootFallback?: "cwd";
+  warmupMarkers?: string[];
+  diagnosticsTimeoutMs?: number;
+  installHint?: string;
+}
+
+interface LanguagesConfig {
+  servers: LanguageEntry[];
+}
+
+const __dirname_lsp = dirname(fileURLToPath(import.meta.url));
+const LANGUAGES: LanguagesConfig = JSON.parse(
+  readFileSync(join(__dirname_lsp, "languages.json"), "utf-8")
+);
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
 const INIT_TIMEOUT_MS = 30000;
 const MAX_OPEN_FILES = 30;
 const IDLE_TIMEOUT_MS = 60_000;
 const CLEANUP_INTERVAL_MS = 30_000;
+const DIAGNOSTICS_WAIT_MS_DEFAULT = 3000;
 
-export const LANGUAGE_IDS: Record<string, string> = {
-  ".dart": "dart", ".ts": "typescript", ".tsx": "typescriptreact",
-  ".js": "javascript", ".jsx": "javascriptreact", ".mjs": "javascript",
-  ".cjs": "javascript", ".mts": "typescript", ".cts": "typescript",
-  ".vue": "vue", ".svelte": "svelte", ".astro": "astro",
-  ".py": "python", ".pyi": "python", ".go": "go", ".rs": "rust",
-  ".kt": "kotlin", ".kts": "kotlin",
-  ".swift": "swift",
-  ".lua": "lua",
-};
+// ─── Derived exports from languages.json ─────────────────────────────────────
 
-// Types
+/** Map of file extension → LSP languageId, derived from languages.json */
+export const LANGUAGE_IDS: Record<string, string> = {};
+for (const entry of LANGUAGES.servers) {
+  Object.assign(LANGUAGE_IDS, entry.languageIds);
+}
+
+/** Map of project-root filename → file extension, used for warm-up on session start */
+export const WARMUP_MAP: Record<string, string> = {};
+for (const entry of LANGUAGES.servers) {
+  for (const marker of entry.warmupMarkers ?? []) {
+    // Only use the first extension for warmup (warmupMarkers targets a single ext per server)
+    if (!WARMUP_MAP[marker]) WARMUP_MAP[marker] = entry.extensions[0];
+  }
+}
+
+/** Returns the diagnostics wait timeout (ms) for a given file path */
+export function diagnosticsWaitMsForExtension(filePath: string): number {
+  const ext = path.extname(filePath).toLowerCase();
+  for (const entry of LANGUAGES.servers) {
+    if (entry.extensions.includes(ext) && entry.diagnosticsTimeoutMs !== undefined) {
+      return entry.diagnosticsTimeoutMs;
+    }
+  }
+  return DIAGNOSTICS_WAIT_MS_DEFAULT;
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
 interface LSPServerConfig {
   id: string;
   extensions: string[];
@@ -92,7 +141,8 @@ export interface FileDiagnosticItem {
 
 export interface FileDiagnosticsResult { items: FileDiagnosticItem[]; }
 
-// Utilities
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 const SEARCH_PATHS = [
   ...(process.env.PATH?.split(path.delimiter) || []),
   "/usr/local/bin", "/opt/homebrew/bin",
@@ -111,7 +161,6 @@ function which(cmd: string): string | undefined {
 
 function normalizeFsPath(p: string): string {
   try {
-    // realpathSync.native is faster on some platforms, but not always present
     const fn: any = (fs as any).realpathSync?.native || fs.realpathSync;
     return fn(p);
   } catch {
@@ -156,18 +205,13 @@ function simpleSpawn(bin: string, args: string[] = ["--stdio"]) {
 async function spawnChecked(cmd: string, args: string[], cwd: string): Promise<ChildProcessWithoutNullStreams | undefined> {
   try {
     const child = spawn(cmd, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
-
-    // If the process exits immediately (e.g. unsupported flag), treat it as a failure
     return await new Promise((resolve) => {
       let settled = false;
-
       const cleanup = () => {
         child.removeListener("exit", onExit);
         child.removeListener("error", onError);
       };
-
       let timer: NodeJS.Timeout | null = null;
-
       const finish = (value: ChildProcessWithoutNullStreams | undefined) => {
         if (settled) return;
         settled = true;
@@ -175,13 +219,10 @@ async function spawnChecked(cmd: string, args: string[], cwd: string): Promise<C
         cleanup();
         resolve(value);
       };
-
       const onExit = () => finish(undefined);
       const onError = () => finish(undefined);
-
       child.once("exit", onExit);
       child.once("error", onError);
-
       timer = setTimeout(() => finish(child), 200);
       (timer as any).unref?.();
     });
@@ -198,21 +239,7 @@ async function spawnWithFallback(cmd: string, argsVariants: string[][], cwd: str
   return undefined;
 }
 
-function findRootKotlin(file: string, cwd: string): string | undefined {
-  // Prefer Gradle settings root for multi-module projects
-  const gradleRoot = findRoot(file, cwd, ["settings.gradle.kts", "settings.gradle"]);
-  if (gradleRoot) return gradleRoot;
-
-  // Fallbacks for single-module Gradle or Maven builds
-  return findRoot(file, cwd, [
-    "build.gradle.kts",
-    "build.gradle",
-    "gradlew",
-    "gradlew.bat",
-    "gradle.properties",
-    "pom.xml",
-  ]);
-}
+// ─── Special root-detection functions ────────────────────────────────────────
 
 function dirContainsNestedProjectFile(dir: string, dirSuffix: string, markerFile: string): boolean {
   try {
@@ -234,11 +261,9 @@ function findRootSwift(file: string, cwd: string): string | undefined {
 
   while (current.length >= stop.length) {
     if (fs.existsSync(path.join(current, "Package.swift"))) return current;
-
     // Xcode projects/workspaces store their marker files *inside* a directory
     if (dirContainsNestedProjectFile(current, ".xcodeproj", "project.pbxproj")) return current;
     if (dirContainsNestedProjectFile(current, ".xcworkspace", "contents.xcworkspacedata")) return current;
-
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
@@ -246,6 +271,8 @@ function findRootSwift(file: string, cwd: string): string | undefined {
 
   return undefined;
 }
+
+// ─── Special spawn functions ─────────────────────────────────────────────────
 
 async function runCommand(cmd: string, args: string[], cwd: string): Promise<boolean> {
   return await new Promise((resolve) => {
@@ -260,7 +287,6 @@ async function runCommand(cmd: string, args: string[], cwd: string): Promise<boo
 }
 
 async function ensureJetBrainsKotlinLspInstalled(): Promise<string | undefined> {
-  // Opt-in download (to avoid surprising network activity)
   const allowDownload = process.env.PI_LSP_AUTO_DOWNLOAD_KOTLIN_LSP === "1" || process.env.PI_LSP_AUTO_DOWNLOAD_KOTLIN_LSP === "true";
   const installDir = path.join(os.homedir(), ".pi", "agent", "lsp", "kotlin-ls");
   const launcher = process.platform === "win32"
@@ -275,7 +301,6 @@ async function ensureJetBrainsKotlinLspInstalled(): Promise<string | undefined> 
   if (!curl || !unzip) return undefined;
 
   try {
-    // Determine latest version
     const res = await fetch("https://api.github.com/repos/Kotlin/kotlin-lsp/releases/latest", {
       headers: { "User-Agent": "pi-lsp" },
     });
@@ -285,7 +310,6 @@ async function ensureJetBrainsKotlinLspInstalled(): Promise<string | undefined> 
     const version = versionRaw.replace(/^v/, "");
     if (!version) return undefined;
 
-    // Map platform/arch to JetBrains naming
     const platform = process.platform;
     const arch = process.arch;
 
@@ -326,7 +350,6 @@ async function ensureJetBrainsKotlinLspInstalled(): Promise<string | undefined> 
 }
 
 async function spawnKotlinLanguageServer(root: string): Promise<ChildProcessWithoutNullStreams | undefined> {
-  // Prefer JetBrains Kotlin LSP (Kotlin/kotlin-lsp) – better diagnostics for Gradle/Android projects.
   const explicit = process.env.PI_LSP_KOTLIN_LSP_PATH;
   if (explicit && fs.existsSync(explicit)) {
     return spawnWithFallback(explicit, [["--stdio"]], root);
@@ -337,7 +360,6 @@ async function spawnKotlinLanguageServer(root: string): Promise<ChildProcessWith
     return spawnWithFallback(jetbrains, [["--stdio"]], root);
   }
 
-  // Fallback: org.javacs/kotlin-language-server (often lacks diagnostics without full classpath)
   const kls = which("kotlin-language-server");
   if (!kls) return undefined;
   return spawnWithFallback(kls, [[]], root);
@@ -347,83 +369,104 @@ async function spawnSourcekitLsp(root: string): Promise<ChildProcessWithoutNullS
   const direct = which("sourcekit-lsp");
   if (direct) return spawnWithFallback(direct, [[], ["--stdio"]], root);
 
-  // macOS/Xcode: sourcekit-lsp is often available via xcrun
   const xcrun = which("xcrun");
   if (!xcrun) return undefined;
   return spawnWithFallback(xcrun, [["sourcekit-lsp"], ["sourcekit-lsp", "--stdio"]], root);
 }
 
-// Server Configs
-export const LSP_SERVERS: LSPServerConfig[] = [
-  {
-    id: "dart", extensions: [".dart"],
-    findRoot: (f, cwd) => findRoot(f, cwd, ["pubspec.yaml", "analysis_options.yaml"]),
-    spawn: async (root) => {
-      let dart = which("dart");
-      const pubspec = path.join(root, "pubspec.yaml");
-      if (fs.existsSync(pubspec)) {
-        try {
-          const content = fs.readFileSync(pubspec, "utf-8");
-          if (content.includes("flutter:") || content.includes("sdk: flutter")) {
-            const flutter = which("flutter");
-            if (flutter) {
-              const dir = path.dirname(fs.realpathSync(flutter));
-              for (const p of ["cache/dart-sdk/bin/dart", "../cache/dart-sdk/bin/dart"]) {
-                const c = path.join(dir, p);
-                if (fs.existsSync(c)) { dart = c; break; }
-              }
-            }
+async function spawnDart(root: string): Promise<{ process: ChildProcessWithoutNullStreams } | undefined> {
+  let dart = which("dart");
+  const pubspec = path.join(root, "pubspec.yaml");
+  if (fs.existsSync(pubspec)) {
+    try {
+      const content = fs.readFileSync(pubspec, "utf-8");
+      if (content.includes("flutter:") || content.includes("sdk: flutter")) {
+        const flutter = which("flutter");
+        if (flutter) {
+          const dir = path.dirname(fs.realpathSync(flutter));
+          for (const p of ["cache/dart-sdk/bin/dart", "../cache/dart-sdk/bin/dart"]) {
+            const c = path.join(dir, p);
+            if (fs.existsSync(c)) { dart = c; break; }
           }
-        } catch {}
+        }
       }
-      if (!dart) return undefined;
-      return { process: spawn(dart, ["language-server", "--protocol=lsp"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] }) };
-    },
-  },
-  {
-    id: "typescript", extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"],
-    findRoot: (f, cwd) => {
-      if (findNearestFile(path.dirname(f), ["deno.json", "deno.jsonc"], cwd)) return undefined;
-      return findRoot(f, cwd, ["package.json", "tsconfig.json", "jsconfig.json"]);
-    },
-    spawn: async (root) => {
-      const local = path.join(root, "node_modules/.bin/typescript-language-server");
-      const cmd = fs.existsSync(local) ? local : which("typescript-language-server");
-      if (!cmd) return undefined;
-      return { process: spawn(cmd, ["--stdio"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] }) };
-    },
-  },
-  { id: "vue", extensions: [".vue"], findRoot: (f, cwd) => findRoot(f, cwd, ["package.json", "vite.config.ts", "vite.config.js"]), spawn: simpleSpawn("vue-language-server") },
-  { id: "svelte", extensions: [".svelte"], findRoot: (f, cwd) => findRoot(f, cwd, ["package.json", "svelte.config.js"]), spawn: simpleSpawn("svelteserver") },
-  { id: "pyright", extensions: [".py", ".pyi"], findRoot: (f, cwd) => findRoot(f, cwd, ["pyproject.toml", "setup.py", "requirements.txt", "pyrightconfig.json"]), spawn: simpleSpawn("pyright-langserver") },
-  { id: "gopls", extensions: [".go"], findRoot: (f, cwd) => findRoot(f, cwd, ["go.work"]) || findRoot(f, cwd, ["go.mod"]), spawn: simpleSpawn("gopls", []) },
-  {
-    id: "kotlin", extensions: [".kt", ".kts"],
-    findRoot: (f, cwd) => findRootKotlin(f, cwd),
-    spawn: async (root) => {
-      const proc = await spawnKotlinLanguageServer(root);
-      if (!proc) return undefined;
-      return { process: proc };
-    },
-  },
-  {
-    id: "swift", extensions: [".swift"],
-    findRoot: (f, cwd) => findRootSwift(f, cwd),
-    spawn: async (root) => {
-      const proc = await spawnSourcekitLsp(root);
-      if (!proc) return undefined;
-      return { process: proc };
-    },
-  },
-  { id: "rust-analyzer", extensions: [".rs"], findRoot: (f, cwd) => findRoot(f, cwd, ["Cargo.toml"]), spawn: simpleSpawn("rust-analyzer", []) },
-  {
-    id: "lua", extensions: [".lua"],
-    findRoot: (f, cwd) => findRoot(f, cwd, [".luarc.json", ".luarc.jsonc", "stylua.toml", ".stylua.toml", "selene.toml"]) ?? cwd,
-    spawn: simpleSpawn("lua-language-server"),
-  },
-];
+    } catch {}
+  }
+  if (!dart) return undefined;
+  return { process: spawn(dart, ["language-server", "--protocol=lsp"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] }) };
+}
 
-// Singleton Manager
+async function spawnTypeScript(root: string): Promise<{ process: ChildProcessWithoutNullStreams } | undefined> {
+  const local = path.join(root, "node_modules/.bin/typescript-language-server");
+  const cmd = fs.existsSync(local) ? local : which("typescript-language-server");
+  if (!cmd) return undefined;
+  return { process: spawn(cmd, ["--stdio"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] }) };
+}
+
+// ─── findRoot builder ────────────────────────────────────────────────────────
+
+function buildFindRoot(entry: LanguageEntry): (file: string, cwd: string) => string | undefined {
+  if (entry.rootStrategy === "swift") {
+    return (f, cwd) => findRootSwift(f, cwd);
+  }
+
+  if (entry.id === "typescript") {
+    // TypeScript: skip if deno project
+    return (f, cwd) => {
+      if (findNearestFile(path.dirname(f), ["deno.json", "deno.jsonc"], cwd)) return undefined;
+      return findRoot(f, cwd, entry.rootMarkers ?? []);
+    };
+  }
+
+  // Two-pass root detection: try preferred markers first, fall back to rootMarkers.
+  // Used by Kotlin (settings.gradle* preferred) and gopls (go.work preferred over go.mod).
+  if (entry.rootMarkersPreferred?.length) {
+    const preferred = entry.rootMarkersPreferred;
+    const fallback = entry.rootMarkers ?? [];
+    const cwdFallback = entry.rootFallback;
+    return (f, cwd) => {
+      const preferredResult = preferred.length ? findRoot(f, cwd, preferred) : undefined;
+      if (preferredResult !== undefined) return preferredResult;
+      const result = fallback.length ? findRoot(f, cwd, fallback) : undefined;
+      if (result !== undefined) return result;
+      return cwdFallback === "cwd" ? cwd : undefined;
+    };
+  }
+
+  const markers = entry.rootMarkers ?? [];
+  const fallback = entry.rootFallback;
+
+  return (f, cwd) => {
+    if (markers.length === 0) return fallback === "cwd" ? cwd : undefined;
+    const result = findRoot(f, cwd, markers);
+    if (result !== undefined) return result;
+    return fallback === "cwd" ? cwd : undefined;
+  };
+}
+
+// ─── spawn builder ────────────────────────────────────────────────────────────
+
+function buildSpawn(entry: LanguageEntry): (root: string) => Promise<{ process: ChildProcessWithoutNullStreams; initOptions?: Record<string, unknown> } | undefined> {
+  switch (entry.spawnStrategy) {
+    case "dart":       return spawnDart;
+    case "typescript": return spawnTypeScript;
+    case "kotlin":     return async (root) => { const proc = await spawnKotlinLanguageServer(root); return proc ? { process: proc } : undefined; };
+    case "swift":      return async (root) => { const proc = await spawnSourcekitLsp(root); return proc ? { process: proc } : undefined; };
+    default:           return simpleSpawn(entry.command!, entry.args ?? ["--stdio"]);
+  }
+}
+
+// ─── LSP_SERVERS array, derived from languages.json ──────────────────────────
+
+export const LSP_SERVERS: LSPServerConfig[] = LANGUAGES.servers.map(entry => ({
+  id: entry.id,
+  extensions: entry.extensions,
+  findRoot: buildFindRoot(entry),
+  spawn: buildSpawn(entry),
+}));
+
+// ─── Singleton Manager ────────────────────────────────────────────────────────
+
 let sharedManager: LSPManager | null = null;
 let managerCwd: string | null = null;
 
@@ -441,16 +484,13 @@ export function getManager(): LSPManager | null { return sharedManager; }
 export async function shutdownManager(): Promise<void> {
   const manager = sharedManager;
   if (!manager) return;
-
-  // Clear singleton pointers first so new requests never receive a manager
-  // that's currently being shut down.
   sharedManager = null;
   managerCwd = null;
-
   await manager.shutdown();
 }
 
-// LSP Manager
+// ─── LSP Manager ─────────────────────────────────────────────────────────────
+
 export class LSPManager {
   private clients = new Map<string, LSPClient>();
   private spawning = new Map<string, Promise<LSPClient | undefined>>();
@@ -504,8 +544,7 @@ export class LSPManager {
       const reader = new StreamMessageReader(handle.process.stdout!);
       const writer = new StreamMessageWriter(handle.process.stdin!);
       const conn = createMessageConnection(reader, writer);
-      
-      // Prevent crashes from stream errors
+
       handle.process.stdin?.on("error", () => {});
       handle.process.stdout?.on("error", () => {});
 
@@ -549,7 +588,6 @@ export class LSPManager {
         listeners2?.slice().forEach(fn => { try { fn(); } catch { /* listener error */ } });
       });
 
-      // Handle errors to prevent crashes
       conn.onError(() => {});
       conn.onClose(() => { client.closed = true; this.clients.delete(k); });
 
@@ -626,38 +664,11 @@ export class LSPManager {
 
   private explainNoLsp(absPath: string): string {
     const ext = path.extname(absPath);
+    const entry = LANGUAGES.servers.find(s => s.extensions.includes(ext));
+    if (!entry) return `No LSP for ${ext}`;
 
-    if (ext === ".kt" || ext === ".kts") {
-      const root = findRootKotlin(absPath, this.cwd);
-      if (!root) return `No Kotlin project root detected (looked for settings.gradle(.kts), build.gradle(.kts), gradlew, pom.xml under cwd)`;
-
-      const hasJetbrains = !!(which("kotlin-lsp") || which("kotlin-lsp.sh") || which("kotlin-lsp.cmd") || process.env.PI_LSP_KOTLIN_LSP_PATH);
-      const hasKls = !!which("kotlin-language-server");
-
-      if (!hasJetbrains && !hasKls) {
-        return "No Kotlin LSP binary found. Install Kotlin/kotlin-lsp (recommended) or org.javacs/kotlin-language-server.";
-      }
-
-      const k = this.key("kotlin", root);
-      if (this.broken.has(k)) return `Kotlin LSP failed to initialize for root: ${root}`;
-
-      if (!hasJetbrains && hasKls) {
-        return "Kotlin LSP is running via kotlin-language-server, but that server often does not produce diagnostics for Gradle/Android projects. Prefer Kotlin/kotlin-lsp.";
-      }
-
-      return `Kotlin LSP unavailable for root: ${root}`;
-    }
-
-    if (ext === ".swift") {
-      const root = findRootSwift(absPath, this.cwd);
-      if (!root) return `No Swift project root detected (looked for Package.swift, *.xcodeproj, *.xcworkspace under cwd)`;
-      if (!which("sourcekit-lsp") && !which("xcrun")) return "sourcekit-lsp not found (and xcrun missing)";
-      const k = this.key("swift", root);
-      if (this.broken.has(k)) return `sourcekit-lsp failed to initialize for root: ${root}`;
-      return `Swift LSP unavailable for root: ${root}`;
-    }
-
-    return `No LSP for ${ext}`;
+    const hint = entry.installHint ? ` (${entry.installHint})` : "";
+    return `No LSP available for ${ext}${hint}`;
   }
 
   private toPos(line: number, col: number) { return { line: Math.max(0, line - 1), character: Math.max(0, col - 1) }; }
@@ -776,12 +787,10 @@ export class LSPManager {
     if (client.closed) return { diagnostics: [], responded: false };
 
     // Only attempt Pull Diagnostics if the server advertises support.
-    // (Some servers throw and log noisy errors if we call these methods.)
     if (!client.capabilities || !(client.capabilities as any).diagnosticProvider) {
       return { diagnostics: [], responded: false };
     }
 
-    // Prefer new Pull Diagnostics if supported by the server
     try {
       const res: any = await client.connection.sendRequest(DocumentDiagnosticRequest.method, {
         textDocument: { uri },
@@ -801,7 +810,6 @@ export class LSPManager {
       // ignore
     }
 
-    // Fallback: some servers only support WorkspaceDiagnosticRequest
     try {
       const res: any = await client.connection.sendRequest(WorkspaceDiagnosticRequest.method, {
         previousResultIds: [],
@@ -854,7 +862,6 @@ export class LSPManager {
     }
     if (!responded && clients.some(c => c.diagnostics.has(absPath))) responded = true;
 
-    // If we didn't get pushed diagnostics (common for some servers), try pull diagnostics.
     if (!responded || diags.length === 0) {
       const pulled = await Promise.all(clients.map(c => this.pullDiagnostics(c, absPath, uri)));
       for (let i = 0; i < clients.length; i++) {
@@ -1029,12 +1036,11 @@ export class LSPManager {
     const l = await this.loadFile(fp);
     if (!l) return [];
     await this.openOrUpdate(l.clients, l.absPath, l.uri, l.langId, l.content);
-    
+
     const start = this.toPos(startLine, startCol);
     const end = this.toPos(endLine ?? startLine, endCol ?? startCol);
     const range = { start, end };
-    
-    // Get diagnostics for this range to include in context
+
     const diagnostics: Diagnostic[] = [];
     for (const c of l.clients) {
       const fileDiags = c.diagnostics.get(l.absPath) || [];
@@ -1042,7 +1048,7 @@ export class LSPManager {
         if (this.rangesOverlap(d.range, range)) diagnostics.push(d);
       }
     }
-    
+
     const results = await Promise.all(l.clients.map(async c => {
       if (c.closed) return [];
       try {
@@ -1057,8 +1063,10 @@ export class LSPManager {
     return results.flat();
   }
 
-  private rangesOverlap(a: { start: { line: number; character: number }; end: { line: number; character: number } }, 
-                        b: { start: { line: number; character: number }; end: { line: number; character: number } }): boolean {
+  private rangesOverlap(
+    a: { start: { line: number; character: number }; end: { line: number; character: number } },
+    b: { start: { line: number; character: number }; end: { line: number; character: number } }
+  ): boolean {
     if (a.end.line < b.start.line || b.end.line < a.start.line) return false;
     if (a.end.line === b.start.line && a.end.character < b.start.character) return false;
     if (b.end.line === a.start.line && b.end.character < a.start.character) return false;
@@ -1087,7 +1095,8 @@ export class LSPManager {
   }
 }
 
-// Diagnostic Formatting
+// ─── Diagnostic Formatting ────────────────────────────────────────────────────
+
 export { DiagnosticSeverity };
 export type SeverityFilter = "all" | "error" | "warning" | "info" | "hint";
 
@@ -1102,13 +1111,15 @@ export function filterDiagnosticsBySeverity(diags: Diagnostic[], filter: Severit
   return diags.filter(d => (d.severity || 1) <= max);
 }
 
-// URI utilities
+// ─── URI utilities ────────────────────────────────────────────────────────────
+
 export function uriToPath(uri: string): string {
   if (uri.startsWith("file://")) try { return fileURLToPath(uri); } catch {}
   return uri;
 }
 
-// Symbol search
+// ─── Symbol search ────────────────────────────────────────────────────────────
+
 export function findSymbolPosition(symbols: DocumentSymbol[], query: string): { line: number; character: number } | null {
   const q = query.toLowerCase();
   let exact: { line: number; character: number } | null = null;

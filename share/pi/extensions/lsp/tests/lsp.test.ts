@@ -10,11 +10,14 @@
  * - Server configuration correctness
  */
 
-import { mkdtemp, rm, writeFile, mkdir } from "fs/promises";
+import { mkdtemp, rm, writeFile, mkdir, readFile } from "fs/promises";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { pathToFileURL } from "url";
 import { LSP_SERVERS, LANGUAGE_IDS } from "../lsp-core.js";
+
+const __dirname_test = dirname(fileURLToPath(import.meta.url));
 
 // ============================================================================
 // Test utilities
@@ -860,6 +863,86 @@ test("edge: no marker files returns undefined", async () => {
     const root = server.findRoot(join(dir, "random.ts"), dir);
     assertEquals(root, undefined, "Should return undefined when no marker files");
   });
+});
+
+// ============================================================================
+// languages.json schema validation tests
+// ============================================================================
+
+test("languages.json: is valid JSON and has servers array", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  assert(Array.isArray(config.servers), "config.servers should be an array");
+  assert(config.servers.length > 0, "config.servers should not be empty");
+});
+
+test("languages.json: all entries have required fields", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  for (const entry of config.servers) {
+    assert(typeof entry.id === "string" && entry.id.length > 0, `Entry missing valid id: ${JSON.stringify(entry)}`);
+    assert(Array.isArray(entry.extensions) && entry.extensions.length > 0, `Entry ${entry.id} missing extensions`);
+    assert(typeof entry.languageIds === "object" && entry.languageIds !== null, `Entry ${entry.id} missing languageIds`);
+    // Either a command (generic) or a spawnStrategy (special) must be present
+    const hasCommand = typeof entry.command === "string";
+    const hasStrategy = typeof entry.spawnStrategy === "string";
+    assert(hasCommand || hasStrategy, `Entry ${entry.id} must have either 'command' or 'spawnStrategy'`);
+  }
+});
+
+test("languages.json: no duplicate IDs", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  const ids = config.servers.map((s: any) => s.id);
+  const unique = new Set(ids);
+  assertEquals(unique.size, ids.length, `Duplicate server IDs found: ${ids.filter((id: string, i: number) => ids.indexOf(id) !== i).join(", ")}`);
+});
+
+test("languages.json: no duplicate extensions across servers", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  const seen = new Map<string, string>();
+  for (const entry of config.servers) {
+    for (const ext of entry.extensions) {
+      assert(!seen.has(ext), `Extension ${ext} appears in both '${seen.get(ext)}' and '${entry.id}'`);
+      seen.set(ext, entry.id);
+    }
+  }
+});
+
+test("languages.json: all extensions in languageIds are also in extensions array", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  for (const entry of config.servers) {
+    for (const ext of Object.keys(entry.languageIds)) {
+      assert(entry.extensions.includes(ext), `Entry ${entry.id}: languageId key '${ext}' not in extensions array`);
+    }
+  }
+});
+
+test("languages.json: LANGUAGE_IDS derived correctly from JSON", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  // Build expected map from JSON
+  const expected: Record<string, string> = {};
+  for (const entry of config.servers) {
+    Object.assign(expected, entry.languageIds);
+  }
+  for (const [ext, langId] of Object.entries(expected)) {
+    assertEquals(LANGUAGE_IDS[ext], langId as string, `LANGUAGE_IDS[${ext}] should be '${langId}'`);
+  }
+});
+
+test("languages.json: LSP_SERVERS derived correctly — all IDs present", async () => {
+  const raw = await readFile(join(__dirname_test, "../languages.json"), "utf-8");
+  const config = JSON.parse(raw);
+  for (const entry of config.servers) {
+    const server = LSP_SERVERS.find(s => s.id === entry.id);
+    assert(server !== undefined, `LSP_SERVERS missing entry for id='${entry.id}'`);
+    for (const ext of entry.extensions) {
+      assert(server!.extensions.includes(ext), `LSP_SERVERS entry '${entry.id}' missing extension '${ext}'`);
+    }
+  }
 });
 
 // ============================================================================

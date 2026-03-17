@@ -17,43 +17,17 @@ import * as os from "node:os";
 import { type ExtensionAPI, type ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { type Diagnostic } from "vscode-languageserver-protocol";
-import { LSP_SERVERS, formatDiagnostic, getOrCreateManager, shutdownManager } from "./lsp-core.js";
+import { LSP_SERVERS, WARMUP_MAP, formatDiagnostic, getOrCreateManager, shutdownManager, diagnosticsWaitMsForExtension } from "./lsp-core.js";
 
 type HookScope = "session" | "global";
 type HookMode = "edit_write" | "agent_end" | "disabled";
 
-const DIAGNOSTICS_WAIT_MS_DEFAULT = 3000;
-
-function diagnosticsWaitMsForFile(filePath: string): number {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === ".kt" || ext === ".kts") return 30000;
-  if (ext === ".swift") return 20000;
-  if (ext === ".rs") return 20000;
-  return DIAGNOSTICS_WAIT_MS_DEFAULT;
-}
 const DIAGNOSTICS_PREVIEW_LINES = 10;
 const LSP_IDLE_SHUTDOWN_MS = 2 * 60 * 1000;
 const DIM = "\x1b[2m", GREEN = "\x1b[32m", YELLOW = "\x1b[33m", RESET = "\x1b[0m";
 const DEFAULT_HOOK_MODE: HookMode = "agent_end";
 const SETTINGS_NAMESPACE = "lsp";
 const LSP_CONFIG_ENTRY = "lsp-hook-config";
-
-const WARMUP_MAP: Record<string, string> = {
-  "pubspec.yaml": ".dart",
-  "package.json": ".ts",
-  "pyproject.toml": ".py",
-  "go.mod": ".go",
-  "Cargo.toml": ".rs",
-  "settings.gradle": ".kt",
-  "settings.gradle.kts": ".kt",
-  "build.gradle": ".kt",
-  "build.gradle.kts": ".kt",
-  "pom.xml": ".kt",
-  "gradlew": ".kt",
-  "gradle.properties": ".kt",
-  "Package.swift": ".swift",
-  ".luarc.json": ".lua",
-};
 
 const MODE_LABELS: Record<HookMode, string> = {
   edit_write: "After each edit/write",
@@ -340,7 +314,7 @@ export default function (pi: ExtensionAPI) {
     if (!absPath) return undefined;
 
     try {
-      const result = await manager.touchFileAndWait(absPath, diagnosticsWaitMsForFile(absPath));
+      const result = await manager.touchFileAndWait(absPath, diagnosticsWaitMsForExtension(absPath));
       if (!result.receivedResponse) return undefined;
 
       const diagnostics = includeWarnings

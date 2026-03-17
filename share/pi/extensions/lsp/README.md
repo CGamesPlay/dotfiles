@@ -12,6 +12,8 @@ Language Server Protocol integration for pi-coding-agent.
 
 ## Supported Languages
 
+Language server configuration is defined in [`languages.json`](./languages.json) — adding a new server only requires editing that file.
+
 | Language | Server | Detection |
 |----------|--------|-----------|
 | TypeScript/JavaScript | `typescript-language-server` | `package.json`, `tsconfig.json` |
@@ -153,13 +155,81 @@ Other values: `"agent_end"` (default) and `"edit_write"`.
 
 Agent-end mode analyzes files touched during the full agent response (after all tool calls complete) and posts a diagnostics message only once. Disabling the hook does not disable the `/lsp` tool.
 
+## Adding a Language Server
+
+All language server configuration lives in [`languages.json`](./languages.json). To add a new server, append an entry to the `servers` array — no TypeScript changes are needed for typical servers.
+
+### Example: adding `clangd` for C/C++
+
+```json
+{
+  "id": "clangd",
+  "extensions": [".c", ".cc", ".cpp", ".h", ".hpp"],
+  "languageIds": { ".c": "c", ".cc": "cpp", ".cpp": "cpp", ".h": "c", ".hpp": "cpp" },
+  "command": "clangd",
+  "args": ["--stdio"],
+  "rootMarkers": ["compile_commands.json", "CMakeLists.txt", ".clangd"],
+  "warmupMarkers": ["CMakeLists.txt"],
+  "diagnosticsTimeoutMs": 10000,
+  "installHint": "brew install llvm"
+}
+```
+
+### `languages.json` schema
+
+Each entry in the `servers` array supports the following fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | ✓ | Unique server identifier (used as the client key internally) |
+| `extensions` | string[] | ✓ | File extensions this server handles (e.g. `[".ts", ".tsx"]`) |
+| `languageIds` | `{ext: string}` | ✓ | Maps each extension to its LSP `languageId` (e.g. `{".ts": "typescript"}`) |
+| `command` | string | ✓* | Binary name resolved via `PATH` (required unless `spawnStrategy` is set) |
+| `args` | string[] | — | Arguments passed to the binary; defaults to `["--stdio"]` |
+| `spawnStrategy` | string | ✓* | Use a built-in spawn strategy instead of `command` (see below) |
+| `rootMarkers` | string[] | — | Filenames searched upward from the open file to locate the project root |
+| `rootMarkersPreferred` | string[] | — | Tried before `rootMarkers`; first hit wins (used for multi-pass root detection) |
+| `rootFallback` | `"cwd"` | — | Fall back to the working directory when no root marker is found |
+| `rootStrategy` | string | — | Use a built-in root strategy instead of marker search (see below) |
+| `warmupMarkers` | string[] | — | Filenames checked in `cwd` at session start to trigger eager LSP warm-up |
+| `diagnosticsTimeoutMs` | number | — | How long to wait for diagnostics; defaults to `3000` |
+| `installHint` | string | — | Shown in "no LSP available" messages to guide installation |
+
+\* Either `command` or `spawnStrategy` is required.
+
+### Root detection
+
+The engine searches upward from the open file's directory toward `cwd`, stopping at the first directory that contains one of the marker files.
+
+**Two-pass detection** (`rootMarkersPreferred` + `rootMarkers`): when both fields are present, `rootMarkersPreferred` is tried first. If nothing is found, `rootMarkers` is tried. This is used by `gopls` (`go.work` preferred over `go.mod`) and `kotlin` (`settings.gradle*` preferred over `build.gradle*`).
+
+**`rootFallback: "cwd"`**: when no marker is found at all, the working directory is used as the root. Useful for languages like Lua where project config is optional.
+
+### Built-in spawn strategies
+
+Some servers need custom spawn logic that can't be expressed as a simple command + args. Set `spawnStrategy` to one of these values instead of `command`:
+
+| Value | Server | What it does |
+|---|---|---|
+| `"dart"` | Dart/Flutter | Reads `pubspec.yaml` to detect Flutter projects; resolves the correct `dart` binary from the Flutter SDK |
+| `"typescript"` | TypeScript/JS | Prefers a local `node_modules/.bin/typescript-language-server` over the global one |
+| `"kotlin"` | Kotlin | Tries JetBrains `kotlin-lsp` first, falls back to `kotlin-language-server`; supports auto-download via `PI_LSP_AUTO_DOWNLOAD_KOTLIN_LSP=1` and path override via `PI_LSP_KOTLIN_LSP_PATH` |
+| `"swift"` | Swift | Tries `sourcekit-lsp` directly, then falls back to `xcrun sourcekit-lsp` |
+
+### Built-in root strategies
+
+| Value | Server | What it does |
+|---|---|---|
+| `"swift"` | Swift | Scans for `Package.swift`, `*.xcodeproj/`, or `*.xcworkspace/` directories |
+
 ## File Structure
 
 | File | Purpose |
 |------|---------|
+| `languages.json` | **All per-language config** — add new servers here |
 | `lsp.ts` | Hook extension (auto-diagnostics; default at agent end) |
 | `lsp-tool.ts` | Tool extension (on-demand LSP queries) |
-| `lsp-core.ts` | LSPManager class, server configs, singleton manager |
+| `lsp-core.ts` | LSPManager class, engine that reads `languages.json`, singleton manager |
 | `package.json` | Declares both extensions via "pi" field |
 
 ## Testing
