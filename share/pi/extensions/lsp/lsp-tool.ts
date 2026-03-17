@@ -16,6 +16,7 @@
  *   - Kotlin (kotlin-ls)
  *   - Swift (sourcekit-lsp)
  *   - Rust (rust-analyzer)
+ *   - Lua (lua-language-server)
  *
  * Usage:
  *   pi --extension ./lsp-tool.ts

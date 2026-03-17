@@ -863,6 +863,47 @@ test("edge: no marker files returns undefined", async () => {
 });
 
 // ============================================================================
+// Lua tests
+// ============================================================================
+
+test("LANGUAGE_IDS: Lua extension", async () => {
+  assertEquals(LANGUAGE_IDS[".lua"], "lua", ".lua should map to lua");
+});
+
+test("lua: finds root via .luarc.json", async () => {
+  await withTempDir({
+    ".luarc.json": "{}",
+    "src/main.lua": "-- main",
+    "src/utils.lua": "-- utils",
+  }, async (dir) => {
+    const server = LSP_SERVERS.find(s => s.id === "lua")!;
+    const root = server.findRoot(join(dir, "src/main.lua"), dir);
+    assertEquals(root, dir, "Should find root via .luarc.json");
+  });
+});
+
+test("lua: finds root via stylua.toml", async () => {
+  await withTempDir({
+    "stylua.toml": "indent_type = 'Spaces'",
+    "init.lua": "-- init",
+  }, async (dir) => {
+    const server = LSP_SERVERS.find(s => s.id === "lua")!;
+    const root = server.findRoot(join(dir, "init.lua"), dir);
+    assertEquals(root, dir, "Should find root via stylua.toml");
+  });
+});
+
+test("lua: falls back to cwd when no marker files", async () => {
+  await withTempDir({
+    "script.lua": "print('hello')",
+  }, async (dir) => {
+    const server = LSP_SERVERS.find(s => s.id === "lua")!;
+    const root = server.findRoot(join(dir, "script.lua"), dir);
+    assertEquals(root, dir, "Should fall back to cwd when no marker files");
+  });
+});
+
+// ============================================================================
 // Run tests
 // ============================================================================
 

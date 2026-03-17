@@ -58,6 +58,7 @@ export const LANGUAGE_IDS: Record<string, string> = {
   ".py": "python", ".pyi": "python", ".go": "go", ".rs": "rust",
   ".kt": "kotlin", ".kts": "kotlin",
   ".swift": "swift",
+  ".lua": "lua",
 };
 
 // Types
@@ -97,6 +98,7 @@ const SEARCH_PATHS = [
   "/usr/local/bin", "/opt/homebrew/bin",
   `${process.env.HOME}/.pub-cache/bin`, `${process.env.HOME}/fvm/default/bin`,
   `${process.env.HOME}/go/bin`, `${process.env.HOME}/.cargo/bin`,
+  `${process.env.XDG_DATA_HOME || `${process.env.HOME}/.local/share`}/nvim/mason/bin`,
 ];
 
 function which(cmd: string): string | undefined {
@@ -414,6 +416,11 @@ export const LSP_SERVERS: LSPServerConfig[] = [
     },
   },
   { id: "rust-analyzer", extensions: [".rs"], findRoot: (f, cwd) => findRoot(f, cwd, ["Cargo.toml"]), spawn: simpleSpawn("rust-analyzer", []) },
+  {
+    id: "lua", extensions: [".lua"],
+    findRoot: (f, cwd) => findRoot(f, cwd, [".luarc.json", ".luarc.jsonc", "stylua.toml", ".stylua.toml", "selene.toml"]) ?? cwd,
+    spawn: simpleSpawn("lua-language-server"),
+  },
 ];
 
 // Singleton Manager

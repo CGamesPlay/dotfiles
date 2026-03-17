@@ -52,6 +52,7 @@ const WARMUP_MAP: Record<string, string> = {
   "gradlew": ".kt",
   "gradle.properties": ".kt",
   "Package.swift": ".swift",
+  ".luarc.json": ".lua",
 };
 
 const MODE_LABELS: Record<HookMode, string> = {

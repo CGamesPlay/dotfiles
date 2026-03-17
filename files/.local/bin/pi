@@ -68,6 +68,8 @@ main() {
 		args=(
 			safehouse 
 			--enable=clipboard
+			--enable=xcode
+			--add-dirs-ro /Library/Preferences/com.apple.dt.Xcode.plist
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"

@@ -23,6 +23,7 @@ Language Server Protocol integration for pi-coding-agent.
 | Kotlin | `kotlin-ls` | `settings.gradle(.kts)`, `build.gradle(.kts)`, `pom.xml` |
 | Swift | `sourcekit-lsp` | `Package.swift`, Xcode (`*.xcodeproj` / `*.xcworkspace`) |
 | Rust | `rust-analyzer` | `Cargo.toml` |
+| Lua | `lua-language-server` | `.luarc.json`, `stylua.toml` |
 
 ### Known Limitations
 
@@ -69,6 +70,10 @@ xcrun sourcekit-lsp --help
 
 # Rust (install via rustup)
 rustup component add rust-analyzer
+
+# Lua
+brew install lua-language-server
+# or via Mason (neovim): :MasonInstall lua-language-server
 ```
 
 The extension spawns binaries from your PATH.
