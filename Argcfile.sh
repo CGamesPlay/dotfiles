@@ -5,21 +5,52 @@ set -eu
 # @cmd Pull the latest verison and sync
 # @flag      --bootstrap Run the bootstrap script.
 pull() {
-	# Get the current commit hash before pulling
-	before_commit=$(git rev-parse HEAD)
+	if [[ ! -d .jj ]]; then
+		./tasks/90-jj.sh
+	fi
 
-	git pull
+	# Update git remote
+	jj git fetch --quiet
+	# Check signature on new leaf
+	local sig=$(jj log -r master@origin -GT 'signature.status()')
+	if [[ "$sig" != "good" ]]; then
+		jj show --no-pager --no-patch master@origin
+		echo "$sig signature on master@origin" >&2
+		exit 1
+	fi
+
+	# Get the current commit hash before rebasing
+	before_commit=$(jj log -r @ -GT 'commit_id')
+
+	# Rebase current commits on top
+	jj rebase -d master --quiet
+
+	# If the previous rebase resulted in a merge conflict on a jj config
+	# file, it will prevent jj from starting, so we won't be able to undo the
+	# changes. So we will bypass the jj config for this step.
+	export JJ_CONFIG=
+	
+	if [[ "$(jj log -r @ -GT 'conflict')" == "true" ]]; then
+		jj status
+		echo "" >&2
+		echo "Failed to update" >&2
+		jj undo
+		exit 1
+	fi
+
+	# Restore jj config
+	unset JJ_CONFIG
+
+	# Get the new commit hash after rebasing
+	after_commit=$(jj log -r @ -GT 'commit_id')
+
 	dfm link
-
-	# Get the new commit hash after pulling
-	after_commit=$(git rev-parse HEAD)
-
 	if [[ "${argc_bootstrap:+1}" ]]; then
 		./bootstrap.sh
 
 	elif [[ "$before_commit" != "$after_commit" ]]; then
 		# Get list of modified files between the commits
-		modified_files=$(git diff --name-only "$before_commit" "$after_commit")
+		modified_files=$(jj diff --name-only --from "$before_commit" --to "$after_commit")
 
 		# Check if any files in tasks directory were modified
 		tasks_modified=$(echo "$modified_files" | grep -E '^tasks/' || true)
@@ -41,9 +72,15 @@ pull() {
 #
 # This amends the latest commit to sign it, and uses --force-with-lease
 push() {
-	if [ "$(git log -1 --pretty=format:"%G?" 2>/dev/null)" == "N" ]; then
-		git commit --amend -C HEAD -S
+	# JJ does not support automatically detecting the ssh key
+	# https://github.com/jj-vcs/jj/issues/6688
+	jj config set --repo signing.key "$(ssh-add -L | tail -1)"
+
+	local sig=$(jj log -r master -GT 'signature.status()')
+	if [[ "$sig" != "good" ]]; then
+		jj sign -r master
 	fi
+
 	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
 	git fetch origin
 }

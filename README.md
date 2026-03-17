@@ -9,9 +9,9 @@ Feel free to use anything here. This repository is designed to be managed with [
 dfm add ~/.config/fish/functions/cool.fish
 git add files/.config/fish/functions/cool.fish
 git commit -m "Added cool function"
-git push
+argc push
 # Update config on other machines
-git pull
+argc pull
 dfm link
 ```
 
