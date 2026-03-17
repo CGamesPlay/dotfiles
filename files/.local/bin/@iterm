@@ -64,19 +64,45 @@ progress() {
 }
 
 # @cmd Print the current color scheme (dark or light)
+# Uses OSC 11 to query the background color.
 color-scheme() {
-	if ! dsr=$(_query $'\033[?997n' $'\033['); then
+	if ! dsr=$(_query $'\033]11;?\007' $'\033]11;'); then
 		exit 1
 	fi
 
-	# Parse the response
-	if [ "$dsr" = "?997;1" ]; then
-		echo "dark"
-	elif [ "$dsr" = "?997;2" ]; then
-		echo "light"
-	else
+	# Strip OSC terminator (BEL or ST)
+	local ST=$'\033\x5c'
+	dsr="${dsr%$'\a'}"
+	dsr="${dsr%"$ST"}"
+
+	# Parse the response: rgb:rrrr/gggg/bbbb
+	# Compute approximate luminance from the red channel to determine dark/light
+	local r g b
+	r=$(echo "$dsr" | sed 's/rgb:\([0-9a-fA-F]*\).*/\1/')
+	g=$(echo "$dsr" | sed 's/rgb:[^/]*\/\([0-9a-fA-F]*\).*/\1/')
+	b=$(echo "$dsr" | sed 's/rgb:[^/]*/\//;s/.*\/\([0-9a-fA-F]*\)$/\1/')
+
+	if [ -z "$r" ] || [ -z "$g" ] || [ -z "$b" ]; then
 		echo "unknown"
 		exit 1
+	fi
+
+	# Normalize to 8-bit (values may be 8- or 16-bit hex)
+	local len="${#r}"
+	if [ "$len" -gt 2 ]; then
+		r="${r:0:2}"
+		g="${g:0:2}"
+		b="${b:0:2}"
+	fi
+
+	# Luminance calculation:
+	# - 16#$r -> interpret $r as a base-16 number
+	# - 299, 587, 114 -> ITU-R BT.601 luma coefficients scaled to integers
+	local lum=$(( (16#$r * 299 + 16#$g * 587 + 16#$b * 114) / 1000 ))
+	if [ "$lum" -lt 128 ]; then
+		echo "dark"
+	else
+		echo "light"
 	fi
 }
 
