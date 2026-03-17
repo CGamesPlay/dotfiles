@@ -84,9 +84,10 @@ EOF
 			fs.writeFileSync('$config_file', JSON.stringify(config, null, 2) + '\n');
 		"
 
-		echo "Write the long-lived OAuth token: pbpaste > $token_file" >&2
-		echo 'Then run claude again.' >&2
-		exit 100
+		echo "Copy/paste the long-lived token now."
+		head -1 > "$token_file"
+		CLAUDE_CODE_OAUTH_TOKEN="$(cat "$token_file")"
+		export CLAUDE_CODE_OAUTH_TOKEN
 	fi
 
 	local args
