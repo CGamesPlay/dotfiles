@@ -9,7 +9,7 @@
 # @flag --resume          Passed to Pi
 # @flag --pi-help         Show help for Pi
 # @flag --pi-version      Show version for Pi
-# @flag --pi-reinstall    Reinstall Pi even if already installed
+# @flag --pi-reinstall    Reinstall/Upgrade Pi even if already installed
 # @flag --skip-safehouse  Don't run in agent-safehouse
 # @arg args~              Additional arguments, passed verbatim
 
@@ -42,7 +42,8 @@ main() {
 	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -x "$PI_BIN" ]]; then
 		echo "Pi is not installed. Installing..." >&2
 		pushd "$DFM_DIR/share/pi" >/dev/null
-		npm --no-update-notifier install --ignore-scripts --omit=dev
+		npm --no-update-notifier install --no-package-lock "$PI_PACKAGE"@latest
+		npm --no-update-notifier install --no-package-lock --ignore-scripts --omit=dev
 		"$PI_BIN" install "$DFM_DIR/share/pi"
 		popd >/dev/null
 	fi
@@ -50,7 +51,7 @@ main() {
 	rm -f "$lock_file"
 	trap - EXIT
 
-	if [[ ${argc_pi_help+1} ]] || [[ ${args_pi_version+1} ]]; then
+	if [[ ${argc_pi_help+1} ]] || [[ ${argc_pi_version+1} ]]; then
 		exec "$PI_BIN" \
 			${argc_pi_help+--help} \
 			${argc_pi_version+--version}
