@@ -1,6 +1,6 @@
 if command -q eza
   function ls --wraps "eza"
-    eza -b $argv
+    eza --binary --group-directories-first --across $argv
   end
 else
   function ls --wraps "ls"

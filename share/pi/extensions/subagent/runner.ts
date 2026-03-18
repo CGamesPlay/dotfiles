@@ -279,7 +279,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
       const nextDepth = Math.max(0, Math.floor(parentDepth)) + 1;
       const propagatedMaxDepth = Math.max(0, Math.floor(maxDepth));
       const propagatedStack = [...parentAgentStack, agentName];
-      const proc = spawn("pi", piArgs, {
+      const proc = spawn(process.execPath, [process.argv[1], ...piArgs], {
         cwd: taskCwd ?? cwd,
         shell: false,
         stdio: ["ignore", "pipe", "pipe"],
