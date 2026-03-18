@@ -697,15 +697,17 @@ export async function restoreCheckpoint(
   root: string,
   cp: CheckpointData,
 ): Promise<void> {
-  // 1. Restore HEAD state
-  if (cp.headSha !== ZEROS) {
-    await git(`reset --hard ${cp.headSha}`, root);
-  }
+  // Intentionally skip `git reset --hard <headSha>` here.
+  // Moving HEAD disrupts jj (Jujutsu), which manages git HEAD as a working copy
+  // commit snapshot — any external HEAD movement causes jj to create a new change
+  // on the next operation. Since worktreeTreeSha is a self-contained snapshot of
+  // the full working tree (tracked + untracked files), read-tree -u restores all
+  // file contents faithfully without needing HEAD to move.
 
-  // 2. Update index AND working tree to match saved worktree snapshot
+  // 1. Update index AND working tree to match saved worktree snapshot
   await git(`read-tree --reset -u ${cp.worktreeTreeSha}`, root);
 
-  // 3. Safely remove untracked files - only remove NEW files, not pre-existing ones
+  // 2. Safely remove untracked files - only remove NEW files, not pre-existing ones
   //    Also preserve large files and directories that were skipped during snapshot
   await safeCleanUntrackedFiles(
     root,
@@ -714,7 +716,7 @@ export async function restoreCheckpoint(
     cp.skippedLargeDirs || [],
   );
 
-  // 4. Restore the index (staged state) without touching files
+  // 3. Restore the index (staged state) without touching files
   await git(`read-tree --reset ${cp.indexTreeSha}`, root);
 }
 
