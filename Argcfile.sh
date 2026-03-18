@@ -78,7 +78,7 @@ push() {
 
 	local sig=$(jj log -r master -GT 'signature.status()')
 	if [[ "$sig" != "good" ]]; then
-		jj sign -r master
+		jj --quiet sign -r master
 	fi
 
 	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
