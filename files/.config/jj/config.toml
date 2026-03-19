@@ -8,7 +8,7 @@ email = "cgamesplay@cgamesplay.com"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = ["log", "-T", "log_oneline_with_status", "--config", "ui.paginate=never", "-r", "wip() | ancestors(@, 10)", "--reversed"]
+default-command = ["util", "exec", "--", "sh", "-c", "jj default-log && jj default-status --ignore-working-copy", ""]
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
@@ -81,6 +81,25 @@ l = ["log", "-T", "log_oneline"]
 blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
+
+# These two commands, back-to-back, are the default command for jj.
+default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "::", "--limit", "10"]
+default-status = ["log", "-r", "@", "-GT", '''
+  surround("\n", "", separate("\n",
+    if(diff.files().len() > 0,
+      join("\n",
+        "Modified files in working copy:\n" ++
+        indent("  ", label("status", diff.summary()))),
+      "The working copy has no changes.\n"),
+    if(conflicted_files.len() > 0,
+      label("warning", label("heading", "Warning: ") ++ "There are unresolved conflicts at these paths:") ++ "\n" ++
+      label("conflict", indent("  ", conflicted_files.map(|f|
+        f.path().display() ++
+        if(f.conflict_side_count() > 2,
+          label("conflict_description difficult", "[" ++ f.conflict_side_count() ++ "-way]"))
+      ).join("\n"))))
+  ))
+''']
 
 prepare = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" prepare "$@"', ""]
 gh-pr = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" gh-pr "$@"', ""]
@@ -256,18 +275,6 @@ if(commit.root(),
           label(if(commit.empty(), 'empty'), description_placeholder),
         ),
       ) ++ "\n",
-    ),
-  )
-)
-'''
-
-log_oneline_with_status = '''
-concat(
-  log_oneline(self),
-  if(self.current_working_copy(),
-    concat(
-      label("status", diff.summary()),
-      label("conflict", files.filter(|f| f.conflict()).map(|f| "‼ " ++ f.path()).join("\n"))
     ),
   )
 )
