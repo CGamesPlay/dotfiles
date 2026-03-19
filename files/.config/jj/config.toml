@@ -31,6 +31,7 @@ empty = "bright black"
 "status diff modified" = "blue"
 "status diff added" = "blue"
 "status diff removed" = "blue"
+"description continuation" = "bright black"
 
 [merge-tools.difft]
 diff-args = ["--color=always", "--display=inline", "--byte-limit=100000", "$left", "$right"]
@@ -270,10 +271,7 @@ if(commit.root(),
         if(config('ui.show-cryptographic-signatures').as_boolean(),
           format_short_cryptographic_signature(commit.signature())),
         if(commit.empty(), label('empty', '(empty)')),
-        if(commit.description(),
-          commit.description().first_line(),
-          label(if(commit.empty(), 'empty'), description_placeholder),
-        ),
+        format_description_oneline(commit),
       ) ++ "\n",
     ),
   )
@@ -302,6 +300,15 @@ concat(
 
 'format_short_commit_header(commit)' = 'log_oneline(commit)'
 
+'format_description_oneline(commit)' = '''
+  label("description", if(commit.description(),
+    separate(" ",
+      commit.description().first_line(),
+      label("continuation", if(commit.description().lines().len() > 1, "[…]"))),
+    label(if(commit.empty(), 'empty'), description_placeholder),
+  ))
+'''
+
 'format_short_signature_oneline(signature)' = '''
 if(signature.email() != config('user.email').as_string(),
   coalesce(signature.email().local(), email_placeholder))
@@ -314,7 +321,5 @@ pad_end(10, if(timestamp.after('1 week ago'),
   ))
 '''
 'format_timestamp(timestamp)' = "timestamp.format('%+')"
-
-'in_branch(commit)' = "commit.contained_in('immutable_heads()..bookmarks()')"
 
 # vim:sw=2

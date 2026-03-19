@@ -21,8 +21,11 @@ socket="${rundir}/${PWD//\//-}"
 if [ -S "$socket" ] && fuser "$socket" >/dev/null 2>&1; then
 	echo "Nvim server socket exists, sending remote command"
 	exec nvim --server "$socket" --remote "$@"
+else
+	rm -f "$socket"
+fi
 
-elif [ -d /Applications/Neovide.app ]; then
+if [ -d /Applications/Neovide.app ]; then
 	# Running locally, run with a trampoline to support direnv
 	if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
 		args=()
