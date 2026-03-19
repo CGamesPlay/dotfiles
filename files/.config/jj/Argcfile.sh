@@ -45,7 +45,7 @@ transact() {
 	fi
 }
 
-# @cmd Prepare revisions to push to a remote branch.
+# @cmd Prepare revisions to push to a remote branch
 #
 # This will rebase revisions given with -s/-b/-r to come before any
 # unpushable commits and after the nearest bookmark, then update the bookmark
@@ -103,8 +103,13 @@ prepare() {
 	else
 		source="${argc_revisions:?}"
 	fi
+	
+	head=$(jj log -G --config "$prepare_branch" -r "heads($source)" -T 'change_id ++ "\n"' 2>/dev/null)
 
-	if ! head=$(jj log -G --config "$prepare_branch" -r "exactly(heads($source), 1)" -T 'change_id' 2>/dev/null); then
+	if [[ ! "$head" ]]; then
+		echo "Warning: no revisions to prepare" >&2
+		exit 0
+	elif [[ $(echo "$head" | wc -l) -gt 1 ]]; then
 		jj log --reversed --config "$prepare_branch" -r "$source" -T log_oneline
 		echo "Error: the revset has more than one head revision" >&2
 		exit 1
@@ -250,6 +255,23 @@ test::prepare() {
 	⊗  private: private commit
 	@  (empty)
 	EOF
+}
+
+# @cmd Check out a Github PR
+# @option --remote  Name of remote [default: origin or upstream]
+# @arg id!     Pull request ID
+gh-pr() {
+	cd "$JJ_WORKSPACE_ROOT"
+	if [[ ${argc_remote+1} ]]; then
+		remote="$argc_remote"
+	elif git remote get-url upstream >/dev/null 2>&1; then
+		remote="upstream"
+	else
+		remote="origin"
+	fi
+	git fetch "$remote" "+refs/pull/${argc_id:?}/head:pr-$argc_id"
+	jj new "pr-$argc_id"
+	jj l -r "trunk()..pr-$argc_id"
 }
 
 test::header() {

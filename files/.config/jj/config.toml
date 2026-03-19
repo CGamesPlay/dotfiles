@@ -82,6 +82,9 @@ blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
 
+prepare = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" prepare "$@"', ""]
+gh-pr = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" gh-pr "$@"', ""]
+
 # Interactively select an operation to restore
 rewind = ["util", "exec", "--", "sh", "-c", '''
 choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "\0"' | \
@@ -91,23 +94,6 @@ if [ $? -eq 0 ]; then
   jj op restore "$choice"
 fi
 ''', "rewind"]
-
-# Checkout a Github PR
-gh-pr = ["util", "exec", "--", "sh", "-c", '''
-remote="origin"
-if [ $# -gt 1 ]; then
-  remote="$1"
-  shift
-elif git remote get-url upstream >/dev/null 2>&1; then
-  remote="upstream"
-fi
-id="${1:?Usage: jj gh-pr [REMOTE] ID}"
-git fetch "$remote" "+refs/pull/$id/head:pr-$id"
-jj new pr-$id
-jj log -T log_oneline_with_status --no-pager -r "trunk()..pr-$id" --reversed
-''', "jj gh-pr"]
-
-prepare = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" prepare "$@"', ""]
 
 # Open the web repo associated with this repository.
 web = ["util", "exec", "--", "sh", "-c", """
