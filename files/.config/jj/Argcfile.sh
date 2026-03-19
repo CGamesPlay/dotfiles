@@ -82,7 +82,7 @@ prepare() {
 			destination="trunk()"
 		fi
 	else
-		destination=$(jj log -G -r 'heads(::@ & bookmarks())' -T 'bookmarks.map(|r| r.name()).join(" ")')
+		destination=$(jj log -G -r 'heads(::@ & bookmarks() ~ unpushable())' -T 'bookmarks.map(|r| r.name()).join(" ")')
 	fi
 	dest_count=$(echo "$destination" | wc -w)
 	if [[ $dest_count -eq 0 ]]; then
@@ -103,7 +103,7 @@ prepare() {
 	else
 		source="${argc_revisions:?}"
 	fi
-	
+
 	head=$(jj log -G --config "$prepare_branch" -r "heads($source)" -T 'change_id ++ "\n"' 2>/dev/null)
 
 	if [[ ! "$head" ]]; then
