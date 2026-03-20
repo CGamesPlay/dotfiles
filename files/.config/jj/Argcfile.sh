@@ -115,8 +115,6 @@ prepare() {
 		exit 1
 	fi
 
-	# This op: jj op log -GT 'id' -n 1
-
 	if [[ ! ${argc_pr+1} ]]; then
 		jj rebase --config "$prepare_branch" -r "$source" -A "$destination"
 		jj bookmark set -r "$head" "$destination"
@@ -126,7 +124,7 @@ prepare() {
 		# then add our new branch as a parent of that commit.
 		unpushed_root=$(jj log -G --config "$prepare_branch" -r "exactly(roots(..($source) ~ reachable(trunk(), ~unpushable())), 1)" -T 'change_id')
 		jj rebase --config "$prepare_branch" -r "$source" -o "$destination"
-		jj rebase -s "$unpushed_root" -d "$unpushed_root-" -d "$head"
+		jj rebase -s "$unpushed_root" -d "$unpushed_root-" -d "$head" --simplify-parents
 		jj bookmark set -r "$head" "$argc_pr"
 	fi
 }
@@ -218,10 +216,8 @@ test::prepare() {
 	jj prepare --pr my-pr
 	check_graph <<-EOF
 	◆  (root)
-	◆    [main] upstream base
-	|\\
-	| ○  [my-pr] change to push
-	|/
+	◆  [main] upstream base
+	○  [my-pr] change to push
 	⊗  private: private commit
 	@  (empty)
 	EOF
@@ -231,11 +227,9 @@ test::prepare() {
 	jj prepare --pr my-pr
 	check_graph <<-EOF
 	◆  (root)
-	◆    [main] upstream base
-	|\\
-	| ○  change to push
-	| ○  [my-pr] more changes
-	|/
+	◆  [main] upstream base
+	○  change to push
+	○  [my-pr] more changes
 	⊗  private: private commit
 	@  (empty)
 	EOF
@@ -245,12 +239,11 @@ test::prepare() {
 	jj prepare --pr second-pr
 	check_graph <<-EOF
 	◆  (root)
-	◆      [main] upstream base
-	+-+-.
-	| | ○  change to push
-	| | ○  [my-pr] more changes
-	+---'
-	| ○  [second-pr] another PR
+	◆    [main] upstream base
+	|\\
+	| ○  change to push
+	| ○  [my-pr] more changes
+	○ |  [second-pr] another PR
 	|/
 	⊗  private: private commit
 	@  (empty)
@@ -346,6 +339,8 @@ check_graph() {
 		echo ""
 		echo "Actual:"
 		echo "$actual"
+		echo ""
+		diff -U0 <(echo "$expected") <(echo "$actual")
 		exit 1
 	fi
 }

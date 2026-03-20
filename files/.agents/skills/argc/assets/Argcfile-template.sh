@@ -1,1 +1,1 @@
-../../../../../../share/Argcfile-template.sh
+../../../../../share/Argcfile-template.sh

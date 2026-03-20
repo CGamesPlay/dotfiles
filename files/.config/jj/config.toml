@@ -8,7 +8,7 @@ email = "cgamesplay@cgamesplay.com"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
-default-command = ["util", "exec", "--", "sh", "-c", "jj default-log && jj default-status --ignore-working-copy", ""]
+default-command = ["util", "exec", "--", "sh", "-c", 'jj default-log "$@" && jj default-status --ignore-working-copy "$@"', ""]
 log-synthetic-elided-nodes = true
 pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
@@ -82,9 +82,11 @@ l = ["log", "-T", "log_oneline"]
 blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
+# Diff with side-by-side view
+diff-sbs = ["util", "exec", "--", "sh", "-c", 'DELTA_FEATURES=+side-by-side exec jj diff "$@"', ""]
 
 # These two commands, back-to-back, are the default command for jj.
-default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "::", "--limit", "10"]
+default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "::(mutable() | bookmarks())", "--limit", "10"]
 default-status = ["log", "-r", "@", "-GT", '''
   surround("\n", "", separate("\n",
     if(diff.files().len() > 0,
@@ -97,7 +99,7 @@ default-status = ["log", "-r", "@", "-GT", '''
       label("conflict", indent("  ", conflicted_files.map(|f|
         f.path().display() ++
         if(f.conflict_side_count() > 2,
-          label("conflict_description difficult", "[" ++ f.conflict_side_count() ++ "-way]"))
+          label("conflict_description difficult", " [" ++ f.conflict_side_count() ++ "-way]"))
       ).join("\n"))))
   ))
 ''']
@@ -171,10 +173,6 @@ short-prefixes = 'mutable()'
 [revset-aliases]
 # NOTE: revset-aliases shadow bookmarks, so it's generally a good idea to
 # always use the function form.
-
-# Mutable commits, plus remote bookmarks that we care about that and are not
-# incorporated into @.
-'wip()' = "ancestors(mutable() | @..tracked_remote_bookmarks(), 2)"
 
 # Private and WIP commits that should never be pushed anywhere. Often part of
 # work-in-progress merge stacks.
