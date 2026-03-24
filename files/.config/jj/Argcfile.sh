@@ -274,6 +274,33 @@ gh-pr() {
 	jj l -r "trunk()..pr-$argc_id"
 }
 
+# @cmd Make a directory
+#
+# @flag -i --ignored  Contents and existence are ignored
+# @flag -k --keep     Contents are ignored, but directory itself is tracked
+# @flag -p --parents  Make parent directories as well
+# @arg  path <DIR>    Path to create directory at
+mkdir() {
+	cd "$ARGC_PWD"
+	if [[ ${argc_ignored+1} && ${argc_keep+1} ]]; then
+		echo "--ignored and --keep are mutually exclusive" >&2
+		exit 1
+	fi
+	command mkdir ${argc_parents+-p} "${argc_path:?}"
+	# Make the directory ignored
+	if [[ ${argc_keep+1} || ${argc_ignored+1} ]]; then
+		if [[ ${argc_keep+1} ]]; then
+			printf '*\n!.gitignore\n' > "${argc_path:?}/.gitignore"
+		else
+			echo '*' > "${argc_path:?}/.gitignore"
+		fi
+
+		# Untrack any files that already exist in the directory
+		find "${argc_path:?}" -maxdepth 1 -mindepth 1 -not -name '.gitignore' -print0 | \
+			xargs -r0 jj file untrack
+	fi
+}
+
 test::header() {
 	printf "\n# %s\n\n" "$1"
 }
