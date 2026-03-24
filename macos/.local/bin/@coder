@@ -176,6 +176,12 @@ shpool() {
 	ssh_args="$(printf '%q ' exec "${shpool_args[@]}")"
 	echo ssh -t "$host" "$ssh_args"
 
+	# Extract workspace name for coder CLI commands (agent.workspace.owner -> owner/workspace)
+	local ws_name owner
+	ws_name="${argc_workspace#*.}"   # drop agent prefix
+	owner="${ws_name#*.}"            # owner portion
+	ws_name="${ws_name%%.*}"         # workspace portion
+
 	while true; do
 		set +e
 		# shellcheck disable=2033
@@ -185,9 +191,24 @@ shpool() {
 			break
 		fi
 		set -e
-		echo "ssh exited with $status. Press any key to reconnect, or ^C to quit."
-		if ! read -rsn1; then
+		recover_terminal
+
+		echo "ssh exited with $status. Press enter to reconnect, or ^C to quit."
+		if ! read -r; then
 			break
+		fi
+
+		# Check if the workspace is still running before reconnecting
+		local ws_status
+		ws_status=$(coder list -o json --search "owner:${owner} name:${ws_name}" \
+			| jq -r '.[0].latest_build.status // empty') || true
+
+		if [[ "$ws_status" != "running" ]]; then
+			echo "⚠ Workspace ${ws_name} is ${ws_status:-in an unknown state}. Reconnecting will start it."
+			echo "Press enter to reconnect, or ^C to quit."
+			if ! read -r; then
+				break
+			fi
 		fi
 	done
 }
@@ -356,6 +377,40 @@ selftest() {
 	echo ""
 	echo "$pass passed, $fail failed"
 	[[ "$fail" -eq 0 ]]
+}
+
+recover_terminal() {
+	# Reset tty line discipline first so the terminal driver processes
+	# bytes normally (cooked mode, echo on, signals enabled, etc.)
+	stty sane 2>/dev/null || true
+
+	# Soft reset handles: cursor visibility/shape, scroll regions, SGR,
+	# charsets, origin/insert/wraparound modes, keypad mode, synchronized updates
+	printf '\x1b[!p'
+
+	# --- Things soft reset does NOT handle ---
+
+	# Kitty keyboard protocol (pop all levels)
+	for _ in {1..10}; do printf '\x1b[<u'; done
+
+	# modifyOtherKeys (xterm)
+	printf '\x1b[>4;0m'
+
+	# Mouse reporting
+	printf '\x1b[?1000l'   # Normal tracking
+	printf '\x1b[?1002l'   # Button-event tracking
+	printf '\x1b[?1003l'   # Any-event tracking
+	printf '\x1b[?1006l'   # SGR encoding
+	printf '\x1b[?1015l'   # Urxvt encoding
+
+	# Focus reporting
+	printf '\x1b[?1004l'
+
+	# Bracketed paste
+	printf '\x1b[?2004l'
+
+	# Drain any buffered stdin
+	while read -rsn1 -t 0; do :; done
 }
 
 if ! command -v argc >/dev/null; then
