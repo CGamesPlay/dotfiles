@@ -66,8 +66,7 @@ main() {
 			@get safehouse
 		fi
 		script="set -a && source '$PI_ENV_FILE' && exec \"\$@\""
-		args=(
-			safehouse 
+		safehouse_args=(
 			--enable=clipboard
 			--enable=xcode
 			--add-dirs-ro /Library/Preferences/com.apple.dt.Xcode.plist
@@ -75,15 +74,18 @@ main() {
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"
 			--add-dirs-ro "$DFM_DIR"
+			--add-dirs-ro ~/.config/jj
 			--add-dirs-ro ~/.config/nvim
 			--add-dirs-ro ~/.local/share/nvim
 			--add-dirs ~/.local/state/nvim
 			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.pi
 			--env-pass "EDITOR,NVM_DIR,DFM_DIR"
-			-- sh -c "$script" "pi-wrapper"
-			"${args[@]}"
 		)
+		if jj_repo_config=$(jj config path --repo 2>/dev/null); then
+			safehouse_args+=(--add-dirs "$(dirname "$jj_repo_config")")
+		fi
+		args=(safehouse "${safehouse_args[@]}" -- sh -c "$script" "pi-wrapper" "${args[@]}")
 	fi
 
 	exec "${args[@]}" ${argc_args+"${argc_args[@]}"}

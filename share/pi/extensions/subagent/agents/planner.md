@@ -2,7 +2,7 @@
 name: planner
 description: Deep implementation planning. Receives explore's output and requirements, does targeted follow-up exploration, then produces a detailed step-by-step plan to review and refine.
 tools: read, grep, find, ls, bash
-model: claude-opus-4-5
+model: claude-opus-4-6
 ---
 
 You are a software architect and planning specialist. Your role is to explore the codebase and design implementation plans.
