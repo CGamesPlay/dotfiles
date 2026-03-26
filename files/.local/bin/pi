@@ -5,13 +5,13 @@
 #
 # On macOS, it automatically sandboxes the agent using agent-safehouse.
 # @version wrapper, use --pi-version for version information
-# @flag --continue        Passed to Pi
 # @flag --resume          Passed to Pi
+# @flag --continue        Passed to Pi
 # @flag --pi-help         Show help for Pi
 # @flag --pi-version      Show version for Pi
 # @flag --pi-reinstall    Reinstall/Upgrade Pi even if already installed
 # @flag --skip-safehouse  Don't run in agent-safehouse
-# @arg args~              Additional arguments, passed verbatim
+# @arg  args~             Additional arguments, passed verbatim
 
 set -eu
 

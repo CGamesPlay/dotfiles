@@ -180,9 +180,7 @@ function getMaxDepthFlagFromArgv(argv: string[]): string | null {
   return null;
 }
 
-function getPreventCyclesFlagFromArgv(
-  argv: string[],
-): string | boolean | null {
+function getPreventCyclesFlagFromArgv(argv: string[]): string | boolean | null {
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--subagent-prevent-cycles") {
@@ -263,10 +261,7 @@ function resolveDelegationDepthConfig(pi: ExtensionAPI): DelegationDepthConfig {
     typeof argvPreventCyclesRaw === "boolean"
       ? argvPreventCyclesRaw
       : parseBoolean(argvPreventCyclesRaw);
-  if (
-    typeof argvPreventCyclesRaw === "string" &&
-    argvPreventCycles === null
-  ) {
+  if (typeof argvPreventCyclesRaw === "string" && argvPreventCycles === null) {
     console.warn(
       `[pi-subagent] Ignoring invalid --subagent-prevent-cycles value "${argvPreventCyclesRaw}". Expected true/false.`,
     );
@@ -339,8 +334,13 @@ export default function (pi: ExtensionAPI) {
   });
 
   const depthConfig = resolveDelegationDepthConfig(pi);
-  const { currentDepth, maxDepth, canDelegate, ancestorAgentStack, preventCycles } =
-    depthConfig;
+  const {
+    currentDepth,
+    maxDepth,
+    canDelegate,
+    ancestorAgentStack,
+    preventCycles,
+  } = depthConfig;
 
   let discoveredAgents: AgentConfig[] = [];
 
@@ -349,16 +349,6 @@ export default function (pi: ExtensionAPI) {
     if (!canDelegate) return;
 
     discoveredAgents = discoverAgents();
-
-    if (discoveredAgents.length > 0 && ctx.hasUI) {
-      const list = discoveredAgents
-        .map((a) => `  - ${a.name}`)
-        .join("\n");
-      ctx.ui.notify(
-        `Found ${discoveredAgents.length} subagent(s):\n${list}`,
-        "info",
-      );
-    }
   });
 
   // Inject available agents into the system prompt
@@ -420,9 +410,9 @@ Use single mode for one task, parallel mode when tasks are independent and can r
         "  Parallel mode: set `tasks` array (do NOT also set `agent`/`task`).",
         "",
         "Optional context mode switch:",
-        "  mode: \"spawn\" (default) -> child gets only your task prompt.",
+        '  mode: "spawn" (default) -> child gets only your task prompt.',
         "                             Best for isolated/reproducible work; lower token/cost and less context leakage.",
-        "  mode: \"fork\"            -> child gets current session context + your task prompt.",
+        '  mode: "fork"            -> child gets current session context + your task prompt.',
         "                             Best for follow-up work that depends on prior context; higher token/cost and may include sensitive context.",
         "",
         'Example single:   { agent: "writer", task: "Rewrite README.md", mode: "spawn" }',
@@ -460,7 +450,7 @@ Use single mode for one task, parallel mode when tasks are independent and can r
               content: [
                 {
                   type: "text",
-                  text: "Cannot use mode=\"fork\": failed to snapshot current session context.",
+                  text: 'Cannot use mode="fork": failed to snapshot current session context.',
                 },
               ],
               details: makeDetails("single")([]),

@@ -173,7 +173,7 @@ shpool() {
 
 	local shpool_args ssh_args
 	shpool_args=(shpool attach -f "$name" ${cmd_args+"${cmd_args[@]}"})
-	ssh_args="$(printf '%q ' "${shpool_args[@]}")"
+	ssh_args="$(printf '%q ' exec "${shpool_args[@]}")"
 	echo ssh -t "$host" "$ssh_args"
 
 	while true; do

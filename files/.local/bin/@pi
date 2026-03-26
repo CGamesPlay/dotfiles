@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# @describe System-level assistant helper
+#
+# This runs the pi coding agent with a configuration designed for system administration tasks:
+# - Interactive permissions instead of sandboxing
+# - Ignore AGENTS.md and other repository-level config
+# @version wrapper, use --pi-version for version information
+# @flag --resume          Passed to Pi
+# @flag --continue        Passed to Pi
+# @flag --pi-help         Show help for Pi
+# @flag --pi-version      Show version for Pi
+# @arg  args~             Additional arguments, passed verbatim
+
+set -eu
+
+DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../.." && pwd)
+
+main() {
+	if [[ ${argc_pi_help+1} ]] || [[ ${argc_pi_version+1} ]]; then
+		exec pi \
+			${argc_pi_help+--pi-help} \
+			${argc_pi_version+--pi-version}
+	fi
+
+	local args=(
+		--session-dir "$HOME/.pi/agent/sessions/system-assistant"
+		--append-system-prompt "$HOME/.pi/agent/system-assistant.md"
+		--no-extensions
+		--extension "$DFM_DIR/share/pi"
+		--no-skills
+		--skill "$HOME/.agents/skills"
+		--system-assistant
+	)
+
+	exec pi --skip-safehouse -- "${args[@]}" ${argc_args+"${argc_args[@]}"}
+}
+
+# @cmd Generate a command
+# @arg command  Input command to complete
+# @arg args~    Additional arguments, passed verbatim
+completion() {
+	argc_args+=(
+		--completion
+		--no-session
+		--offline
+		${argc_command+"$argc_command"}
+	)
+	main
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

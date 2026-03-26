@@ -63,6 +63,8 @@ The task you write should be written differently for forks and spawns.
 
 The general-purpose subagent is available for usage that doesn't fall into a more specialized category. It's particularly useful for forking to accomplish many repeated tasks in parallel: like cloning yourself repeatedly, each clone only needs to do one of the tasks.
 
+Avoid using this subagent when the tasks are so mechanical that a simple Bash/Python script could accomplish the task instead.
+
 ### Explore Subagent
 
 The explore subagent is designed specifically for fast exploration of codebases. It's optimized to quickly find files by patterns, search code for keywords, and answer questions about how code works. Think of it as your codebase assistant that's really good at reading and understanding code structure without being distracted by other tasks.
