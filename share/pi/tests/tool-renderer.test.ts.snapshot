@@ -1,0 +1,369 @@
+exports[`end-to-end render > edit complete — error 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;167mError: File not found: test.ts[39m
+`;
+
+exports[`end-to-end render > edit complete — expanded view shows all lines 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;241m1 ⋮ 1 │context before[39m
+[38;5;143m  ⋮ 2 │new[39m
+[38;5;167m2 ⋮   │old[39m
+[38;5;241m3 ⋮ 3 │context after[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — large diff collapsed 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mbig.ts[39m
+--- renderResult ---
+[38;5;244m(27 earlier lines, ctrl+o to expand)[39m
+
+[38;5;167m61 ⋮    │old line 6[39m
+[38;5;241m62 ⋮ 62 │context[39m
+[38;5;241m...[39m
+[38;5;241m70 ⋮ 70 │context[39m
+[38;5;143m   ⋮ 71 │new line 7[39m
+[38;5;167m71 ⋮    │old line 7[39m
+[38;5;241m72 ⋮ 72 │context[39m
+[38;5;241m...[39m
+[38;5;241m80 ⋮ 80 │context[39m
+[38;5;143m   ⋮ 81 │new line 8[39m
+
+[38;5;244m(2 more lines, ctrl+o to expand)[39m
+
+[38;5;143m+8[39m[38;5;241m / [39m[38;5;167m-8[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — large diff expanded 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mbig.ts[39m
+--- renderResult ---
+[38;5;241m10 ⋮ 10 │context[39m
+[38;5;143m   ⋮ 11 │new line 1[39m
+[38;5;167m11 ⋮    │old line 1[39m
+[38;5;241m12 ⋮ 12 │context[39m
+[38;5;241m...[39m
+[38;5;241m20 ⋮ 20 │context[39m
+[38;5;143m   ⋮ 21 │new line 2[39m
+[38;5;167m21 ⋮    │old line 2[39m
+[38;5;241m22 ⋮ 22 │context[39m
+[38;5;241m...[39m
+[38;5;241m30 ⋮ 30 │context[39m
+[38;5;143m   ⋮ 31 │new line 3[39m
+[38;5;167m31 ⋮    │old line 3[39m
+[38;5;241m32 ⋮ 32 │context[39m
+[38;5;241m...[39m
+[38;5;241m40 ⋮ 40 │context[39m
+[38;5;143m   ⋮ 41 │new line 4[39m
+[38;5;167m41 ⋮    │old line 4[39m
+[38;5;241m42 ⋮ 42 │context[39m
+[38;5;241m...[39m
+[38;5;241m50 ⋮ 50 │context[39m
+[38;5;143m   ⋮ 51 │new line 5[39m
+[38;5;167m51 ⋮    │old line 5[39m
+[38;5;241m52 ⋮ 52 │context[39m
+[38;5;241m...[39m
+[38;5;241m60 ⋮ 60 │context[39m
+[38;5;143m   ⋮ 61 │new line 6[39m
+[38;5;167m61 ⋮    │old line 6[39m
+[38;5;241m62 ⋮ 62 │context[39m
+[38;5;241m...[39m
+[38;5;241m70 ⋮ 70 │context[39m
+[38;5;143m   ⋮ 71 │new line 7[39m
+[38;5;167m71 ⋮    │old line 7[39m
+[38;5;241m72 ⋮ 72 │context[39m
+[38;5;241m...[39m
+[38;5;241m80 ⋮ 80 │context[39m
+[38;5;143m   ⋮ 81 │new line 8[39m
+[38;5;167m81 ⋮    │old line 8[39m
+[38;5;241m82 ⋮ 82 │context[39m
+
+[38;5;143m+8[39m[38;5;241m / [39m[38;5;167m-8[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — large line numbers (padding) 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;241m199 ⋮ 199 │context before[39m
+[38;5;143m    ⋮ 200 │new[39m
+[38;5;167m200 ⋮     │old[39m
+[38;5;241m201 ⋮ 201 │context after[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — multi-edit with details.diff 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;241m 5 ⋮  5 │before[39m
+[38;5;143m   ⋮  6 │beta[39m
+[38;5;167m 6 ⋮    │alpha[39m
+[38;5;241m 7 ⋮  7 │between[39m
+[38;5;241m...[39m
+[38;5;241m20 ⋮ 20 │before2[39m
+[38;5;143m   ⋮ 21 │delta[39m
+[38;5;167m21 ⋮    │gamma[39m
+[38;5;241m22 ⋮ 22 │after2[39m
+
+[38;5;143m+2[39m[38;5;241m / [39m[38;5;167m-2[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — with details.diff 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;241m1 ⋮ 1 │context before[39m
+[38;5;143m  ⋮ 2 │new line[39m
+[38;5;167m2 ⋮   │old line[39m
+[38;5;241m3 ⋮ 3 │context after[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit complete — without details.diff (fallback to args) 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;143m  ⋮ 1 │beta[39m
+[38;5;167m1 ⋮   │alpha[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > edit executing — preview diff in renderCall 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+[38;5;143m  ⋮   │bar[39m
+[38;5;167m  ⋮   │foo[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — both oldText and newText 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+[38;5;143m  ⋮   │new line[39m
+[38;5;167m  ⋮   │old line[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — multi-edit, first edit complete, second streaming 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+[38;5;143m  ⋮   │beta[39m
+[38;5;167m  ⋮   │alpha[39m
+[38;5;241m...[39m
+[38;5;167m  ⋮   │gamma[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-2[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — newText only (no oldText yet) 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+[38;5;143m  ⋮   │new line[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-0[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — oldText only (no newText yet) 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+[38;5;167m  ⋮   │old line[39m
+
+[38;5;143m+0[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit replay — no preview diff in renderCall 1`] = `
+--- renderCall ---
+[39medit [39m[38;5;109mtest.ts[39m
+--- renderResult ---
+[38;5;143m  ⋮ 1 │bar[39m
+[38;5;167m1 ⋮   │foo[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+`;
+
+exports[`end-to-end render > write partial — content still streaming (no content yet) 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109msome-file.ts[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — file does not exist (all additions) 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mwrite-new-file.ts[39m
+[38;5;143m  ⋮ 1 │line1[39m
+[38;5;143m  ⋮ 2 │line2[39m
+[38;5;143m  ⋮ 3 │line3[39m
+
+[38;5;143m+3[39m[38;5;241m / [39m[38;5;167m-0[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — file exists (diff against old content) 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mwrite-exists.ts[39m
+[38;5;143m  ⋮ 1 │new line1[39m
+[38;5;167m1 ⋮   │old line1[39m
+[38;5;241m2 ⋮ 2 │old line2[39m
+
+[38;5;143m+1[39m[38;5;241m / [39m[38;5;167m-1[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — large file rewrite, streaming frontier 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mwrite-frontier.ts[39m
+[38;5;244m(2 earlier lines, ctrl+o to expand)[39m
+
+[38;5;167m 4 ⋮    │line 4[39m
+[38;5;241m 5 ⋮  5 │line 5[39m
+[38;5;241m...[39m
+[38;5;241m10 ⋮ 10 │line 10[39m
+[38;5;143m   ⋮ 11 │EDITED 11[39m
+[38;5;167m11 ⋮    │line 11[39m
+[38;5;241m12 ⋮ 12 │line 12[39m
+[38;5;241m...[39m
+[38;5;241m14 ⋮ 14 │line 14[39m
+[38;5;143m   ⋮ 15 │line 15[39m
+
+[38;5;244m(16 more lines, ctrl+o to expand)[39m
+
+[38;5;143m+3[39m[38;5;241m / [39m[38;5;167m-18[39m[38;5;244m lines changed[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay collapsed — truncates long file 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mbig-file.ts[39m
+[38;5;244m(10 more lines, ctrl+o to expand)[39m
+
+[38;5;241m11 │line 11[39m
+[38;5;241m12 │line 12[39m
+[38;5;241m13 │line 13[39m
+[38;5;241m14 │line 14[39m
+[38;5;241m15 │line 15[39m
+[38;5;241m16 │line 16[39m
+[38;5;241m17 │line 17[39m
+[38;5;241m18 │line 18[39m
+[38;5;241m19 │line 19[39m
+[38;5;241m20 │line 20[39m
+
+[38;5;241m20 lines written[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay expanded — shows all file content 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mbig-file.ts[39m
+[38;5;241m 1 │line 1[39m
+[38;5;241m 2 │line 2[39m
+[38;5;241m 3 │line 3[39m
+[38;5;241m 4 │line 4[39m
+[38;5;241m 5 │line 5[39m
+[38;5;241m 6 │line 6[39m
+[38;5;241m 7 │line 7[39m
+[38;5;241m 8 │line 8[39m
+[38;5;241m 9 │line 9[39m
+[38;5;241m10 │line 10[39m
+[38;5;241m11 │line 11[39m
+[38;5;241m12 │line 12[39m
+[38;5;241m13 │line 13[39m
+[38;5;241m14 │line 14[39m
+[38;5;241m15 │line 15[39m
+[38;5;241m16 │line 16[39m
+[38;5;241m17 │line 17[39m
+[38;5;241m18 │line 18[39m
+[38;5;241m19 │line 19[39m
+[38;5;241m20 │line 20[39m
+
+[38;5;241m20 lines written[39m
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay — shows file listing (cannot recover old content) 1`] = `
+--- renderCall ---
+[39mwrite [39m[38;5;109mreplayed.ts[39m
+[38;5;241m1 │replay line1[39m
+[38;5;241m2 │replay line2[39m
+[38;5;241m3 │replay line3[39m
+
+[38;5;241m3 lines written[39m
+--- renderResult ---
+
+`;
+
+exports[`formatCollapsible > long content collapsed — first N lines + 'N more lines' 1`] = `
+[38;5;244m(10 more lines, ctrl+o to expand)[39m
+
+line11
+line12
+line13
+line14
+line15
+line16
+line17
+line18
+line19
+line20
+
+summary
+`;
+
+exports[`formatCollapsible > long content expanded — all lines 1`] = `
+line1
+line2
+line3
+line4
+line5
+line6
+line7
+line8
+line9
+line10
+line11
+line12
+line13
+line14
+line15
+line16
+line17
+line18
+line19
+line20
+
+summary
+`;
+
+exports[`formatCollapsible > short content — no truncation 1`] = `
+line1
+line2
+line3
+
+summary
+`;

@@ -444,7 +444,7 @@ Use single mode for one task, parallel mode when tasks are independent and can r
         if (delegationMode === "fork") {
           forkSessionSnapshotJsonl = buildForkSessionSnapshotJsonl(
             ctx.sessionManager,
-          );
+          ) ?? undefined;
           if (!forkSessionSnapshotJsonl) {
             return {
               content: [

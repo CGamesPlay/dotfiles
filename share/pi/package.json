@@ -1,5 +1,16 @@
 {
 	"name": "@cgamesplay/pi-extensions",
+	"type": "module",
+	"scripts": {
+		"test": "tsx --test tests/**/*.test.ts",
+		"test:update": "tsx --test --test-update-snapshots tests/**/*.test.ts"
+	},
+	"devDependencies": {
+		"tsx": "^4.19.2",
+		"typescript": "^5.9.3",
+		"@types/diff": "^8.0.0",
+		"@types/node": "^24.0.0"
+	},
 	"dependencies": {
 		"@mariozechner/pi-coding-agent": "^0.63.1",
 		"diff": "^8.0.2",

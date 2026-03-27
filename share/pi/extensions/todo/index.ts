@@ -152,6 +152,7 @@ export default function (pi: ExtensionAPI) {
 		if (shouldShowWidget()) {
 			ctx.ui.setWidget("todos", (_tui, theme) => {
 				return {
+					invalidate() {},
 					render(width: number): string[] {
 						const th = theme;
 

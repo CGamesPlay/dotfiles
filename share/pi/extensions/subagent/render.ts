@@ -3,7 +3,7 @@
  */
 
 import * as os from "node:os";
-import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
+import { getMarkdownTheme, type ThemeColor } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import {
 	type DelegationMode,
@@ -58,7 +58,7 @@ function normalizeDelegationMode(raw: unknown): DelegationMode {
 	return raw === "fork" ? "fork" : DEFAULT_DELEGATION_MODE;
 }
 
-type ThemeFg = (color: string, text: string) => string;
+type ThemeFg = (color: ThemeColor, text: string) => string;
 
 function formatToolCall(toolName: string, args: Record<string, unknown>, fg: ThemeFg): string {
 	const pathArg = (args.file_path || args.path || "...") as string;

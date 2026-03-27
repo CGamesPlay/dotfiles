@@ -55,11 +55,11 @@ import * as Diff from "diff";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-const COLLAPSED_MAX_LINES = 10;
+export const COLLAPSED_MAX_LINES = 10;
 
 // ─── Diff data model ───────────────────────────────────────────────────────────
 
-interface DiffLine {
+export interface DiffLine {
   type: "context" | "added" | "removed" | "gap";
   oldNum?: number;
   newNum?: number;
@@ -71,7 +71,7 @@ interface DiffLine {
 /**
  * Compute structured diff lines with both old and new line numbers.
  */
-function computeDiffLines(
+export function computeDiffLines(
   oldContent: string,
   newContent: string,
   contextLines = 1,
@@ -192,7 +192,7 @@ function computeDiffLines(
 /**
  * Remove leading/trailing gaps and collapse consecutive gaps into one.
  */
-function normalizeGaps(lines: DiffLine[]): DiffLine[] {
+export function normalizeGaps(lines: DiffLine[]): DiffLine[] {
   const result: DiffLine[] = [];
   for (const line of lines) {
     if (line.type === "gap") {
@@ -218,7 +218,7 @@ function normalizeGaps(lines: DiffLine[]): DiffLine[] {
  * number by tracking the offset (newNum - oldNum) which only changes at
  * added/removed lines.
  */
-function parsePiDiff(diffText: string): DiffLine[] {
+export function parsePiDiff(diffText: string): DiffLine[] {
   const lines: DiffLine[] = [];
   let offset = 0; // newNum - oldNum
 
@@ -237,6 +237,12 @@ function parsePiDiff(diffText: string): DiffLine[] {
     } else if (prefix === "+") {
       lines.push({ type: "added", newNum: num, content });
       offset++;
+    } else if (
+      num === undefined &&
+      (content === "..." || content.trim() === "")
+    ) {
+      // Gap separator: no line number with "..." or blank content
+      lines.push({ type: "gap", content: "" });
     } else {
       lines.push({
         type: "context",
@@ -254,7 +260,7 @@ function parsePiDiff(diffText: string): DiffLine[] {
  * Trim context lines in a parsed diff down to the desired count.
  * The built-in diff uses 4 context lines; we want fewer.
  */
-function trimContext(lines: DiffLine[], contextLines = 1): DiffLine[] {
+export function trimContext(lines: DiffLine[], contextLines = 1): DiffLine[] {
   const result: DiffLine[] = [];
 
   // Group lines into sections separated by gaps
@@ -314,8 +320,42 @@ function trimContext(lines: DiffLine[], contextLines = 1): DiffLine[] {
   return normalizeGaps(result);
 }
 
+/**
+ * Reorder diff lines so additions come before removals in each hunk.
+ * (-minus, +plus) and (+plus, -minus) are equivalent operations, but the
+ * latter is more useful during streaming: the last + line is the streaming
+ * frontier, and having removals after it means the truncation window shows
+ * useful added content instead of a wall of deletions.
+ */
+export function reorderAdditionsFirst(lines: DiffLine[]): DiffLine[] {
+  const result: DiffLine[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (lines[i].type === "removed") {
+      // Collect the run of removals
+      const removals: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === "removed") {
+        removals.push(lines[i]);
+        i++;
+      }
+      // Collect any immediately following additions
+      const additions: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === "added") {
+        additions.push(lines[i]);
+        i++;
+      }
+      // Emit additions first, then removals
+      result.push(...additions, ...removals);
+    } else {
+      result.push(lines[i]);
+      i++;
+    }
+  }
+  return result;
+}
+
 /** Remove line numbers (for preview diffs where numbers are snippet-relative). */
-function stripLineNumbers(lines: DiffLine[]) {
+export function stripLineNumbers(lines: DiffLine[]) {
   for (const line of lines) {
     line.oldNum = undefined;
     line.newNum = undefined;
@@ -330,7 +370,7 @@ function stripLineNumbers(lines: DiffLine[]) {
  *   11 ⋮    │removed
  *      ⋮ 11 │added
  */
-function formatDiffLines(lines: DiffLine[], theme: Theme): string[] {
+export function formatDiffLines(lines: DiffLine[], theme: Theme): string[] {
   let maxNum = 1;
   for (const line of lines) {
     if (line.oldNum && line.oldNum > maxNum) maxNum = line.oldNum;
@@ -367,7 +407,7 @@ function formatDiffLines(lines: DiffLine[], theme: Theme): string[] {
 /**
  * Format plain file content lines (for replay where we can't compute a diff).
  */
-function formatContentLines(content: string, theme: Theme): string[] {
+export function formatContentLines(content: string, theme: Theme): string[] {
   const lines = content.split("\n");
   const w = String(lines.length).length;
   return lines.map((line, i) => {
@@ -381,7 +421,7 @@ function formatContentLines(content: string, theme: Theme): string[] {
 /**
  * Render a collapsible block of formatted lines with a summary footer.
  */
-function formatCollapsible(
+export function formatCollapsible(
   formatted: string[],
   summary: string,
   expanded: boolean,
@@ -390,21 +430,79 @@ function formatCollapsible(
   if (expanded) {
     return formatted.join("\n") + "\n\n" + summary;
   }
-  const shown = formatted.slice(0, COLLAPSED_MAX_LINES);
-  let text = shown.join("\n");
-  const remaining = formatted.length - COLLAPSED_MAX_LINES;
-  if (remaining > 0) {
+  const skipped = formatted.length - COLLAPSED_MAX_LINES;
+  const shown =
+    skipped > 0
+      ? formatted.slice(formatted.length - COLLAPSED_MAX_LINES)
+      : formatted;
+  let text = "";
+  if (skipped > 0) {
     text +=
-      "\n\n" +
-      summary +
-      theme.fg("muted", ` (${remaining} more lines, ctrl-o to expand)`);
-  } else {
-    text += "\n\n" + summary;
+      theme.fg("muted", `(${skipped} more lines, ctrl+o to expand)`) + "\n\n";
   }
+  text += shown.join("\n");
+  text += "\n\n" + summary;
   return text;
 }
 
-function diffSummary(lines: DiffLine[], theme: Theme): string {
+/**
+ * Like formatCollapsible, but centers the window on the streaming frontier:
+ * the last added or context line (where new content ends and remaining
+ * old-file removals begin).
+ */
+export function formatCollapsibleAtFrontier(
+  formatted: string[],
+  diffLines: DiffLine[],
+  summary: string,
+  expanded: boolean,
+  theme: Theme,
+): string {
+  if (expanded || formatted.length <= COLLAPSED_MAX_LINES) {
+    return formatCollapsible(formatted, summary, expanded, theme);
+  }
+
+  // Find the last added line — during streaming this is the frontier
+  // of new content. Position the window so this line is at the bottom.
+  let lastAdded = -1;
+  for (let i = diffLines.length - 1; i >= 0; i--) {
+    if (diffLines[i].type === "added") {
+      lastAdded = i;
+      break;
+    }
+  }
+  // Fall back to end of array if no added lines
+  const anchor = lastAdded >= 0 ? lastAdded : formatted.length - 1;
+
+  let end = anchor + 1;
+  let start = end - COLLAPSED_MAX_LINES;
+
+  // Clamp to bounds
+  if (end > formatted.length) {
+    end = formatted.length;
+    start = end - COLLAPSED_MAX_LINES;
+  }
+  if (start < 0) {
+    start = 0;
+    end = Math.min(formatted.length, COLLAPSED_MAX_LINES);
+  }
+
+  const shown = formatted.slice(start, end);
+  let text = "";
+  if (start > 0) {
+    text +=
+      theme.fg("muted", `(${start} earlier lines, ctrl+o to expand)`) + "\n\n";
+  }
+  text += shown.join("\n");
+  const below = formatted.length - end;
+  if (below > 0) {
+    text +=
+      "\n\n" + theme.fg("muted", `(${below} more lines, ctrl+o to expand)`);
+  }
+  text += "\n\n" + summary;
+  return text;
+}
+
+export function diffSummary(lines: DiffLine[], theme: Theme): string {
   let additions = 0;
   let removals = 0;
   for (const line of lines) {
@@ -419,20 +517,21 @@ function diffSummary(lines: DiffLine[], theme: Theme): string {
   );
 }
 
-function renderDiffResult(
+export function renderDiffResult(
   diffLines: DiffLine[],
   expanded: boolean,
   theme: Theme,
 ): string {
-  return formatCollapsible(
+  return formatCollapsibleAtFrontier(
     formatDiffLines(diffLines, theme),
+    diffLines,
     diffSummary(diffLines, theme),
     expanded,
     theme,
   );
 }
 
-function renderWrittenContent(
+export function renderWrittenContent(
   content: string,
   expanded: boolean,
   theme: Theme,
@@ -452,7 +551,7 @@ function renderWrittenContent(
  * Collect diff lines from edit args (single oldText/newText or edits array).
  * Uses || for field checks — during streaming, one side may not have arrived yet.
  */
-function collectEditDiffLines(args: any): DiffLine[] {
+export function collectEditDiffLines(args: any): DiffLine[] {
   const allLines: DiffLine[] = [];
   if (args.oldText !== undefined || args.newText !== undefined) {
     allLines.push(...computeDiffLines(args.oldText ?? "", args.newText ?? ""));
@@ -490,13 +589,13 @@ export default function (pi: ExtensionAPI) {
       let text = theme.fg("toolTitle", theme.bold("edit "));
       text += theme.fg("accent", args.path ?? "");
 
-      // Show mini-diff from args only while in-flight (no final result yet).
+      // Show mini-diff from args while in-flight (no final result yet).
       // Strip line numbers since they're snippet-relative.
-      if (context.isPartial && !context.executionStarted) {
-        const allLines = collectEditDiffLines(args);
+      if (context.isPartial) {
+        const allLines = reorderAdditionsFirst(collectEditDiffLines(args));
         if (allLines.length) {
           stripLineNumbers(allLines);
-          text += "\n" + renderDiffResult(allLines, false, theme);
+          text += "\n" + renderDiffResult(allLines, context.expanded, theme);
         }
       }
 
@@ -504,7 +603,8 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderResult(result, { expanded, isPartial }, theme, context) {
-      if (isPartial) return new Text(theme.fg("warning", "Editing..."), 0, 0);
+      // During execution, renderCall handles the preview diff
+      if (isPartial) return new Text("", 0, 0);
 
       const details = result.details as EditToolDetails | undefined;
       const content = result.content[0];
@@ -528,7 +628,11 @@ export default function (pi: ExtensionAPI) {
         return new Text(theme.fg("success", msg), 0, 0);
       }
 
-      return new Text(renderDiffResult(diffLines, expanded, theme), 0, 0);
+      return new Text(
+        renderDiffResult(reorderAdditionsFirst(diffLines), expanded, theme),
+        0,
+        0,
+      );
     },
   });
 
@@ -571,11 +675,26 @@ export default function (pi: ExtensionAPI) {
 
       if (isReplay) {
         // Can't recover old content on replay — show file listing
-        text += "\n" + renderWrittenContent(newContent, context.expanded, theme);
+        text +=
+          "\n" + renderWrittenContent(newContent, context.expanded, theme);
       } else if (state.oldContent !== undefined) {
         const diffLines = computeDiffLines(state.oldContent, newContent);
         if (diffLines.length) {
-          text += "\n" + renderDiffResult(diffLines, context.expanded, theme);
+          // Reorder so additions come before removals — during streaming
+          // this puts the frontier (last +) before the trailing deletions,
+          // making the truncation window show useful content.
+          const reordered = reorderAdditionsFirst(diffLines);
+          const formatted = formatDiffLines(reordered, theme);
+          const summary = diffSummary(reordered, theme);
+          text +=
+            "\n" +
+            formatCollapsibleAtFrontier(
+              formatted,
+              reordered,
+              summary,
+              context.expanded,
+              theme,
+            );
         }
       }
 

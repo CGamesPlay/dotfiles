@@ -20,7 +20,9 @@
  *                       triggers the same flow via agent_end.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionUIContext, KeybindingsManager } from "@mariozechner/pi-coding-agent";
+import type { Theme } from "@mariozechner/pi-coding-agent";
+import type { TUI } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -116,7 +118,7 @@ export default function planFilesExtension(pi: ExtensionAPI) {
   async function runFinishPlanFlow(
     agentDir: string,
     planFile: string,
-    ctx: { ui: any; hasUI: boolean },
+    ctx: { ui: ExtensionUIContext; hasUI: boolean },
     navigateToStart?: () => Promise<void>,
   ) {
     // Read the plan file
@@ -131,7 +133,7 @@ export default function planFilesExtension(pi: ExtensionAPI) {
     // Open the plan in bat (fallback: less) with full terminal access.
     // tui.stop() releases the terminal to the subprocess; tui.start() reclaims it.
     const showPlan = async () => {
-      await ctx.ui.custom<void>((tui, _theme, _kb, done) => {
+      await ctx.ui.custom<void>((tui: TUI, _theme: Theme, _kb: KeybindingsManager, done: (result: void) => void) => {
         tui.stop();
         process.stdout.write("\x1b[2J\x1b[H");
 
@@ -236,6 +238,7 @@ export default function planFilesExtension(pi: ExtensionAPI) {
             },
           ],
           isError: true,
+          details: undefined,
         };
       }
 
