@@ -32,6 +32,8 @@ export interface SingleResult {
 	model?: string;
 	stopReason?: string;
 	errorMessage?: string;
+	/** Set when the child emits an agent_end event. */
+	sawAgentEnd?: boolean;
 }
 
 /** Metadata attached to every tool result for rendering. */
@@ -65,9 +67,59 @@ export function aggregateUsage(results: SingleResult[]): UsageStats {
 	return total;
 }
 
+/** Whether the child emitted a final assistant text response. */
+export function hasFinalAssistantOutput(r: Pick<SingleResult, "messages">): boolean {
+	return getFinalOutput(r.messages).trim().length > 0;
+}
+
+/** Whether the child semantically completed the run. */
+export function hasSemanticCompletion(r: Pick<SingleResult, "messages" | "sawAgentEnd">): boolean {
+	return Boolean(r.sawAgentEnd) && hasFinalAssistantOutput(r);
+}
+
+/** Whether a result should be treated as successful by the wrapper/UI. */
+export function isResultSuccess(r: SingleResult): boolean {
+	if (r.exitCode === -1) return false;
+	if (hasSemanticCompletion(r)) return true;
+	return r.exitCode === 0 && r.stopReason !== "error" && r.stopReason !== "aborted";
+}
+
 /** Whether a result represents an error. */
 export function isResultError(r: SingleResult): boolean {
-	return r.exitCode > 0 || r.stopReason === "error" || r.stopReason === "aborted";
+	if (r.exitCode === -1) return false;
+	return !isResultSuccess(r);
+}
+
+/** Reconcile process exit status with semantic completion observed from Pi's event stream. */
+export function normalizeCompletedResult(result: SingleResult, wasAborted: boolean): SingleResult {
+	const hasSemanticSuccess = hasSemanticCompletion(result);
+
+	if (wasAborted) {
+		if (hasSemanticSuccess) {
+			result.exitCode = 0;
+			if (result.stopReason === "aborted") result.stopReason = undefined;
+			if (result.errorMessage === "Subagent was aborted.") result.errorMessage = undefined;
+		} else {
+			result.exitCode = 130;
+			result.stopReason = "aborted";
+			result.errorMessage = "Subagent was aborted.";
+			if (!result.stderr.trim()) result.stderr = "Subagent was aborted.";
+		}
+		return result;
+	}
+
+	if (result.exitCode > 0) {
+		if (hasSemanticSuccess) {
+			result.exitCode = 0;
+			if (result.stopReason === "error") result.stopReason = undefined;
+			if (result.errorMessage === result.stderr.trim()) result.errorMessage = undefined;
+		} else {
+			if (!result.stopReason) result.stopReason = "error";
+			if (!result.errorMessage && result.stderr.trim()) result.errorMessage = result.stderr.trim();
+		}
+	}
+
+	return result;
 }
 
 /** Extract the last assistant text from a message history. */
@@ -81,6 +133,27 @@ export function getFinalOutput(messages: Message[]): string {
 		}
 	}
 	return "";
+}
+
+/** Get a display-friendly summary of a result, with cascading fallbacks. */
+export function getResultSummaryText(result: SingleResult | undefined): string {
+	const finalText = getFinalOutput(result?.messages ?? []);
+	if (finalText) return finalText;
+
+	if (typeof result?.errorMessage === "string" && result.errorMessage.trim()) {
+		return result.errorMessage.trim();
+	}
+
+	const isError =
+		(typeof result?.exitCode === "number" && result.exitCode > 0) ||
+		result?.stopReason === "error" ||
+		result?.stopReason === "aborted";
+
+	if (isError && typeof result?.stderr === "string" && result.stderr.trim()) {
+		return result.stderr.trim();
+	}
+
+	return "(no output)";
 }
 
 /** Extract all display-worthy items from a message history. */

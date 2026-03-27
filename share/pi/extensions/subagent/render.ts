@@ -15,6 +15,7 @@ import {
 	aggregateUsage,
 	getDisplayItems,
 	getFinalOutput,
+	getResultSummaryText,
 	isResultError,
 } from "./types.js";
 
@@ -261,7 +262,8 @@ function renderSingleExpanded(
 	container.addChild(new Spacer(1));
 	container.addChild(new Text(theme.fg("muted", "─── Output ───"), 0, 0));
 	if (displayItems.length === 0 && !finalOutput) {
-		container.addChild(new Text(theme.fg("muted", "(no output)"), 0, 0));
+		const summary = getResultSummaryText(r);
+		container.addChild(new Text(theme.fg("muted", summary), 0, 0));
 	} else {
 		for (const item of displayItems) {
 			if (item.type === "toolCall") {
@@ -298,7 +300,7 @@ function renderSingleCollapsed(
 	if (error && r.errorMessage) {
 		text += `\n${theme.fg("error", `Error: ${r.errorMessage}`)}`;
 	} else if (displayItems.length === 0) {
-		text += `\n${theme.fg("muted", "(no output)")}`;
+		text += `\n${theme.fg(error ? "error" : "muted", getResultSummaryText(r))}`;
 	} else {
 		text += `\n${renderDisplayItems(displayItems, false, theme, COLLAPSED_LINE_COUNT)}`;
 		if (countDisplayLines(displayItems) > COLLAPSED_LINE_COUNT) {
@@ -336,8 +338,8 @@ function renderParallelResult(
 		? `${successCount + failCount}/${details.results.length} done, ${running} running`
 		: `${successCount}/${details.results.length} tasks`;
 
-	if (expanded && !isRunning) {
-		return renderParallelExpanded(details, delegationMode, icon, status, theme);
+	if (expanded) {
+		return renderParallelExpanded(details, delegationMode, icon, status, isRunning, theme);
 	}
 	return renderParallelCollapsed(
 		details,
@@ -355,6 +357,7 @@ function renderParallelExpanded(
 	delegationMode: DelegationMode,
 	icon: string,
 	status: string,
+	isRunning: boolean,
 	theme: { fg: ThemeFg; bold: (s: string) => string },
 ): Container {
 	const mdTheme = getMarkdownTheme();
@@ -376,6 +379,10 @@ function renderParallelExpanded(
 		container.addChild(new Text(`${theme.fg("muted", "─── ")}${theme.fg("accent", r.agent)} ${rIcon}`, 0, 0));
 		container.addChild(new Text(theme.fg("muted", "Task: ") + theme.fg("dim", r.task), 0, 0));
 
+		if (r.exitCode === -1 && displayItems.length === 0) {
+			container.addChild(new Text(theme.fg("muted", "(running...)"), 0, 0));
+		}
+
 		for (const item of displayItems) {
 			if (item.type === "toolCall") {
 				container.addChild(new Text(theme.fg("muted", "→ ") + formatToolCall(item.name, item.args, theme.fg.bind(theme)), 0, 0));
@@ -391,10 +398,12 @@ function renderParallelExpanded(
 		if (taskUsage) container.addChild(new Text(theme.fg("dim", taskUsage), 0, 0));
 	}
 
-	const totalUsage = formatUsage(aggregateUsage(details.results));
-	if (totalUsage) {
-		container.addChild(new Spacer(1));
-		container.addChild(new Text(theme.fg("dim", `Total: ${totalUsage}`), 0, 0));
+	if (!isRunning) {
+		const totalUsage = formatUsage(aggregateUsage(details.results));
+		if (totalUsage) {
+			container.addChild(new Spacer(1));
+			container.addChild(new Text(theme.fg("dim", `Total: ${totalUsage}`), 0, 0));
+		}
 	}
 
 	return container;

@@ -3,9 +3,26 @@
 ## Source
 
 - **URL**: https://github.com/mjakl/pi-subagent
-- **Commit**: 04cb357c6ce1c7e63d81101cda91d337e1b3a903
+- **npm**: @mjakl/pi-subagent@1.4.1
+- **Original vendor commit**: 04cb357c6ce1c7e63d81101cda91d337e1b3a903
 
-Vendored from a shallow clone of the repository at the above commit.
+Originally vendored from the repository. Updated 2026-03-27 by selectively
+porting critical fixes from npm v1.4.1 into the existing soft-fork:
+- Semantic completion: resolve on `agent_end` event instead of waiting for
+  child process exit (fixes hangs when extensions keep the event loop alive)
+- `resolvePiSpawn` helper for robust cross-platform process invocation
+- stdin piping with immediate close instead of `stdio: "ignore"`
+- Proper abort cleanup (remove signal listener, settled/didClose guards)
+- Handle `agent_end` and `turn_end` events in JSON stream parser
+- CLI argument inheritance (`runner-cli.ts`): forwards parent extension,
+  provider, skill, theme flags to children; falls back to parent model/
+  thinking/tools when the agent file doesn't specify them
+- `normalizeCompletedResult()`: if child was aborted or exited non-zero but
+  produced a valid agent_end with output, treat as success
+- `getResultSummaryText()`: better fallback text in render (error message →
+  stderr → "(no output)")
+- Message deduplication via stable-stringify signatures to avoid double-counting
+  messages that appear in both message_end and agent_end events
 
 ## Companion Files
 

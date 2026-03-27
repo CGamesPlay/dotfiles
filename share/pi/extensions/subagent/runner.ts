@@ -11,15 +11,19 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 import type { AgentConfig } from "./agents.js";
+import { type InheritedCliArgs, parseInheritedCliArgs } from "./runner-cli.js";
 import {
   type DelegationMode,
   type SingleResult,
   type SubagentDetails,
   emptyUsage,
   getFinalOutput,
+  normalizeCompletedResult,
 } from "./types.js";
 
 const SIGKILL_TIMEOUT_MS = 5000;
+const AGENT_END_GRACE_MS = 250;
+const isWindows = process.platform === "win32";
 const SUBAGENT_DEPTH_ENV = "PI_SUBAGENT_DEPTH";
 const SUBAGENT_MAX_DEPTH_ENV = "PI_SUBAGENT_MAX_DEPTH";
 const SUBAGENT_STACK_ENV = "PI_SUBAGENT_STACK";
@@ -27,6 +31,22 @@ const SUBAGENT_PREVENT_CYCLES_ENV = "PI_SUBAGENT_PREVENT_CYCLES";
 const PI_OFFLINE_ENV = "PI_OFFLINE";
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
+
+// ---------------------------------------------------------------------------
+// Process helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the spawn command from the current process context so child
+ * invocations work on Unix and Windows without going through a shell wrapper.
+ */
+function resolvePiSpawn(): { command: string; prefixArgs: string[] } {
+  const isNode = /[\\/]node(?:\.exe)?$/i.test(process.execPath);
+  if (isNode && process.argv[1]) {
+    return { command: process.execPath, prefixArgs: [process.argv[1]] };
+  }
+  return { command: process.execPath, prefixArgs: [] };
+}
 
 // ---------------------------------------------------------------------------
 // Temp file helpers
@@ -67,6 +87,55 @@ function cleanupTempDir(dir: string | null): void {
 // JSON-line stream processing
 // ---------------------------------------------------------------------------
 
+/** Stable JSON key for deduplication — sorts object keys for deterministic output. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  const entries = Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+  return `{${entries.map(([key, v]) => `${JSON.stringify(key)}:${stableStringify(v)}`).join(",")}}`;
+}
+
+/** Get or create the dedup set attached to a result (non-enumerable). */
+function getSeenSignatures(result: SingleResult): Set<string> {
+  const key = "__seenMessageSignatures";
+  if (!Object.prototype.hasOwnProperty.call(result, key)) {
+    Object.defineProperty(result, key, {
+      value: new Set<string>(),
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+  }
+  return (result as any)[key];
+}
+
+function addAssistantMessage(result: SingleResult, msg: Message): boolean {
+  if (!msg || msg.role !== "assistant") return false;
+
+  if (!result.model && msg.model) result.model = msg.model;
+  if (msg.stopReason) result.stopReason = msg.stopReason;
+  if (msg.errorMessage) result.errorMessage = msg.errorMessage;
+
+  // Deduplicate: the same message can appear in message_end and agent_end.
+  const sig = stableStringify(msg);
+  const seen = getSeenSignatures(result);
+  if (seen.has(sig)) return false;
+  seen.add(sig);
+
+  result.messages.push(msg);
+  result.usage.turns++;
+  const usage = msg.usage;
+  if (usage) {
+    result.usage.input += usage.input || 0;
+    result.usage.output += usage.output || 0;
+    result.usage.cacheRead += usage.cacheRead || 0;
+    result.usage.cacheWrite += usage.cacheWrite || 0;
+    result.usage.cost += usage.cost?.total || 0;
+    result.usage.contextTokens = usage.totalTokens || 0;
+  }
+  return true;
+}
+
 function processJsonLine(line: string, result: SingleResult): boolean {
   if (!line.trim()) return false;
 
@@ -77,39 +146,41 @@ function processJsonLine(line: string, result: SingleResult): boolean {
     return false;
   }
 
-  if (event.type === "message_end" && event.message) {
-    const msg = event.message as Message;
-    result.messages.push(msg);
+  switch (event.type) {
+    case "message_end":
+      return addAssistantMessage(result, event.message as Message);
 
-    if (msg.role === "assistant") {
-      result.usage.turns++;
-      const usage = msg.usage;
-      if (usage) {
-        result.usage.input += usage.input || 0;
-        result.usage.output += usage.output || 0;
-        result.usage.cacheRead += usage.cacheRead || 0;
-        result.usage.cacheWrite += usage.cacheWrite || 0;
-        result.usage.cost += usage.cost?.total || 0;
-        result.usage.contextTokens = usage.totalTokens || 0;
+    case "turn_end":
+      return addAssistantMessage(result, event.message as Message);
+
+    case "agent_end":
+      result.sawAgentEnd = true;
+      if (Array.isArray(event.messages)) {
+        let changed = false;
+        for (const msg of event.messages) {
+          if (addAssistantMessage(result, msg as Message)) changed = true;
+        }
+        return changed;
       }
-      if (!result.model && msg.model) result.model = msg.model;
-      if (msg.stopReason) result.stopReason = msg.stopReason;
-      if (msg.errorMessage) result.errorMessage = msg.errorMessage;
-    }
-    return true;
-  }
+      return false;
 
-  if (event.type === "tool_result_end" && event.message) {
-    result.messages.push(event.message as Message);
-    return true;
-  }
+    case "tool_result_end":
+      if (event.message) {
+        result.messages.push(event.message as Message);
+        return true;
+      }
+      return false;
 
-  return false;
+    default:
+      return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Build pi CLI arguments
 // ---------------------------------------------------------------------------
+
+const inheritedCliArgs = parseInheritedCliArgs(process.argv);
 
 function buildPiArgs(
   agent: AgentConfig,
@@ -118,7 +189,13 @@ function buildPiArgs(
   delegationMode: DelegationMode,
   forkSessionPath: string | null,
 ): string[] {
-  const args: string[] = ["--mode", "json", "-p"];
+  const args: string[] = [
+    "--mode",
+    "json",
+    ...inheritedCliArgs.extensionArgs,
+    ...inheritedCliArgs.alwaysProxy,
+    "-p",
+  ];
 
   if (delegationMode === "spawn") {
     args.push("--no-session");
@@ -126,10 +203,21 @@ function buildPiArgs(
     args.push("--session", forkSessionPath);
   }
 
-  if (agent.model) args.push("--model", agent.model);
-  if (agent.thinking) args.push("--thinking", agent.thinking);
-  if (agent.tools && agent.tools.length > 0)
+  const model = agent.model ?? inheritedCliArgs.fallbackModel;
+  if (model) args.push("--model", model);
+
+  const thinking = agent.thinking ?? inheritedCliArgs.fallbackThinking;
+  if (thinking) args.push("--thinking", thinking);
+
+  if (agent.tools && agent.tools.length > 0) {
     args.push("--tools", agent.tools.join(","));
+  } else if (agent.tools === undefined) {
+    if (inheritedCliArgs.fallbackTools !== undefined) {
+      args.push("--tools", inheritedCliArgs.fallbackTools);
+    } else if (inheritedCliArgs.fallbackNoTools) {
+      args.push("--no-tools");
+    }
+  }
   if (systemPromptPath) args.push("--append-system-prompt", systemPromptPath);
   args.push(`Task: ${task}`);
   return args;
@@ -279,10 +367,11 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
       const nextDepth = Math.max(0, Math.floor(parentDepth)) + 1;
       const propagatedMaxDepth = Math.max(0, Math.floor(maxDepth));
       const propagatedStack = [...parentAgentStack, agentName];
-      const proc = spawn(process.execPath, [process.argv[1], ...piArgs], {
+      const { command, prefixArgs } = resolvePiSpawn();
+      const proc = spawn(command, [...prefixArgs, ...piArgs], {
         cwd: taskCwd ?? cwd,
         shell: false,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
         env: {
           ...process.env,
           [SUBAGENT_DEPTH_ENV]: String(nextDepth),
@@ -293,52 +382,119 @@ export async function runAgent(opts: RunAgentOptions): Promise<SingleResult> {
         },
       });
 
+      // Close stdin immediately — child runs non-interactively.
+      proc.stdin.on("error", () => { /* ignore broken pipe on fast exits */ });
+      proc.stdin.end();
+
       let buffer = "";
+      let didClose = false;
+      let settled = false;
+      let abortHandler: (() => void) | undefined;
+      let semanticCompletionTimer: NodeJS.Timeout | undefined;
+
+      const clearSemanticCompletionTimer = () => {
+        if (semanticCompletionTimer) {
+          clearTimeout(semanticCompletionTimer);
+          semanticCompletionTimer = undefined;
+        }
+      };
+
+      const terminateChild = () => {
+        if (isWindows) {
+          if (proc.pid !== undefined) {
+            const killer = spawn("taskkill", ["/T", "/F", "/PID", String(proc.pid)], { stdio: "ignore" });
+            killer.unref();
+          }
+          return;
+        }
+        proc.kill("SIGTERM");
+        const sigkillTimer = setTimeout(() => {
+          if (!didClose) proc.kill("SIGKILL");
+        }, SIGKILL_TIMEOUT_MS);
+        sigkillTimer.unref();
+      };
+
+      const finish = (code: number) => {
+        if (settled) return;
+        settled = true;
+        clearSemanticCompletionTimer();
+        if (signal && abortHandler) {
+          signal.removeEventListener("abort", abortHandler);
+        }
+        resolve(code);
+      };
+
+      const flushBufferedLines = (text: string) => {
+        for (const line of text.split(/\r?\n/)) {
+          if (line.trim()) flushLine(line);
+        }
+      };
 
       const flushLine = (line: string) => {
         if (processJsonLine(line, result)) emitUpdate();
+        maybeFinishFromAgentEnd();
       };
 
-      proc.stdout.on("data", (chunk: Buffer) => {
+      // Once we see agent_end, the agent loop is done. Wait a short grace
+      // period for any trailing output, then resolve early and kill the child.
+      // This prevents hangs when extensions keep the child event loop alive
+      // after the agent loop finishes (e.g. LSP warmup servers).
+      const maybeFinishFromAgentEnd = () => {
+        if (!result.sawAgentEnd || didClose || settled) return;
+        clearSemanticCompletionTimer();
+        semanticCompletionTimer = setTimeout(() => {
+          if (didClose || settled || !result.sawAgentEnd) return;
+          if (buffer.trim()) {
+            flushBufferedLines(buffer);
+            buffer = "";
+          }
+          proc.stdout.removeListener("data", onStdoutData);
+          proc.stderr.removeListener("data", onStderrData);
+          finish(0);
+          terminateChild();
+        }, AGENT_END_GRACE_MS);
+        semanticCompletionTimer.unref();
+      };
+
+      const onStdoutData = (chunk: Buffer) => {
         buffer += chunk.toString();
-        const lines = buffer.split("\n");
+        const lines = buffer.split(/\r?\n/);
         buffer = lines.pop() || "";
         for (const line of lines) flushLine(line);
-      });
+      };
 
-      proc.stderr.on("data", (chunk: Buffer) => {
+      const onStderrData = (chunk: Buffer) => {
         result.stderr += chunk.toString();
-      });
+      };
+
+      proc.stdout.on("data", onStdoutData);
+      proc.stderr.on("data", onStderrData);
 
       proc.on("close", (code) => {
-        if (buffer.trim()) flushLine(buffer);
-        resolve(code ?? 0);
+        didClose = true;
+        if (buffer.trim()) flushBufferedLines(buffer);
+        finish(code ?? 0);
       });
 
-      proc.on("error", () => resolve(1));
+      proc.on("error", (err) => {
+        if (!result.stderr.trim()) result.stderr = err.message;
+        finish(1);
+      });
 
       // Abort handling
       if (signal) {
-        const kill = () => {
+        abortHandler = () => {
+          if (didClose || settled) return;
           wasAborted = true;
-          proc.kill("SIGTERM");
-          setTimeout(() => {
-            if (!proc.killed) proc.kill("SIGKILL");
-          }, SIGKILL_TIMEOUT_MS);
+          terminateChild();
         };
-        if (signal.aborted) kill();
-        else signal.addEventListener("abort", kill, { once: true });
+        if (signal.aborted) abortHandler();
+        else signal.addEventListener("abort", abortHandler, { once: true });
       }
     });
 
     result.exitCode = exitCode;
-    if (wasAborted) {
-      result.exitCode = 130;
-      result.stopReason = "aborted";
-      result.errorMessage = "Subagent was aborted.";
-      if (!result.stderr.trim()) result.stderr = "Subagent was aborted.";
-    }
-    return result;
+    return normalizeCompletedResult(result, wasAborted);
   } finally {
     cleanupTempDir(promptTmpDir);
     cleanupTempDir(forkSessionTmpDir);
