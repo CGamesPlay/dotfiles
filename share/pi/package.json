@@ -1,7 +1,8 @@
 {
 	"name": "@cgamesplay/pi-extensions",
 	"dependencies": {
-		"@mariozechner/pi-coding-agent": "^0.60.0",
+		"@mariozechner/pi-coding-agent": "^0.63.1",
+		"diff": "^8.0.2",
 		"@sinclair/typebox": "^0.34.33",
 		"vscode-languageserver-protocol": "^3.17.5"
 	},
