@@ -136,7 +136,8 @@ function fzy.score(needle, haystack)
   if n == 0 or m == 0 or m > MATCH_MAX_LENGTH or n > MATCH_MAX_LENGTH then
     return SCORE_MIN
   end
-  local parts = vim.split(needle, ' ', { trimempty = true })
+  -- trimempty only strips edges, not interior empty strings from consecutive spaces
+  local parts = vim.iter(vim.split(needle, ' ')):filter(function(s) return s ~= '' end):totable()
   if #parts == 0 then
     return SCORE_MIN
   end
@@ -162,7 +163,8 @@ function fzy.positions(needle, haystack)
   if n == 0 or m == 0 or m > MATCH_MAX_LENGTH or n > MATCH_MAX_LENGTH then
     return {}
   end
-  local parts = vim.split(needle, ' ', { trimempty = true })
+  -- trimempty only strips edges, not interior empty strings from consecutive spaces
+  local parts = vim.iter(vim.split(needle, ' ')):filter(function(s) return s ~= '' end):totable()
   if #parts == 0 then
     return {}
   end
