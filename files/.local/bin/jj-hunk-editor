@@ -1,0 +1,644 @@
+#!/usr/bin/env python3
+"""Interactive hunk-based diff editor for jj.
+
+Quick reference:
+- jj squash: accepted hunks get squashed
+- jj split: accepted hunks get moved into the new commit
+- jj commit: accepted hunks get committed
+- jj restore: accepted hunks get kept
+- jj diffedit: accepted hunks get kept
+"""
+
+from __future__ import annotations
+
+import difflib
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+HUNK_HEADER_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+@dataclass
+class Hunk:
+    """A single diff hunk belonging to a file."""
+
+    header: str
+    lines: list[str]
+    accepted: bool | None = None  # None = unprocessed
+    edited: bool = False
+
+
+@dataclass
+class FileDiff:
+    """All hunks for one file pair."""
+
+    rel_path: str
+    left_path: Path
+    right_path: Path
+    hunks: list[Hunk] = field(default_factory=list)
+    # Track if entire file is new or deleted
+    is_new: bool = False
+    is_deleted: bool = False
+
+
+# ---------------------------------------------------------------------------
+# ANSI helpers
+# ---------------------------------------------------------------------------
+
+YELLOW = "\033[33m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+
+def _get_diff_filter() -> str | None:
+    """Read git's interactive.diffFilter config, return None if unset."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "interactive.diffFilter"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def _filter_diff(text: str, diff_filter: str | None) -> str:
+    """Pipe diff text through the configured filter, or return as-is."""
+    if not diff_filter:
+        return text
+    try:
+        result = subprocess.run(
+            diff_filter,
+            shell=True,
+            input=text,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return result.stdout
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Diffing
+# ---------------------------------------------------------------------------
+
+SKIP_NAMES = {"JJ-INSTRUCTIONS"}
+
+
+def _collect_relative_paths(left: Path, right: Path) -> list[str]:
+    """Return sorted union of relative file paths under both trees."""
+    paths: set[str] = set()
+    for root_dir in (left, right):
+        if not root_dir.is_dir():
+            continue
+        for dirpath, _dirnames, filenames in os.walk(root_dir):
+            for fn in filenames:
+                full = Path(dirpath) / fn
+                rel = str(full.relative_to(root_dir))
+                if fn not in SKIP_NAMES:
+                    paths.add(rel)
+    return sorted(paths)
+
+
+def _read_lines(path: Path) -> list[str]:
+    """Read file lines; return empty list if missing."""
+    if not path.exists():
+        return []
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return []
+    return text.splitlines(keepends=True)
+
+
+def _make_file_diffs(left: Path, right: Path) -> list[FileDiff]:
+    """Produce per-file unified diffs split into hunks."""
+    rel_paths = _collect_relative_paths(left, right)
+    file_diffs: list[FileDiff] = []
+
+    for rel in rel_paths:
+        lp = left / rel
+        rp = right / rel
+        left_lines = _read_lines(lp)
+        right_lines = _read_lines(rp)
+
+        diff_lines = list(
+            difflib.unified_diff(
+                left_lines,
+                right_lines,
+                fromfile=f"l/{rel}",
+                tofile=f"r/{rel}",
+                lineterm="",
+            )
+        )
+
+        if not diff_lines:
+            continue
+
+        fd = FileDiff(rel_path=rel, left_path=lp, right_path=rp)
+        fd.is_new = not lp.exists()
+        fd.is_deleted = not rp.exists()
+
+        # Split unified diff output into hunks.
+        # First two lines are --- / +++ header; then @@ hunks.
+        current_hunk: Hunk | None = None
+        for line in diff_lines[2:]:  # skip --- / +++
+            if line.startswith("@@"):
+                current_hunk = Hunk(header=line, lines=[])
+                fd.hunks.append(current_hunk)
+            elif current_hunk is not None:
+                current_hunk.lines.append(line)
+
+        if fd.hunks:
+            file_diffs.append(fd)
+
+    return file_diffs
+
+
+# ---------------------------------------------------------------------------
+# Interactive UI
+# ---------------------------------------------------------------------------
+
+
+def _format_hunk(rel_path: str, hunk: Hunk) -> str:
+    """Build raw unified-diff text for a single hunk."""
+    lines = [
+        f"--- l/{rel_path}",
+        f"+++ r/{rel_path}",
+        hunk.header,
+    ]
+    lines.extend(line.rstrip("\n") for line in hunk.lines)
+    return "\n".join(lines)
+
+
+def _print_hunk(rel_path: str, hunk: Hunk, diff_filter: str | None) -> None:
+    raw = _format_hunk(rel_path, hunk)
+    print()
+    print(_filter_diff(raw, diff_filter))
+
+
+def _prompt(msg: str) -> str:
+    try:
+        return input(msg).strip().lower()
+    except EOFError:
+        return "q"
+
+
+# ---------------------------------------------------------------------------
+# Mode detection
+# ---------------------------------------------------------------------------
+
+_MODE_DETECT = {
+    "commit": "You are splitting the working-copy commit",
+    "restore": "You are restoring changes from",
+    "split": "You are splitting a commit into two",
+    "squash": "You are moving changes from",
+}
+
+_MODE_PROMPT = {
+    "commit": "Commit this hunk?",
+    "restore": "Apply this revert?",
+    "split": "Move this hunk into new commit?",
+    "squash": "Move this hunk into target?",
+}
+
+_DEFAULT_PROMPT = "Keep this hunk?"
+
+
+def _detect_mode(instructions: str) -> str | None:
+    """Detect which jj command invoked the diff editor."""
+    for mode, needle in _MODE_DETECT.items():
+        if needle in instructions:
+            return mode
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Manual hunk editing
+# ---------------------------------------------------------------------------
+
+_EDIT_HEADER = "# Manual hunk edit mode -- see bottom for a quick guide."
+_EDIT_FOOTER = """\
+# ---
+# To remove '-' lines, make them ' ' lines (context).
+# To remove '+' lines, delete them.
+# Lines starting with # will be removed."""
+
+
+def _build_patch(rel_path: str, hunk: Hunk) -> str:
+    """Build a full unified-diff patch for a single hunk."""
+    lines = [
+        f"--- l/{rel_path}",
+        f"+++ r/{rel_path}",
+        hunk.header,
+    ]
+    lines.extend(line.rstrip("\n") for line in hunk.lines)
+    # Ensure trailing newline for patch(1).
+    return "\n".join(lines) + "\n"
+
+
+def _build_edit_file(rel_path: str, hunk: Hunk) -> str:
+    """Build the file opened in the editor, with guide comments."""
+    patch = _build_patch(rel_path, hunk)
+    return _EDIT_HEADER + "\n" + patch + _EDIT_FOOTER + "\n"
+
+
+def _strip_comments(text: str) -> str:
+    """Remove lines starting with # from edited patch text."""
+    return (
+        "\n".join(line for line in text.splitlines() if not line.startswith("#")) + "\n"
+    )
+
+
+def _recount_header(header: str, body: list[str]) -> str:
+    """Recalculate the @@ line counts from actual body lines.
+
+    This is necessary because the user may have added or removed lines
+    during manual editing.
+    """
+    m = HUNK_HEADER_RE.match(header)
+    if not m:
+        return header
+    old_start = int(m.group(1))
+    new_start = int(m.group(3))
+    old_count = 0
+    new_count = 0
+    for line in body:
+        if line.startswith("-"):
+            old_count += 1
+        elif line.startswith("+"):
+            new_count += 1
+        else:
+            # Context line.
+            old_count += 1
+            new_count += 1
+    tail = header[m.end() :]  # preserve any text after the @@
+    return f"@@ -{old_start},{old_count} +{new_start},{new_count} @@{tail}"
+
+
+def _parse_edited_hunk(text: str) -> Hunk | None:
+    """Parse an edited patch file back into a Hunk, or None on bad format.
+
+    Body lines are stored with trailing newlines to match the format
+    produced by _make_file_diffs (which reads source files with keepends=True).
+    The @@ header is recalculated to match the actual line counts.
+    """
+    lines = text.splitlines()
+    header: str | None = None
+    body: list[str] = []
+    for line in lines:
+        if line.startswith("---") or line.startswith("+++"):
+            continue
+        if HUNK_HEADER_RE.match(line):
+            if header is not None:
+                # More than one hunk – reject.
+                return None
+            header = line
+        elif header is not None:
+            # Prefix character + content with trailing newline, matching
+            # the format that _read_lines / unified_diff produce.
+            if line.startswith(("+", "-", " ")):
+                body.append(line[0] + line[1:] + "\n")
+            else:
+                body.append(line + "\n")
+    if header is None:
+        return None
+    header = _recount_header(header, body)
+    return Hunk(header=header, lines=body)
+
+
+def _try_apply_patch(patch_text: str, left_path: Path) -> str | None:
+    """Dry-run apply *patch_text* against *left_path*.
+
+    Returns None on success, or an error message string.
+    """
+    try:
+        result = subprocess.run(
+            ["patch", "--dry-run", "-s", "-f", str(left_path)],
+            input=patch_text,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return None
+        return (result.stdout + result.stderr).strip() or "patch failed"
+    except FileNotFoundError:
+        return "patch(1) not found"
+    except subprocess.TimeoutExpired:
+        return "patch timed out"
+
+
+def _edit_hunk(
+    rel_path: str,
+    hunk: Hunk,
+    left_path: Path,
+    diff_filter: str | None,
+) -> Hunk | None:
+    """Open the hunk in $EDITOR.  Returns the edited Hunk, or None to abort."""
+    editor = os.environ.get("EDITOR", "vi")
+    original_edit = _build_edit_file(rel_path, hunk)
+    current_edit = original_edit
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".diff",
+        prefix="jj-hunk-",
+        delete=False,
+    ) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        while True:
+            Path(tmp_path).write_text(current_edit)
+
+            rc = subprocess.call([editor, tmp_path])
+            if rc != 0:
+                print(f"  Editor exited with code {rc}.")
+            else:
+                raw_text = Path(tmp_path).read_text()
+                clean_text = _strip_comments(raw_text)
+                edited_hunk = _parse_edited_hunk(clean_text)
+                if edited_hunk is None:
+                    print("  Could not parse edited hunk (bad format).")
+                else:
+                    # Build a proper patch with recounted @@ header.
+                    recounted_patch = _build_patch(
+                        rel_path,
+                        edited_hunk,
+                    )
+                    err = _try_apply_patch(recounted_patch, left_path)
+                    if err is None:
+                        return edited_hunk
+                    print(f"  Patch does not apply cleanly: {err}")
+
+            # Sub-menu for failures.
+            while True:
+                ans = _prompt(
+                    f"{YELLOW}[e]dit again / [r]eset & edit / [a]bort edit: {RESET}"
+                )
+                if ans in ("e", "edit"):
+                    # Re-open the same (possibly modified) temp file.
+                    current_edit = Path(tmp_path).read_text()
+                    break
+                elif ans in ("r", "reset"):
+                    current_edit = original_edit
+                    break
+                elif ans in ("a", "abort", "q"):
+                    return None
+                else:
+                    print("  Please enter e, r, or a.")
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+def _unprocessed_indices(hunks: list[Hunk]) -> list[int]:
+    """Return indices of hunks that have not been decided yet."""
+    return [i for i, h in enumerate(hunks) if h.accepted is None]
+
+
+def _next_unprocessed(hunks: list[Hunk], current: int, direction: int) -> int | None:
+    """Find the next unprocessed hunk index in *direction* (1 or -1), wrapping."""
+    n = len(hunks)
+    idx = current
+    for _ in range(n):
+        idx = (idx + direction) % n
+        if hunks[idx].accepted is None:
+            return idx
+    return None
+
+
+def _interact(
+    file_diffs: list[FileDiff],
+    diff_filter: str | None,
+    prompt_text: str = _DEFAULT_PROMPT,
+) -> None:
+    """Walk through hunks interactively."""
+    quit_all = False
+
+    for fd in file_diffs:
+        if quit_all:
+            for h in fd.hunks:
+                if h.accepted is None:
+                    h.accepted = False
+            continue
+
+        # Start at the first unprocessed hunk in this file.
+        pending = _unprocessed_indices(fd.hunks)
+        if not pending:
+            continue
+        cursor = pending[0]
+
+        while True:
+            pending = _unprocessed_indices(fd.hunks)
+            if not pending:
+                break  # all hunks in this file are decided
+
+            # If cursor somehow points at a decided hunk, snap to nearest.
+            if fd.hunks[cursor].accepted is not None:
+                cursor = pending[0]
+
+            hunk = fd.hunks[cursor]
+            _print_hunk(fd.rel_path, hunk, diff_filter)
+
+            ans = _prompt(f"\n{YELLOW}{prompt_text} [y/n/e/a/d/j/k/q/?]: {RESET}")
+            if ans in ("y", "yes"):
+                hunk.accepted = True
+            elif ans in ("n", "no"):
+                hunk.accepted = False
+            elif ans == "e":
+                edited = _edit_hunk(
+                    fd.rel_path,
+                    hunk,
+                    fd.left_path,
+                    diff_filter,
+                )
+                if edited is not None:
+                    hunk.header = edited.header
+                    hunk.lines = edited.lines
+                    hunk.accepted = True
+                    hunk.edited = True
+                # Aborted – will re-show the same hunk on next loop.
+            elif ans == "j":
+                # Defer: move the current hunk to the end of the list,
+                # then show the next unprocessed hunk.
+                fd.hunks.append(fd.hunks.pop(cursor))
+                # cursor now points at what was previously cursor+1;
+                # clamp in case we popped the last element.
+                if cursor >= len(fd.hunks):
+                    cursor = 0
+            elif ans == "k":
+                # Defer backward: move the current hunk to the start of
+                # the list, then show the previous unprocessed hunk.
+                fd.hunks.insert(0, fd.hunks.pop(cursor))
+                # Everything shifted right by 1; the deferred hunk is at 0.
+                # Advance cursor past it to what was previously cursor-1.
+                cursor = min(cursor + 1, len(fd.hunks) - 1)
+            elif ans == "a":
+                for h in fd.hunks:
+                    if h.accepted is None:
+                        h.accepted = True
+            elif ans == "d":
+                for h in fd.hunks:
+                    if h.accepted is None:
+                        h.accepted = False
+            elif ans == "q":
+                for h in fd.hunks:
+                    if h.accepted is None:
+                        h.accepted = False
+                quit_all = True
+                break
+            else:
+                print(f"  {BOLD}y{RESET} - accept this hunk")
+                print(f"  {BOLD}n{RESET} - reject this hunk")
+                print(f"  {BOLD}e{RESET} - manually edit this hunk")
+                print(f"  {BOLD}j{RESET} - skip to next unprocessed hunk")
+                print(f"  {BOLD}k{RESET} - skip to previous unprocessed hunk")
+                print(f"  {BOLD}a{RESET} - accept all remaining hunks in this file")
+                print(f"  {BOLD}d{RESET} - reject all remaining hunks in this file")
+                print(f"  {BOLD}q{RESET} - reject all remaining hunks and quit")
+                _prompt(f"{YELLOW}Press enter to continue...{RESET}")
+
+
+# ---------------------------------------------------------------------------
+# Applying decisions – revert rejected hunks in the right tree
+# ---------------------------------------------------------------------------
+
+
+def _apply_decisions(file_diffs: list[FileDiff], left: Path, right: Path) -> None:
+    """For each file, rebuild the right-side version keeping only accepted hunks."""
+    for fd in file_diffs:
+        any_edited = any(h.edited for h in fd.hunks)
+        all_accepted = all(h.accepted for h in fd.hunks)
+        all_rejected = all(not h.accepted for h in fd.hunks)
+
+        if all_accepted and not any_edited:
+            # Right side is already correct – nothing to do.
+            continue
+
+        if all_rejected:
+            # Revert the file to the left-side state entirely.
+            if fd.is_new:
+                # File didn't exist on the left – remove from right.
+                fd.right_path.unlink(missing_ok=True)
+            else:
+                # Copy left version back to right.
+                fd.right_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(fd.left_path, fd.right_path)
+            continue
+
+        # Partial accept (or edited hunks): rebuild right from left,
+        # applying only accepted hunks.
+        _partial_apply(fd)
+
+
+def _partial_apply(fd: FileDiff) -> None:
+    """Reconstruct the right-side file keeping only accepted hunks.
+
+    Uses the stored hunk headers/lines directly (which may have been edited)
+    rather than re-diffing the files.
+    """
+    left_lines = _read_lines(fd.left_path)
+
+    # Build the output from left_lines, splicing in accepted hunks.
+    result: list[str] = []
+    left_pos = 0  # 0-indexed cursor into left_lines
+
+    for hunk in fd.hunks:
+        m = HUNK_HEADER_RE.match(hunk.header)
+        if not m:
+            # Malformed header – skip this file entirely.
+            return
+
+        lstart = int(m.group(1))
+        lcount = int(m.group(2) or "1")
+        lstart_idx = lstart - 1 if lstart > 0 else 0
+
+        # Copy unchanged lines before this hunk from the left side.
+        result.extend(left_lines[left_pos:lstart_idx])
+        left_pos = lstart_idx + lcount
+
+        if hunk.accepted:
+            # Apply the hunk: take the "+" and context lines.
+            for hl in hunk.lines:
+                if hl.startswith("-"):
+                    continue  # skip removed lines
+                elif hl.startswith("+"):
+                    result.append(hl[1:])  # add new lines (strip '+')
+                else:
+                    # Context line (starts with ' ').
+                    result.append(hl[1:] if hl.startswith(" ") else hl)
+        else:
+            # Reject: keep the left-side lines for this range.
+            result.extend(left_lines[lstart_idx : lstart_idx + lcount])
+
+    # Append any remaining lines after the last hunk.
+    result.extend(left_lines[left_pos:])
+
+    fd.right_path.parent.mkdir(parents=True, exist_ok=True)
+    fd.right_path.write_text("".join(result))
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <left-dir> <right-dir>", file=sys.stderr)
+        return 2
+
+    left = Path(sys.argv[1])
+    right = Path(sys.argv[2])
+
+    # Read and print JJ instructions if present; detect mode.
+    mode: str | None = None
+    instructions_path = right / "JJ-INSTRUCTIONS"
+    if instructions_path.is_file():
+        instructions = instructions_path.read_text()
+        print(instructions, end="")
+        print()
+        mode = _detect_mode(instructions)
+
+    prompt_text = _MODE_PROMPT.get(mode, _DEFAULT_PROMPT) if mode else _DEFAULT_PROMPT
+
+    # Generate diffs (excluding JJ-INSTRUCTIONS).
+    file_diffs = _make_file_diffs(left, right)
+
+    if not file_diffs:
+        print("No changes to edit!", file=sys.stderr)
+        return 1
+
+    diff_filter = _get_diff_filter()
+
+    _interact(file_diffs, diff_filter, prompt_text)
+
+    _apply_decisions(file_diffs, left, right)
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(1)

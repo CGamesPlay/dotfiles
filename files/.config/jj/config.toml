@@ -33,8 +33,13 @@ empty = "bright black"
 "status diff removed" = "blue"
 "description continuation" = "bright black"
 
+[merge-tools.hunk]
+program = "jj-hunk-editor"
+diff-args = []
+
 [merge-tools.difft]
 diff-args = ["--color=always", "--display=inline", "--byte-limit=100000", "$left", "$right"]
+edit-args = []
 
 [merge-tools.delta]
 diff-expected-exit-codes = [0, 1]
@@ -49,10 +54,12 @@ if [ "${COLORFGBG:-0;15}" = "0;15" ]; then
 fi
 exec delta "$@"
 """, "", "$left", "$right"]
+edit-args = []
 
 [merge-tools.vimdiff]
 program = "nvim"
 diff-args = []
+edit-args = []
 merge-args = [
     "-c", "let g:jj_diffconflicts_marker_length=$marker_length",
     "-c", "JJDiffConflicts!", "$output", "$base", "$left", "$right",
