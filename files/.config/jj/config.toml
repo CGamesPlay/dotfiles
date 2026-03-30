@@ -104,10 +104,6 @@ default-status = ["log", "-r", "@", "-GT", '''
   ))
 ''']
 
-prepare = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" prepare "$@"', ""]
-gh-pr = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" gh-pr "$@"', ""]
-mkdir = ["util", "exec", "--", "sh", "-c", 'exec "$(dirname "$(jj config path --user)")/Argcfile.sh" mkdir "$@"', ""]
-
 # Interactively select an operation to restore
 rewind = ["util", "exec", "--", "sh", "-c", '''
 choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "\0"' | \

@@ -8,6 +8,18 @@
 
 set -eu
 
+# @cmd Sync the list of aliases
+#
+# Always writes to ~/.config/jj/conf.d/aliases.toml.
+sync-aliases() {
+	(
+		echo '[aliases]'
+		while read -r alias; do
+			echo "$alias = [\"util\", \"exec\", \"--\", \"sh\", \"-c\", 'exec \"\$HOME/.config/jj/Argcfile.sh\" $alias \"\$@\"', \"\"]"
+		done
+	) > ~/.config/jj/conf.d/aliases.toml < <(argc --argc-compgen fish "" "argc" "" | sed -rn '/^sync-aliases|^test|^help/!{s/\t.*//;p;}')
+}
+
 # @cmd Testing commands
 test() { :; }
 
@@ -29,20 +41,6 @@ test::main() {
 jj_transaction() {
 	before_op=$(jj op log -GT 'id' -n 1)
 	trap 'if [[ $? -ne 0 ]]; then jj --quiet op restore "$before_op"; else jj --quiet op abandon "$before_op..@-"; fi' EXIT
-}
-
-# @cmd
-# @arg op!
-transact() {
-	cd "$ARGC_PWD"
-	jj_transaction
-	echo 'foo' > README.md
-	jj status
-	echo 'bar' > README.md
-	jj status
-	if [[ ${argc_op:?} == "fail" ]]; then
-		false
-	fi
 }
 
 # @cmd Prepare revisions to push to a remote branch
