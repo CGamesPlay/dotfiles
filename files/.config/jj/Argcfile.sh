@@ -68,26 +68,25 @@ prepare() {
 	fi
 
 	if [[ ${argc_bookmark+1} ]]; then
-		destination=$(jj bookmark list "${argc_bookmark}" -T 'name')
+		destination=($(jj bookmark list "${argc_bookmark}" -T 'name'))
 	elif [[ ${argc_pr+1} ]]; then
 		if [[ ${argc_pr:+1} && "$(jj bookmark list "$argc_pr" -T 'name')" ]]; then
 			# Updating an existing PR is the same as a direct branch push to
 			# that branch.
-			destination="$argc_pr"
+			destination=("$argc_pr")
 			unset argc_pr
 		else
 			# Creating a new PR
-			destination="trunk()"
+			destination=("trunk()")
 		fi
 	else
-		destination=$(jj log -G -r 'heads(::@ & bookmarks() ~ unpushable())' -T 'bookmarks.map(|r| r.name()).join(" ")')
+		destination=($(jj log -G -r 'heads(::@ & bookmarks() ~ unpushable())' -T 'bookmarks.map(|r| r.name()).join(" ") ++ " "'))
 	fi
-	dest_count=$(echo "$destination" | wc -w)
-	if [[ $dest_count -eq 0 ]]; then
+	if [[ ${#destination[@]} -eq 0 ]]; then
 		echo "Error: no bookmarks match" >&2
 		exit 1
-	elif [[ $dest_count -gt 1 ]]; then
-		echo "Error: multiple bookmarks are available: $destination" >&2
+	elif [[ ${#destination[@]} -gt 1 ]]; then
+		echo "Error: multiple bookmarks are available: ${destination[@]}" >&2
 		exit 1
 	fi
 
@@ -102,7 +101,7 @@ prepare() {
 		source="${argc_revisions:?}"
 	fi
 
-	head=$(jj log -G --config "$prepare_branch" -r "heads($source)" -T 'change_id ++ "\n"' 2>/dev/null)
+	head=$(jj log -G --config "$prepare_branch" -r "heads($source)" -T 'change_id ++ "\n"' 2>/dev/null) || true
 
 	if [[ ! "$head" ]]; then
 		echo "Warning: no revisions to prepare" >&2
@@ -120,16 +119,34 @@ prepare() {
 		argc_pr=${argc_pr:-$(jj log -G -r "$head" -T "$(jj config get templates.git_push_bookmark)")}
 		# We need to find the root of the branch that we are pulling out of,
 		# then add our new branch as a parent of that commit.
-		unpushed_root=$(jj log -G --config "$prepare_branch" -r "exactly(roots(..($source) ~ reachable(trunk(), ~unpushable())), 1)" -T 'change_id')
-		jj rebase --config "$prepare_branch" -r "$source" -o "$destination"
-		jj rebase -s "$unpushed_root" -d "$unpushed_root-" -d "$head" --simplify-parents
+		unpushed_root=$(jj log -G --config "$prepare_branch" -r "roots(..($source) ~ reachable(trunk(), ~unpushable()))" -T 'change_id' 2>/dev/null || true)
+		if [[ -n "$unpushed_root" ]]; then
+			unpushed_count=$(echo "$unpushed_root" | wc -l)
+			if [[ $unpushed_count -gt 1 ]]; then
+				echo "Error: multiple unpushed roots found" >&2
+				exit 1
+			fi
+			# Pull the source out of the history and rebase the remaining
+			# commits to also descend from the PR head.
+			jj rebase --config "$prepare_branch" -r "$source" -o "$destination"
+			jj rebase -s "$unpushed_root" -d "$unpushed_root-" -d "$head" --simplify-parents
+		elif [[ -n "$(jj log -G --config "$prepare_branch" -r "roots($source) ~ children($destination)" -T 'change_id' 2>/dev/null || true)" ]]; then
+			# Source is reachable from trunk but not directly on it (there
+			# are non-source commits in between). Extract, move to trunk,
+			# and reconnect the remaining chain via merge topology.
+			next=$(jj log -G --config "$prepare_branch" -r "children($head) & ::@" -T 'change_id' 2>/dev/null || true)
+			jj rebase --config "$prepare_branch" -r "$source" -o "$destination"
+			if [[ -n "$next" ]]; then
+				jj rebase -s "$next" -d "$next-" -d "$head" --simplify-parents
+			fi
+		fi
 		jj bookmark set -r "$head" "$argc_pr"
 	fi
 }
 
 # @cmd Test the prepare command
 test::prepare() {
-	test::header "Default arguments, single commit"
+	print_header "Default arguments, single commit"
 	mkrepo
 	do_change file.txt
 	jj --quiet commit -m "change to push"
@@ -142,7 +159,7 @@ test::prepare() {
 	@  (empty)
 	EOF
 
-	test::header "Undoable in a single call"
+	print_header "Undoable in a single call"
 	jj undo
 	check_graph <<-EOF
 	◆  (root)
@@ -152,7 +169,7 @@ test::prepare() {
 	@  (empty)
 	EOF
 
-	test::header "Default arguments, two commits"
+	print_header "Default arguments, two commits"
 	do_change file-2.txt
 	jj --quiet commit -m "second change"
 	jj prepare
@@ -165,7 +182,7 @@ test::prepare() {
 	@  (empty)
 	EOF
 
-	test::header "Ambiguous bookmark is an error"
+	print_header "Ambiguous bookmark is an error"
 	mkrepo
 	jj --quiet bookmark set staging -r main
 	do_change file.txt
@@ -175,7 +192,7 @@ test::prepare() {
 		exit 1
 	fi
 
-	test::header "Using --source"
+	print_header "Using --source"
 	mkrepo
 	do_change file.txt
 	jj --quiet commit -m "change to leave"
@@ -191,7 +208,7 @@ test::prepare() {
 	@  (empty)
 	EOF
 
-	test::header "Using --revisions"
+	print_header "Using --revisions"
 	mkrepo
 	do_change file.txt
 	jj --quiet commit -m "change to push"
@@ -207,7 +224,7 @@ test::prepare() {
 	@  (empty)
 	EOF
 
-	test::header "As a PR, single commit"
+	print_header "As a PR, single commit"
 	mkrepo
 	do_change file.txt
 	jj --quiet commit -m "change to push"
@@ -242,6 +259,47 @@ test::prepare() {
 	| ○  change to push
 	| ○  [my-pr] more changes
 	○ |  [second-pr] another PR
+	|/
+	⊗  private: private commit
+	@  (empty)
+	EOF
+
+	print_header "As a PR, source already on trunk"
+	mkrepo
+	# Move the private commit to the end so the new commits sit directly on trunk
+	do_change file.txt
+	jj --quiet commit -m "first change"
+	do_change file-2.txt
+	jj --quiet commit -m "second change"
+	jj --quiet rebase -r @--- -A @-
+	# Now: main -- first -- second -- private -- @
+	# Prepare the two commits as a PR (they already sit on trunk)
+	jj prepare -r '@---::@--' --pr my-pr
+	check_graph <<-EOF
+	◆  (root)
+	◆  [main] upstream base
+	○  first change
+	○  [my-pr] second change
+	⊗  private: private commit
+	@  (empty)
+	EOF
+
+	print_header "As a PR, extracting from middle of chain"
+	mkrepo
+	# Move private to end so chain is: main -- first -- second -- private -- @
+	do_change file.txt
+	jj --quiet commit -m "first change"
+	do_change file-2.txt
+	jj --quiet commit -m "second change"
+	jj --quiet rebase -r @--- -A @-
+	# Extract "second change" (not directly on trunk) as a PR
+	jj prepare -r @-- --pr my-pr
+	check_graph <<-EOF
+	◆  (root)
+	◆    [main] upstream base
+	|\\
+	| ○  first change
+	○ |  [my-pr] second change
 	|/
 	⊗  private: private commit
 	@  (empty)
@@ -292,7 +350,7 @@ mkdir() {
 	fi
 }
 
-test::header() {
+print_header() {
 	printf "\n# %s\n\n" "$1"
 }
 
