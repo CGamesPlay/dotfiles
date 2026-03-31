@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# @describe Open Neovide remotely
+#
+# This is mostly a thin wrapper around neovide that uses launchd to launch
+# Neovide if it isn't already running.  We use launchd (open) because we want
+# the Neovide instance to get a new security context. Not doing this means that
+# commands executed in Neovide that require additional permissions (full disk
+# access) will be attributed to the calling process.
+# @option    --neovide-bin <FILE> Path to Neovide binary
+# @option    --neovim-bin <FILE>  Path to Neovim binary
+# @option -f --file* <FILE>       File names to open
+# @flag      --no-tabs            Open all files in the same tab (as buffers)
+# @arg    neovim_args~            Additional arguments to Neovim
+
+set -eu
+
+main() {
+	argc_neovide_bin=${argc_neovide_bin:-/Applications/Neovide.app/Contents/MacOS/neovide}
+	neovide_app=${argc_neovide_bin//\.app\/*/.app}
+	if command -v osascript >/dev/null &&
+		[[ "$neovide_app" != "$argc_neovide_bin" ]] &&
+		[[ "$(osascript -e 'on run argv' -e 'application (item 1 of argv) is running' -e 'end run' "$neovide_app")" = "false" ]]; then
+		echo "Launching new Neovide in $PWD" >&2
+		# We are on macOS and Neovide is not yet running. We use open because
+		# we want the Neovide instance to get a new security context. Not doing
+		# this means that commands executed in Neovide that require additional
+		# permissions (full disk access) will be attributed to the calling
+		# process.
+		cmd=(open -a "$neovide_app" --args)
+	else
+		echo "Opening new Neovide window in $PWD" >&2
+		cmd=("$argc_neovide_bin" --fork --reuse-instance --new-window)
+	fi
+	cmd+=(
+		--wsl
+		${argc_no_tabs+--no-tabs}
+		${argc_neovim_bin+--neovim-bin="$argc_neovim_bin"}
+		${argc_file+"${argc_file[@]}"}
+		${argc_neovim_args+-- "${argc_neovim_args[@]}"}
+	)
+	exec "${cmd[@]}"
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

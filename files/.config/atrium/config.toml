@@ -15,19 +15,6 @@ else
 fi
 atrium shell --start "$workspace" && atrium shell "$workspace"
 ''', "start-working"]
-neovide = ["util", "exec", "--", "sh", "-c", '''
-workspace="${1:?Usage: atrium neovide WORKSPACE}"
-shift
-case "$workspace" in
-  machine:*)
-	locator_arg="--atrium-machine=${workspace//machine:/}"
-    ;;
-  *)
-	locator_arg="--atrium-workspace=$workspace"
-    ;;
-esac
-open -na Neovide --args --wsl --neovim-bin=nvim-atrium -- "$locator_arg" "$@"
-''', "neovide"]
 
 [workspace-provider.devcontainer.options]
 DOTFILES_REPOSITORY = "https://gitlab.com/CGamesPlay/dotfiles.git"

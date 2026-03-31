@@ -3,12 +3,10 @@ if not vim.g.neovide then
 end
 
 -- [[ Visual options for Neovide ]]
---- NOTE: some settings are also configured in ~/.config/neovide/config.toml
 vim.g.neovide_theme = "auto"
--- g:neovide_transparency should be 0 if you want to unify transparency of content and title bar.
---vim.g.neovide_transparency = 1
---vim.g.transparency = 0.5
---vim.g.neovide_window_blurred = true
+-- g:neovide_opacity should be 0 if you want to unify transparency of content and title bar.
+vim.g.neovide_opacity = 0.9
+vim.g.neovide_window_blurred = true
 vim.opt.winblend = 15
 vim.opt.pumblend = 15
 vim.g.neovide_cursor_animation_length = 0.07
@@ -19,6 +17,21 @@ vim.g.neovide_padding_top = 10
 vim.g.neovide_padding_bottom = 0
 vim.g.neovide_padding_right = 10
 vim.g.neovide_padding_left = 10
+
+-- [[ Window title ]]
+function Titlestring()
+  local hostname = ""
+  if vim.env.CODER ~= nil then
+    hostname = vim.env.CODER_WORKSPACE_AGENT_NAME .. "." .. vim.env.CODER_WORKSPACE_NAME
+  else
+    hostname = vim.fn.fnamemodify(vim.fn.hostname(), ":r")
+  end
+  local path = vim.api.nvim_buf_get_name(0)
+  path = vim.fn.fnamemodify(path, ":~:.")
+  return "[" .. hostname .. "] " .. path
+end
+
+vim.o.titlestring = "%{v:lua.Titlestring()}"
 
 -- [[ Font ]]
 vim.opt.linespace = 1

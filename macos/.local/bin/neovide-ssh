@@ -39,44 +39,20 @@ shellquote() {
 	done
 }
 
-if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
-	# Running as trampoline - extract prefix and execute via ssh
-	args=()
-	for arg in "$@"; do
-		case "$arg" in
-			--neovide-ssh=*)
-				ssh_cmd=${arg#--neovide-ssh=}
-				;;
-			--neovide-chdir=*)
-				dir=${arg#--neovide-chdir=}
-				;;
-			*)
-				args+=("$arg")
-				;;
-		esac
-	done
-
-	# The shell script to run on the remote system
-	# shellcheck disable=SC2016
-	sh_script='rundir=${XDG_RUNTIME_DIR:-/tmp/nvim.${USER:?}} && mkdir -pm 0700 "$rundir" && exec nvim --listen "$rundir/$(pwd | tr / -)" "$@"'
-	# The sh invocation to run on the remote system (as a shell-agnostic script)
-	sh_invocation="sh -c $(shellquote "$sh_script") neovide-ssh $(shellquote "${args[@]}")"
-	if [[ ${dir+1} ]]; then
-		sh_invocation="cd $(shellquote "$dir") ; exec direnv exec . $sh_invocation"
-	fi
-	echo "${ssh_cmd:?--neovide-ssh required} -- $(shellquote "$sh_invocation")" >&2
-	eval "exec ${ssh_cmd:?--neovide-ssh required} -- $(shellquote "$sh_invocation")"
-fi
-
 main() {
-	# Build the SSH command for the prefix
-	local ssh_cmd="ssh"
-	if [[ "${argc_ssh_args:+1}" ]]; then
-		ssh_cmd="$ssh_cmd ${argc_ssh_args}"
+	# Shell script to run on the remote end, by remote default shell.
+	remote_script='nvim "$@"'
+	if [[ ${argc_chdir+1} ]]; then
+		remote_script=$(printf 'cd %q && exec direnv exec . %s' "$argc_chdir" "$remote_script")
 	fi
-	ssh_cmd="$ssh_cmd ${argc_host:?}"
-	# Launch Neovide with the trampoline
-	NEOVIDE_LAUNCHER=1 exec open -na Neovide --args --wsl --neovim-bin="$0" -- --neovide-ssh="$ssh_cmd" "${argc_chdir+--neovide-chdir=$argc_chdir}" ${argc_files+"${argc_files[@]}"}
+	ssh_args=("${argc_host:?}" ${argc_ssh_args+"${args_ssh_args[@]}"} -- sh -c "$(shellquote "$remote_script")" neovide-trampoline --listen neovide)
+	cmd=(
+		neovide-remote --no-tabs
+		--neovim-bin=ssh
+		${argc_files+$(printf -- '--file=%q ' "${argc_files[@]}")} \
+		-- "${ssh_args[@]}"
+	)
+	"${cmd[@]}"
 }
 
 if ! command -v argc >/dev/null; then

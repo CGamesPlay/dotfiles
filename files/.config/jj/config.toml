@@ -14,6 +14,7 @@ pager = ["less", "-FR"]
 # We don't use delta as the main pager, because it can't handle jj's graph
 # display. We do use it for cases without a graph, configured below.
 diff-formatter = "delta"
+diff-editor = "hunk"
 
 [git]
 private-commits = "private()"

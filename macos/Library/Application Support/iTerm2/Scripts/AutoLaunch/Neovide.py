@@ -47,12 +47,6 @@ async def monitor(app, connection, session_id):
                 if coder := await session.async_get_variable("user.coder"):
                     run_with_coder(coder, directory, filename)
 
-                if atrium := await session.async_get_variable("user.atrium"):
-                    is_machine = atrium.startswith("machine:")
-                    if is_machine:
-                        atrium = atrium[8:]
-                    run_with_atrium(is_machine, atrium, directory, filename)
-
             except Exception:
                 traceback.print_tb(sys.exc_info()[2])
 
@@ -72,29 +66,6 @@ def run_with_coder(name, directory, filename):
     cmd = ["neovide-ssh", f"{name}.coder", f"--chdir={directory}"]
     if filename:
         cmd += ["--", filename]
-    print(cmd)
-    subprocess.run(cmd, check=True)
-
-
-def run_with_atrium(is_machine, name, directory, filename):
-    args = [f"--atrium-dir={directory}"]
-    if is_machine:
-        args += [f"--atrium-machine={name}"]
-    else:
-        args += [f"--atrium-workspace={name}"]
-    if filename:
-        args += ["--", filename]
-    cmd = [
-        "open",
-        "-na",
-        "Neovide",
-        "--args",
-        "--wsl",
-        "--neovim-bin=nvim-atrium",
-        "--",
-    ]
-    if len(args) > 0:
-        cmd += ["-"] + args
     print(cmd)
     subprocess.run(cmd, check=True)
 

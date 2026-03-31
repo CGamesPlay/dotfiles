@@ -1,59 +1,111 @@
-#!/bin/bash
-# Launch neovide using the iTerm2 extension script.
+#!/usr/bin/env bash
+# @describe Edit files in Neovide
+#
+# This command can:
+# - Start a new Neovide instance attached to a new nvim session
+# - Open a file in an existing nvim session
+# - Attach Neovide to an existing nvim session
+#
+# Works locally and from a remote via iTerm2 extension.
+# @option --socket <SOCKET?>     Path to an existing nvim session
+# @arg    files~                 Passed to nvim
 
 set -ue
 
-if [[ "${1:-}" == "--help" ]]; then
-	cat <<-EOF >&2
-	neovide is a wrapper to integrate Neovide with iTerm2.
-
-	Usage:
-	  neovide [FILENAME]
-	EOF
-	exit 0
-fi
-
-rundir="${XDG_RUNTIME_DIR:-/tmp/nvim.${USER:?}}"
-# shellcheck disable=SC2174
-mkdir -pm 0700 "$rundir"
-socket="${rundir}/${PWD//\//-}"
-
-if [ -S "$socket" ] && fuser "$socket" >/dev/null 2>&1; then
-	echo "Nvim server socket exists, sending remote command"
-	exec nvim --server "$socket" --remote "$@"
-else
-	rm -f "$socket"
-fi
-
-if [ -d /Applications/Neovide.app ]; then
-	# Running locally, run with a trampoline to support direnv
-	if [[ "${NEOVIDE_LAUNCHER:+1}" ]]; then
-		args=()
-		for arg in "$@"; do
-			case "$arg" in
-				--prefix=*)
-					prefix=${arg#--prefix=}
-					;;
-				*)
-					args+=("$arg")
-					;;
-			esac
-		done
-		unset NEOVIDE_LAUNCHER
-		exec sh -c "$prefix $(printf '%q ' "${args[@]}")"
-	else
-		prefix="$(printf "cd %q && exec direnv exec . nvim --listen %q" "$PWD" "$socket")"
-		NEOVIDE_LAUNCHER=1 exec open -na Neovide --args --wsl --neovim-bin="$0" -- --prefix="$prefix" "$@"
+main() {
+	# Select the nvim session.
+	if [[ ! "${argc_socket:+1}" ]]; then
+		argc_socket=$(pick_socket ${argc_socket+always}) || exit 0
 	fi
 
-else
+	# If we have a socket, communicate with nvim directly.
+	if [[ ${argc_socket:+1} ]]; then
+		echo "Opening in existing Neovide session" >&2
+		if [[ ${argc_files+1} ]]; then
+			cmd="<C-\\><C-N>:drop $(printf '%q ' "${argc_files[@]}") | NeovideFocus<CR>"
+		else
+			cmd="<C-\\><C-N>:NeovideFocus<CR>"
+		fi
+		exec nvim --headless --server "$argc_socket" --remote-send "$cmd"
+	fi
+
+	# Otherwise we need to create a new session by starting Neovide
+	if command -v neovide-remote >/dev/null; then
+		launch_local
+	else
+		launch_remote
+	fi
+}
+
+pick_socket() {
+	local rundir="${XDG_RUNTIME_DIR:-/tmp/nvim.${USER:?}}"
+	local -a sockets=()
+	local -a entries=()
+	local sock cwd
+
+	while IFS= read -r -d '' sock; do
+		sockets+=("$sock")
+	done < <(find "$rundir" -type s -name 'neovide.*' -print0 2>/dev/null)
+
+	# Build label → socket map and check for pwd matches.
+	local -a pwd_matches=()
+	for sock in "${sockets[@]}"; do
+		cwd=$(nvim --headless --server "$sock" --remote-expr "getcwd()" 2>/dev/null) || continue
+		if [[ "$cwd" == "$PWD" ]]; then
+			pwd_matches+=("$sock")
+		fi
+		entries+=("Session $(basename "$sock") in $cwd"$'\t'"$sock")
+	done
+
+	if [[ "${1:-}" != "always" ]]; then
+		# Exactly one pwd match — use it automatically.
+		if [[ ${#pwd_matches[@]} -eq 1 ]]; then
+			echo "${pwd_matches[0]}"
+			return
+		fi
+
+		# No live sessions responded — treat as no sessions.
+		if [[ ${#entries[@]} -eq 0 ]]; then
+			return
+		fi
+	fi
+
+	# Show fzf picker with an extra "start new session" option.
+	{
+		[[ ${entries+1} ]] && printf '%s\n' "${entries[@]}"
+		printf 'Start a new session in %s\t' "$PWD"
+	} | fzf --with-nth=1 --accept-nth=2 --delimiter=$'\t' \
+			--header='Pick an nvim session' \
+			--height=~40% --reverse
+}
+
+launch_local() {
+	# Running locally, run with a trampoline to support direnv
+	script=$(printf 'cd %q && exec direnv exec . nvim "$@"' "$PWD")
+	exec neovide-remote --no-tabs \
+		--neovim-bin=sh \
+		${argc_files+$(printf -- '--file=%q ' "${argc_files[@]}")} \
+		-- -c "$script" neovide-tramoline --listen neovide
+}
+
+launch_remote() {
 	# Running in a remote environment, open using iTerm2 custom escape sequence.
-	echo "Launching Neovide through iTerm custom escape"
+	echo "Launching Neovide through iTerm custom escape" >&2
 	value="id=neovide:"
-	if [[ "${1:+1}" ]]; then
-		value="${value}filename=$1"
+	if [[ "${argc_files:+1}" ]]; then
+		# Neovide would try to make all the paths absolute and can't since they
+		# aren't on the same machine.
+		echo "Opening specific files is not supported" >&2
 	fi
 
 	printf "\033]1337;RemoteHost=%s@%s\a\033]1337;CurrentDir=%s\a" "$USER" "$(hostname -f)" "$PWD"
 	printf "\033]1337;Custom=%s\a" "$value"
+	exit 0
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
 fi
+eval "$(argc --argc-eval "$0" "$@")"
+
