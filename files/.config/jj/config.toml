@@ -94,7 +94,7 @@ move = ["rebase"]
 diff-sbs = ["util", "exec", "--", "sh", "-c", 'DELTA_FEATURES=+side-by-side exec jj diff "$@"', ""]
 
 # These two commands, back-to-back, are the default command for jj.
-default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "::(mutable() | bookmarks())", "--limit", "10"]
+default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "ancestors(mutable(), 10)", "--limit", "10"]
 default-status = ["log", "-r", "@", "-GT", '''
   surround("\n", "", separate("\n",
     if(diff.files().len() > 0,
