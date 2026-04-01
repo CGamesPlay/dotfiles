@@ -61,9 +61,18 @@ The task you write should be written differently for forks and spawns.
 
 ### General-Purpose Subagent
 
-The general-purpose subagent is available for usage that doesn't fall into a more specialized category. It's particularly useful for forking to accomplish many repeated tasks in parallel: like cloning yourself repeatedly, each clone only needs to do one of the tasks.
+In rare circumstances, you may want to use a general-purpose subagent. It's particularly useful for forking to accomplish many repeated tasks in parallel: like cloning yourself repeatedly, each clone only needs to do one of the tasks.
 
-Avoid using this subagent when the tasks are so mechanical that a simple Bash/Python script could accomplish the task instead.
+**Use the general-purpose subagent when:**
+
+- You have to do a task that will involve a lot of reading to extract a small amount of useful information. Example: running a specific command that generates a lot of output and reading it all to find a specific piece of data that you could not just use a tool to extract.
+- You have to do a well-defined, mechanical task that requires lots of ephemeral context and cannot be accomplished by a simple script. Example: replacing all uses of an API with a similar one which requires slightly different parameters (only when this is part of a larger task the user asked for).
+
+**Don't use the general-purpose subagent when:**
+
+- You could use a mechanical automation (bash/sed/jq script, etc.) instead. The automation is faster, more reproducable, and more reliable.
+- You don't know exactly what the subagent will do. It's better to do the task yourself in this case.
+- There is a chance that parallel tasks will conflict with each other. Do the tasks in serial in this case.
 
 ### Explore Subagent
 
