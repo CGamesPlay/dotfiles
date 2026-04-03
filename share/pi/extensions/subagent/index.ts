@@ -547,8 +547,8 @@ This guard prevents self-recursion and cyclic handoffs (for example A -> B -> A)
       },
 
       renderCall: (args, theme) => renderCall(args, theme),
-      renderResult: (result, { expanded }, theme) =>
-        renderResult(result, expanded, theme),
+      renderResult: (result, { expanded }, theme, context) =>
+        renderResult(result, expanded, theme, context?.args),
     });
   }
 

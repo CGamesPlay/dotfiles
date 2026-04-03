@@ -188,11 +188,37 @@ export function renderResult(
 	result: { content: Array<{ type: string; text?: string }>; details?: unknown },
 	expanded: boolean,
 	theme: { fg: ThemeFg; bold: (s: string) => string },
+	args?: Record<string, any>,
 ): Container | Text {
 	const details = result.details as SubagentDetails | undefined;
 	if (!details || details.results.length === 0) {
 		const first = result.content[0];
-		return new Text(first?.type === "text" && first.text ? first.text : "(no output)", 0, 0);
+		const text = first?.type === "text" && first.text ? first.text : "(no output)";
+
+		// In expanded mode, show the task prompt even when details are missing
+		if (expanded) {
+			const hasTask = args?.task || (args?.tasks && args.tasks.length > 0);
+			if (hasTask) {
+				const container = new Container();
+				container.addChild(new Text(theme.fg("muted", "─── Task ───"), 0, 0));
+				if (args.task) {
+					container.addChild(new Text(theme.fg("dim", args.task), 0, 0));
+				} else if (args.tasks) {
+					for (const t of args.tasks) {
+						container.addChild(new Text(
+							theme.fg("accent", t.agent) + theme.fg("dim", ` ${t.task}`),
+							0, 0,
+						));
+					}
+				}
+				container.addChild(new Spacer(1));
+				container.addChild(new Text(theme.fg("muted", "─── Output ───"), 0, 0));
+				container.addChild(new Text(text, 0, 0));
+				return container;
+			}
+		}
+
+		return new Text(text, 0, 0);
 	}
 
 	const delegationMode = normalizeDelegationMode(
