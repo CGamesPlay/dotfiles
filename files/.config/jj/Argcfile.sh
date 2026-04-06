@@ -24,7 +24,7 @@ sync-aliases() {
 test() { :; }
 
 test::main() {
-	eval "$(cat "$0" | grep -Eo '^(test::[^(]*)()' | grep -v 'test::main')"
+	eval "$(cat Argcfile.sh | grep -Eo '^(test::[^(]*)()' | grep -v 'test::main')"
 }
 
 # Calling this will make the rest of the script appear as a single jj
@@ -68,8 +68,10 @@ prepare() {
 	fi
 
 	if [[ ${argc_bookmark+1} ]]; then
-		destination=($(jj log -G -r "bookmarks(${argc_bookmark})" -T 'bookmarks.map(|r| r.name()).join(" ") ++ " "'))
+		destination=("$argc_bookmark")
 	elif [[ ${argc_pr+1} ]]; then
+		# jj bookmark list will always exit 0, but if stdout is not a tty it
+		# will empty an empty string for involid bookmarks
 		if [[ ${argc_pr:+1} && "$(jj bookmark list "$argc_pr" -T 'name')" ]]; then
 			# Updating an existing PR is the same as a direct branch push to
 			# that branch.
