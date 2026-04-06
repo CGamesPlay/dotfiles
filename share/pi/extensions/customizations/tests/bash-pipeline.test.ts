@@ -9,7 +9,7 @@ import {
   injectTee,
   formatSize,
   type Token,
-} from "../extensions/bash-tee.js";
+} from "../lib/bash-pipeline.js";
 
 /** Extract just the string values from tokens for simpler assertions */
 function values(tokens: Token[]): string[] {

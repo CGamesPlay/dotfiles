@@ -1,0 +1,101 @@
+/**
+ * Customizations Extension — Entry Point
+ *
+ * Single registration function wiring all hooks, tools, commands, and flags.
+ * This is the event surface map — every hook, tool, command, and flag at a glance.
+ * No business logic here, only wiring.
+ */
+
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { createAppState } from "./state.js";
+
+// Hooks
+import {
+  onSessionStart,
+  onSessionSwitch,
+  onSessionFork,
+  onSessionTree,
+  onSessionBeforeFork,
+  onSessionBeforeTree,
+  onSessionShutdown,
+} from "./hooks/session.js";
+import {
+  onAgentStart,
+  onAgentEnd,
+  onBeforeAgentStart,
+  onTurnStart,
+} from "./hooks/agent.js";
+import { onToolCall, onToolResult, onUserBash } from "./hooks/tool-events.js";
+
+// Tools & Commands
+import { registerTodoTool, registerTodoCommands } from "./tools/todo.js";
+import {
+  registerPlanningTools,
+  registerPlanningCommands,
+} from "./tools/planning.js";
+import { registerDiffRenderers } from "./tools/diff-renderer.js";
+import {
+  registerSystemAssistantFlags,
+  registerSystemAssistantTools,
+  registerSystemAssistantCommands,
+} from "./tools/system-assistant.js";
+
+// Terminal helpers (for notify-test command)
+import { notify } from "./lib/terminal.js";
+import path from "node:path";
+
+export default function (pi: ExtensionAPI) {
+  const state = createAppState();
+
+  // ── Hooks ──────────────────────────────────────────────
+  // Session lifecycle
+  pi.on("session_start", (e, ctx) => onSessionStart(state, pi, e, ctx));
+  pi.on("session_switch", (e, ctx) => onSessionSwitch(state, pi, e, ctx));
+  pi.on("session_fork", (e, ctx) => onSessionFork(state, pi, e, ctx));
+  pi.on("session_tree", (e, ctx) => onSessionTree(state, pi, e, ctx));
+  pi.on("session_before_fork", (e, ctx) => onSessionBeforeFork(state, e, ctx));
+  pi.on("session_before_tree", (e, ctx) => onSessionBeforeTree(state, e, ctx));
+  pi.on("session_shutdown", (e, ctx) => onSessionShutdown(state, e, ctx));
+
+  // Agent lifecycle
+  pi.on("agent_start", (e, ctx) => onAgentStart(state, e, ctx));
+  pi.on("agent_end", (e, ctx) => onAgentEnd(state, pi, e, ctx));
+  pi.on("before_agent_start", (e, ctx) =>
+    onBeforeAgentStart(state, pi, e, ctx),
+  );
+  pi.on("turn_start", (e, ctx) => onTurnStart(state, e, ctx));
+
+  // Tool interception
+  pi.on("tool_call", (e, ctx) => onToolCall(state, pi, e, ctx));
+  pi.on("tool_result", (e, ctx) => onToolResult(state, e, ctx));
+  pi.on("user_bash", (e, ctx) => onUserBash(pi, e, ctx));
+
+  // ── Tools ──────────────────────────────────────────────
+  registerTodoTool(state, pi);
+  registerPlanningTools(state, pi);
+  registerDiffRenderers(pi);
+  registerSystemAssistantTools(state, pi);
+
+  // ── Commands ───────────────────────────────────────────
+  registerTodoCommands(state, pi);
+  registerPlanningCommands(state, pi);
+  registerSystemAssistantCommands(state, pi);
+  registerNotifyTestCommand(pi);
+
+  // ── Flags ──────────────────────────────────────────────
+  registerSystemAssistantFlags(pi);
+}
+
+// ─── Notify Test Command ───────────────────────────────────────────────────────
+
+function registerNotifyTestCommand(pi: ExtensionAPI) {
+  pi.registerCommand("notify-test", {
+    description: "Test the agent-end notification (fires after 2s)",
+    handler: async (_args, ctx) => {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const sessionName = pi.getSessionName();
+      const dirName = path.basename(ctx.cwd);
+      notify(`pi: ${sessionName ?? dirName}`);
+    },
+  });
+}

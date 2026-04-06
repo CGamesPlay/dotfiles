@@ -1,0 +1,367 @@
+exports[`end-to-end render > edit complete — error 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+Error: File not found: test.ts
+`;
+
+exports[`end-to-end render > edit complete — expanded view shows all lines 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+1 ⋮ 1 │context before
+2 ⋮   │old
+  ⋮ 2 │new
+3 ⋮ 3 │context after
+
++1 / -1 lines
+`;
+
+exports[`end-to-end render > edit complete — large diff collapsed 1`] = `
+--- renderCall ---
+edit big.ts
+--- renderResult ---
+(28 earlier lines, ctrl+o to expand)
+
+62 ⋮ 62 │context
+...
+70 ⋮ 70 │context
+71 ⋮    │old line 7
+   ⋮ 71 │new line 7
+72 ⋮ 72 │context
+...
+80 ⋮ 80 │context
+81 ⋮    │old line 8
+   ⋮ 81 │new line 8
+
+(1 more lines, ctrl+o to expand)
+
++8 / -8 lines
+`;
+
+exports[`end-to-end render > edit complete — large diff expanded 1`] = `
+--- renderCall ---
+edit big.ts
+--- renderResult ---
+10 ⋮ 10 │context
+11 ⋮    │old line 1
+   ⋮ 11 │new line 1
+12 ⋮ 12 │context
+...
+20 ⋮ 20 │context
+21 ⋮    │old line 2
+   ⋮ 21 │new line 2
+22 ⋮ 22 │context
+...
+30 ⋮ 30 │context
+31 ⋮    │old line 3
+   ⋮ 31 │new line 3
+32 ⋮ 32 │context
+...
+40 ⋮ 40 │context
+41 ⋮    │old line 4
+   ⋮ 41 │new line 4
+42 ⋮ 42 │context
+...
+50 ⋮ 50 │context
+51 ⋮    │old line 5
+   ⋮ 51 │new line 5
+52 ⋮ 52 │context
+...
+60 ⋮ 60 │context
+61 ⋮    │old line 6
+   ⋮ 61 │new line 6
+62 ⋮ 62 │context
+...
+70 ⋮ 70 │context
+71 ⋮    │old line 7
+   ⋮ 71 │new line 7
+72 ⋮ 72 │context
+...
+80 ⋮ 80 │context
+81 ⋮    │old line 8
+   ⋮ 81 │new line 8
+82 ⋮ 82 │context
+
++8 / -8 lines
+`;
+
+exports[`end-to-end render > edit complete — large line numbers (padding) 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+199 ⋮ 199 │context before
+200 ⋮     │old
+    ⋮ 200 │new
+201 ⋮ 201 │context after
+
++1 / -1 lines
+`;
+
+exports[`end-to-end render > edit complete — multi-edit with details.diff 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+ 5 ⋮  5 │before
+ 6 ⋮    │alpha
+   ⋮  6 │beta
+ 7 ⋮  7 │between
+...
+20 ⋮ 20 │before2
+21 ⋮    │gamma
+   ⋮ 21 │delta
+22 ⋮ 22 │after2
+
++2 / -2 lines
+`;
+
+exports[`end-to-end render > edit complete — with details.diff 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+1 ⋮ 1 │context before
+2 ⋮   │old line
+  ⋮ 2 │new line
+3 ⋮ 3 │context after
+
++1 / -1 lines
+`;
+
+exports[`end-to-end render > edit complete — without details.diff (fallback to args) 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+1 ⋮   │alpha
+  ⋮ 1 │beta
+
++1 / -1 lines
+`;
+
+exports[`end-to-end render > edit executing — preview diff in renderCall 1`] = `
+--- renderCall ---
+edit test.ts
+  ⋮   │foo
+  ⋮   │bar
+
++1 / -1 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — both oldText and newText 1`] = `
+--- renderCall ---
+edit test.ts
+  ⋮   │old line
+  ⋮   │new line
+
++1 / -1 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — multi-edit, first edit complete, second streaming 1`] = `
+--- renderCall ---
+edit test.ts
+  ⋮   │alpha
+  ⋮   │beta
+...
+  ⋮   │gamma
+
++1 / -2 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — newText only (no oldText yet) 1`] = `
+--- renderCall ---
+edit test.ts
+  ⋮   │new line
+
++1 / -0 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit partial — oldText only (no newText yet) 1`] = `
+--- renderCall ---
+edit test.ts
+  ⋮   │old line
+
++0 / -1 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > edit replay — no preview diff in renderCall 1`] = `
+--- renderCall ---
+edit test.ts
+--- renderResult ---
+1 ⋮   │foo
+  ⋮ 1 │bar
+
++1 / -1 lines
+`;
+
+exports[`end-to-end render > write partial — content still streaming (no content yet) 1`] = `
+--- renderCall ---
+write some-file.ts
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — file does not exist (all additions) 1`] = `
+--- renderCall ---
+write write-new-file.ts
+  ⋮ 1 │line1
+  ⋮ 2 │line2
+  ⋮ 3 │line3
+
++3 / -0 lines (new file)
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — file exists (diff against old content) 1`] = `
+--- renderCall ---
+write write-exists.ts
+1 ⋮   │old line1
+  ⋮ 1 │new line1
+2 ⋮ 2 │old line2
+
++1 / -1 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write partial — large file rewrite, streaming frontier 1`] = `
+--- renderCall ---
+write write-frontier.ts
+(3 earlier lines, ctrl+o to expand)
+
+ 5 ⋮  5 │line 5
+...
+10 ⋮ 10 │line 10
+11 ⋮    │line 11
+   ⋮ 11 │EDITED 11
+12 ⋮ 12 │line 12
+...
+14 ⋮ 14 │line 14
+15 ⋮    │line 15
+   ⋮ 15 │line 15
+
++3 / -3 lines
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay collapsed — truncates long file 1`] = `
+--- renderCall ---
+write big-file.ts
+(10 more lines, ctrl+o to expand)
+
+11 │line 11
+12 │line 12
+13 │line 13
+14 │line 14
+15 │line 15
+16 │line 16
+17 │line 17
+18 │line 18
+19 │line 19
+20 │line 20
+
+20 lines written
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay expanded — shows all file content 1`] = `
+--- renderCall ---
+write big-file.ts
+ 1 │line 1
+ 2 │line 2
+ 3 │line 3
+ 4 │line 4
+ 5 │line 5
+ 6 │line 6
+ 7 │line 7
+ 8 │line 8
+ 9 │line 9
+10 │line 10
+11 │line 11
+12 │line 12
+13 │line 13
+14 │line 14
+15 │line 15
+16 │line 16
+17 │line 17
+18 │line 18
+19 │line 19
+20 │line 20
+
+20 lines written
+--- renderResult ---
+
+`;
+
+exports[`end-to-end render > write replay — shows file listing (cannot recover old content) 1`] = `
+--- renderCall ---
+write replayed.ts
+1 │replay line1
+2 │replay line2
+3 │replay line3
+
+3 lines written
+--- renderResult ---
+
+`;
+
+exports[`formatCollapsible > long content collapsed — first N lines + 'N more lines' 1`] = `
+(10 more lines, ctrl+o to expand)
+
+line11
+line12
+line13
+line14
+line15
+line16
+line17
+line18
+line19
+line20
+
+summary
+`;
+
+exports[`formatCollapsible > long content expanded — all lines 1`] = `
+line1
+line2
+line3
+line4
+line5
+line6
+line7
+line8
+line9
+line10
+line11
+line12
+line13
+line14
+line15
+line16
+line17
+line18
+line19
+line20
+
+summary
+`;
+
+exports[`formatCollapsible > short content — no truncation 1`] = `
+line1
+line2
+line3
+
+summary
+`;
