@@ -86,6 +86,7 @@ main() {
 			--add-dirs-ro "$DFM_DIR"
 			--add-dirs-ro ~/.config/jj
 			--add-dirs-ro ~/.config/nvim
+			--add-dirs-ro ~/.config/direnv
 			--add-dirs-ro ~/.local/share/nvim
 			--add-dirs-ro ~/.local/share/direnv
 			--add-dirs ~/.local/state/nvim

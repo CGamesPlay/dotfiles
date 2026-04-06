@@ -1,24 +1,28 @@
 /**
- * OSC 11 Theme Detection Extension
+ * Terminal Escape Sequence Helpers
  *
- * Queries the terminal's background color using the OSC 11 escape sequence
- * and automatically switches pi's theme to "dark" or "light" to match.
- *
- * OSC 11 query:    ESC ] 11 ; ? BEL
- * OSC 11 response: ESC ] 11 ; rgb:RRRR/GGGG/BBBB BEL  (or ST terminator)
- *
- * Runs on session_start (fresh start, --continue) and session_switch (/resume, /new).
- *
- * Supported terminals: iTerm2, Ghostty, Kitty, WezTerm, Alacritty, xterm, etc.
- * Non-supporting terminals: silently no-ops after a 500ms timeout.
+ * Combines terminal-related utilities:
+ * - OSC 11 color parsing and theme detection
+ * - iTerm2 notification escape sequences
+ * - Elapsed time formatting
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const OSC_11_QUERY = "\x1b]11;?\x07";
 const TIMEOUT_MS = 500;
 
-function parseRgbColor(
+/** Delay before firing agent-end notification (ms) */
+export const DELAY_MS = 15_000;
+
+/** Status bar key for the elapsed timer */
+export const STATUS_KEY = "elapsed-timer";
+
+// ─── OSC 11 Theme Detection ───────────────────────────────────────────────────
+
+export function parseRgbColor(
   colorStr: string,
 ): { r: number; g: number; b: number } | null {
   const match = colorStr.match(
@@ -36,7 +40,7 @@ function parseRgbColor(
   };
 }
 
-function queryOsc11(ctx: ExtensionContext) {
+export function queryOsc11(ctx: ExtensionContext) {
   let responseBuffer = "";
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let unsubscribe: (() => void) | null = null;
@@ -119,14 +123,27 @@ function queryOsc11(ctx: ExtensionContext) {
   timeoutId = setTimeout(cleanup, TIMEOUT_MS);
 }
 
-export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
-    if (!ctx.hasUI) return;
-    queryOsc11(ctx);
-  });
+// ─── iTerm2 Notifications ──────────────────────────────────────────────────────
 
-  pi.on("session_switch", (_event, ctx) => {
-    if (!ctx.hasUI) return;
-    queryOsc11(ctx);
-  });
+export function notify(
+  titleText: string,
+  messageText = "I've finished working",
+) {
+  const title = Buffer.from(titleText).toString("base64");
+  const message = Buffer.from(messageText).toString("base64");
+  process.stdout.write(
+    "\x1b]1337;Custom=id=play-sound:Nintendo/WW_MainMenu_Select.wav\x07",
+  );
+  process.stdout.write("\x1b]1337;RequestAttention=yes\x07");
+  process.stdout.write(
+    `\x1b]1337;Notification=message=${message};title=${title}\x07`,
+  );
+}
+
+// ─── Elapsed Timer ─────────────────────────────────────────────────────────────
+
+export function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `⏱ ${m}:${s.toString().padStart(2, "0")}`;
 }

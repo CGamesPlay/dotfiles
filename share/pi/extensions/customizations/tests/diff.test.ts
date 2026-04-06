@@ -1,9 +1,13 @@
 import { describe, it, before, snapshot } from "node:test";
 import assert from "node:assert/strict";
+import stripAnsi from "strip-ansi";
 
 snapshot.setResolveSnapshotPath((testPath) => testPath + ".snapshot");
 snapshot.setDefaultSnapshotSerializers([
-  (value) => typeof value === "string" ? value : JSON.stringify(value, null, 2),
+  (value) =>
+    typeof value === "string"
+      ? stripAnsi(value)
+      : JSON.stringify(value, null, 2),
 ]);
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -14,6 +18,7 @@ import {
   normalizeGaps,
   parsePiDiff,
   trimContext,
+  trimTrailingRemovals,
   stripLineNumbers,
   formatDiffLines,
   formatContentLines,
@@ -24,7 +29,7 @@ import {
   collectEditDiffLines,
   COLLAPSED_MAX_LINES,
   type DiffLine,
-} from "../extensions/tool-renderer.js";
+} from "../lib/diff.js";
 import type {
   ExtensionAPI,
   ToolDefinition,
@@ -40,25 +45,59 @@ import { Text } from "@mariozechner/pi-tui";
 import { Theme } from "@mariozechner/pi-coding-agent";
 
 const fgColors: Record<string, string> = {
-  accent: "#8abeb7", border: "#5f87ff", borderAccent: "#00d7ff",
-  borderMuted: "#505050", success: "#b5bd68", error: "#cc6666",
-  warning: "#ffff00", muted: "#808080", dim: "#666666", text: "",
-  thinkingText: "#808080", userMessageText: "", customMessageText: "",
-  customMessageLabel: "#9575cd", toolTitle: "", toolOutput: "#808080",
-  mdHeading: "#f0c674", mdLink: "#81a2be", mdLinkUrl: "#666666",
-  mdCode: "#8abeb7", mdCodeBlock: "#b5bd68", mdCodeBlockBorder: "#808080",
-  mdQuote: "#808080", mdQuoteBorder: "#808080", mdHr: "#808080",
-  mdListBullet: "#8abeb7", toolDiffAdded: "#b5bd68", toolDiffRemoved: "#cc6666",
-  toolDiffContext: "#808080", syntaxComment: "#6A9955", syntaxKeyword: "#569CD6",
-  syntaxFunction: "#DCDCAA", syntaxVariable: "#9CDCFE", syntaxString: "#CE9178",
-  syntaxNumber: "#B5CEA8", syntaxType: "#4EC9B0", syntaxOperator: "#D4D4D4",
-  syntaxPunctuation: "#D4D4D4", thinkingOff: "#505050", thinkingMinimal: "#6e6e6e",
-  thinkingLow: "#5f87af", thinkingMedium: "#81a2be", thinkingHigh: "#b294bb",
-  thinkingXhigh: "#d183e8", bashMode: "#b5bd68",
+  accent: "#8abeb7",
+  border: "#5f87ff",
+  borderAccent: "#00d7ff",
+  borderMuted: "#505050",
+  success: "#b5bd68",
+  error: "#cc6666",
+  warning: "#ffff00",
+  muted: "#808080",
+  dim: "#666666",
+  text: "",
+  thinkingText: "#808080",
+  userMessageText: "",
+  customMessageText: "",
+  customMessageLabel: "#9575cd",
+  toolTitle: "",
+  toolOutput: "#808080",
+  mdHeading: "#f0c674",
+  mdLink: "#81a2be",
+  mdLinkUrl: "#666666",
+  mdCode: "#8abeb7",
+  mdCodeBlock: "#b5bd68",
+  mdCodeBlockBorder: "#808080",
+  mdQuote: "#808080",
+  mdQuoteBorder: "#808080",
+  mdHr: "#808080",
+  mdListBullet: "#8abeb7",
+  toolDiffAdded: "#b5bd68",
+  toolDiffRemoved: "#cc6666",
+  toolDiffContext: "#808080",
+  syntaxComment: "#6A9955",
+  syntaxKeyword: "#569CD6",
+  syntaxFunction: "#DCDCAA",
+  syntaxVariable: "#9CDCFE",
+  syntaxString: "#CE9178",
+  syntaxNumber: "#B5CEA8",
+  syntaxType: "#4EC9B0",
+  syntaxOperator: "#D4D4D4",
+  syntaxPunctuation: "#D4D4D4",
+  thinkingOff: "#505050",
+  thinkingMinimal: "#6e6e6e",
+  thinkingLow: "#5f87af",
+  thinkingMedium: "#81a2be",
+  thinkingHigh: "#b294bb",
+  thinkingXhigh: "#d183e8",
+  bashMode: "#b5bd68",
 };
 const bgColors: Record<string, string> = {
-  selectedBg: "#3a3a4a", userMessageBg: "#343541", customMessageBg: "#2d2838",
-  toolPendingBg: "#282832", toolSuccessBg: "#283228", toolErrorBg: "#3c2828",
+  selectedBg: "#3a3a4a",
+  userMessageBg: "#343541",
+  customMessageBg: "#2d2838",
+  toolPendingBg: "#282832",
+  toolSuccessBg: "#283228",
+  toolErrorBg: "#3c2828",
 };
 const theme = new Theme(fgColors as any, bgColors as any, "256color");
 
@@ -78,25 +117,41 @@ function createMockAPI(): { api: ExtensionAPI; tools: CapturedTools } {
     registerCommand() {},
     registerShortcut() {},
     registerFlag() {},
-    getFlag() { return undefined; },
+    getFlag() {
+      return undefined;
+    },
     registerMessageRenderer() {},
     sendMessage() {},
     sendUserMessage() {},
     appendEntry() {},
     setSessionName() {},
-    getSessionName() { return undefined; },
+    getSessionName() {
+      return undefined;
+    },
     setLabel() {},
-    getActiveTools() { return []; },
-    getAllTools() { return []; },
+    getActiveTools() {
+      return [];
+    },
+    getAllTools() {
+      return [];
+    },
     setActiveTools() {},
-    getCommands() { return []; },
-    setModel() { return Promise.resolve(false); },
-    getThinkingLevel() { return "off" as any; },
+    getCommands() {
+      return [];
+    },
+    setModel() {
+      return Promise.resolve(false);
+    },
+    getThinkingLevel() {
+      return "off" as any;
+    },
     setThinkingLevel() {},
     registerProvider() {},
     unregisterProvider() {},
     events: {} as any,
-    exec() { return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }); },
+    exec() {
+      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+    },
   } as unknown as ExtensionAPI;
   return { api, tools };
 }
@@ -119,7 +174,9 @@ interface ToolRenderContext<TState = any, TArgs = any> {
   isError: boolean;
 }
 
-function createRenderContext(overrides: Partial<ToolRenderContext> = {}): ToolRenderContext {
+function createRenderContext(
+  overrides: Partial<ToolRenderContext> = {},
+): ToolRenderContext {
   return {
     args: {},
     toolCallId: "test-tool-call-id",
@@ -183,7 +240,7 @@ describe("computeDiffLines", () => {
 
   it("multi-hunk changes with gap collapsing", () => {
     const old = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\n";
-    const nw  = "line1\nLINE2\nline3\nline4\nline5\nline6\nLINE7\nline8\n";
+    const nw = "line1\nLINE2\nline3\nline4\nline5\nline6\nLINE7\nline8\n";
     const result = computeDiffLines(old, nw, 1);
     // Should have two change hunks separated by a gap
     const types = result.map((l) => l.type);
@@ -273,7 +330,10 @@ describe("trimContext", () => {
     assert.ok(types.includes("removed"));
     assert.ok(types.includes("added"));
     const contextCount = types.filter((t) => t === "context").length;
-    assert.ok(contextCount <= 2, `expected ≤2 context lines, got ${contextCount}`);
+    assert.ok(
+      contextCount <= 2,
+      `expected ≤2 context lines, got ${contextCount}`,
+    );
   });
 
   it("preserves all change lines", () => {
@@ -307,10 +367,16 @@ describe("trimContext", () => {
     ];
     const result = trimContext(lines, 1);
     const types = result.map((l) => l.type);
-    assert.ok(types.includes("gap"), "should have a gap between distant changes");
+    assert.ok(
+      types.includes("gap"),
+      "should have a gap between distant changes",
+    );
     // Context lines should be reduced
     const contextCount = types.filter((t) => t === "context").length;
-    assert.ok(contextCount <= 4, `expected ≤4 context lines, got ${contextCount}`);
+    assert.ok(
+      contextCount <= 4,
+      `expected ≤4 context lines, got ${contextCount}`,
+    );
   });
 });
 
@@ -371,6 +437,128 @@ describe("formatCollapsible", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// trimTrailingRemovals
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe("trimTrailingRemovals", () => {
+  it("no trailing removals → unchanged", () => {
+    const lines: DiffLine[] = [
+      { type: "removed", oldNum: 1, content: "old" },
+      { type: "added", newNum: 1, content: "new" },
+    ];
+    const result = trimTrailingRemovals(lines);
+    assert.deepStrictEqual(result, lines);
+  });
+
+  it("1 plus + 1 minus at tail → keep 1, drop 0", () => {
+    const lines: DiffLine[] = [
+      { type: "context", oldNum: 1, newNum: 1, content: "ctx" },
+      { type: "removed", oldNum: 2, content: "old" },
+      { type: "added", newNum: 2, content: "new" },
+    ];
+    const result = trimTrailingRemovals(lines);
+    assert.deepStrictEqual(result, lines);
+  });
+
+  it("1 plus + 10 minus at tail → keep 1, drop 9", () => {
+    const minus = Array.from({ length: 10 }, (_, i) => ({
+      type: "removed" as const,
+      oldNum: i + 1,
+      content: `old${i}`,
+    }));
+    const plus: DiffLine[] = [{ type: "added", newNum: 1, content: "new" }];
+    const lines: DiffLine[] = [...minus, ...plus];
+    const result = trimTrailingRemovals(lines);
+    // Should keep first 1 minus (1 - 1 + 1 = 1) + the 1 plus
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(result[0].type, "removed");
+    assert.strictEqual(result[1].type, "added");
+  });
+
+  it("3 plus + 10 minus at tail → keep 3, drop 7", () => {
+    const minus = Array.from({ length: 10 }, (_, i) => ({
+      type: "removed" as const,
+      oldNum: i + 1,
+      content: `old${i}`,
+    }));
+    const plus = Array.from({ length: 3 }, (_, i) => ({
+      type: "added" as const,
+      newNum: i + 1,
+      content: `new${i}`,
+    }));
+    const lines: DiffLine[] = [...minus, ...plus];
+    const result = trimTrailingRemovals(lines);
+    // keep = min(10, 3) = 3 minus, drop 7
+    assert.strictEqual(result.length, 6); // 3 minus + 3 plus
+    assert.strictEqual(result.filter((l) => l.type === "removed").length, 3);
+    assert.strictEqual(result.filter((l) => l.type === "added").length, 3);
+  });
+
+  it("0 plus + 5 minus at tail → keep all 5, drop 0", () => {
+    const lines: DiffLine[] = [
+      { type: "context", oldNum: 1, newNum: 1, content: "ctx" },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        type: "removed" as const,
+        oldNum: i + 2,
+        content: `old${i}`,
+      })),
+    ];
+    const result = trimTrailingRemovals(lines);
+    assert.deepStrictEqual(result, lines);
+  });
+
+  it("equal plus and minus at tail → keep all minus (no excess)", () => {
+    // 3 minus + 3 plus: keep = min(3, 3) = 3, drop = 0 — nothing to trim.
+    const minus = Array.from({ length: 3 }, (_, i) => ({
+      type: "removed" as const,
+      oldNum: i + 1,
+      content: `old${i}`,
+    }));
+    const plus = Array.from({ length: 3 }, (_, i) => ({
+      type: "added" as const,
+      newNum: i + 1,
+      content: `new${i}`,
+    }));
+    const lines: DiffLine[] = [...minus, ...plus];
+    const result = trimTrailingRemovals(lines);
+    // keep = min(3, 3) = 3, drop = 0
+    assert.deepStrictEqual(result, lines);
+  });
+
+  it("only added lines (no removals) → unchanged", () => {
+    const lines: DiffLine[] = [
+      { type: "added", newNum: 1, content: "a" },
+      { type: "added", newNum: 2, content: "b" },
+    ];
+    const result = trimTrailingRemovals(lines);
+    assert.deepStrictEqual(result, lines);
+  });
+
+  it("context lines between changes at tail are not counted", () => {
+    // Trailing context should block the minus counting.
+    // At the tail: 1 plus (a2), then 2 minus (r2, r3) immediately before it.
+    // keep = min(2, 1) = 1, drop = 1 → r3 is dropped.
+    const lines: DiffLine[] = [
+      { type: "removed", oldNum: 1, content: "r" },
+      { type: "added", newNum: 1, content: "a" },
+      { type: "context", oldNum: 2, newNum: 2, content: "ctx" },
+      { type: "removed", oldNum: 3, content: "r2" },
+      { type: "removed", oldNum: 4, content: "r3" },
+      { type: "added", newNum: 3, content: "a2" },
+    ];
+    const result = trimTrailingRemovals(lines);
+    // r3 should be dropped (1 plus can only pair with 1 minus)
+    assert.deepStrictEqual(result, [
+      { type: "removed", oldNum: 1, content: "r" },
+      { type: "added", newNum: 1, content: "a" },
+      { type: "context", oldNum: 2, newNum: 2, content: "ctx" },
+      { type: "removed", oldNum: 3, content: "r2" },
+      { type: "added", newNum: 3, content: "a2" },
+    ]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // collectEditDiffLines
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -421,13 +609,13 @@ describe("end-to-end render", () => {
   let tmpDir: string;
 
   before(async () => {
-    const extensionModule = await import("../extensions/tool-renderer.js");
+    const { registerDiffRenderers } = await import("../tools/diff-renderer.js");
     const { api, tools: capturedTools } = createMockAPI();
     const origCwd = process.cwd;
     tmpDir = mkdtempSync(join(tmpdir(), "tool-renderer-test-"));
     process.cwd = () => tmpDir;
     try {
-      extensionModule.default(api);
+      registerDiffRenderers(api);
     } finally {
       process.cwd = origCwd;
     }
@@ -600,7 +788,12 @@ describe("end-to-end render", () => {
       args: { path: "test.ts" },
     });
     const result: AgentToolResult<any> = {
-      content: [{ type: "text", text: "Error: File not found: test.ts\nStack trace..." }],
+      content: [
+        {
+          type: "text",
+          text: "Error: File not found: test.ts\nStack trace...",
+        },
+      ],
       details: undefined,
     };
     const opts: ToolRenderResultOptions = { expanded: false, isPartial: false };
@@ -730,7 +923,10 @@ describe("end-to-end render", () => {
       executionStarted: false,
       argsComplete: false,
       state: {},
-      args: { path: "write-exists.ts", content: "new line1\nold line2\nold line3\n" },
+      args: {
+        path: "write-exists.ts",
+        content: "new line1\nold line2\nold line3\n",
+      },
     });
     const result: AgentToolResult<any> = { content: [], details: undefined };
     const opts: ToolRenderResultOptions = { expanded: false, isPartial: true };
@@ -755,9 +951,9 @@ describe("end-to-end render", () => {
     // New content has streamed ~15 lines so far. The frontier should be
     // where the streamed content ends and remaining old-file removals begin.
     const oldLines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
-    const newLines = oldLines.slice(0, 15).map((l, i) =>
-      i === 3 || i === 10 ? l.replace("line", "EDITED") : l,
-    );
+    const newLines = oldLines
+      .slice(0, 15)
+      .map((l, i) => (i === 3 || i === 10 ? l.replace("line", "EDITED") : l));
     const filePath = join(tmpDir, "write-frontier.ts");
     writeFileSync(filePath, oldLines.join("\n") + "\n", "utf-8");
 
@@ -794,10 +990,15 @@ describe("end-to-end render", () => {
       executionStarted: false,
       argsComplete: true,
       state: {},
-      args: { path: "replayed.ts", content: "replay line1\nreplay line2\nreplay line3" },
+      args: {
+        path: "replayed.ts",
+        content: "replay line1\nreplay line2\nreplay line3",
+      },
     });
     const result: AgentToolResult<any> = {
-      content: [{ type: "text", text: "Successfully wrote 50 bytes to replayed.ts" }],
+      content: [
+        { type: "text", text: "Successfully wrote 50 bytes to replayed.ts" },
+      ],
       details: undefined,
     };
     const opts: ToolRenderResultOptions = { expanded: false, isPartial: false };

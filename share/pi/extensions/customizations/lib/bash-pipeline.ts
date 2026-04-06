@@ -1,25 +1,16 @@
 /**
- * Bash Pipeline Output Recovery Extension
+ * Bash Pipeline Logic
  *
- * Transparently injects `tee` into bash pipelines before filtering commands
- * (grep, tail), preserving full unfiltered output for recovery when commands
- * time out or output is truncated.
+ * Pure functions for parsing bash pipelines and injecting `tee` commands
+ * to preserve full unfiltered output for recovery when commands time out
+ * or output is truncated.
  *
- * Example:
- *   terraform apply 2>&1 | grep -E 'Error|Apply' | tail -5
- * becomes:
- *   terraform apply 2>&1 | tee /tmp/pi-bash-tee-xxx.log | grep -E 'Error|Apply' | tail -5
+ * No pi-coding-agent dependencies — fully testable in isolation.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import {
-  isToolCallEventType,
-  isBashToolResult,
-} from "@mariozechner/pi-coding-agent";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { statSync } from "node:fs";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,11 +18,6 @@ export interface Segment {
   text: string;
   startPos: number;
   endPos: number;
-}
-
-interface TeeInfo {
-  teePath: string;
-  originalCommand: string;
 }
 
 // ─── Step 2: Quick bail checks ─────────────────────────────────────────────────
@@ -484,7 +470,10 @@ export function injectTee(
 
   // Find the whitespace between pipe and segment text
   let wsEnd = insertPos;
-  while (wsEnd < command.length && (command[wsEnd] === " " || command[wsEnd] === "\t")) {
+  while (
+    wsEnd < command.length &&
+    (command[wsEnd] === " " || command[wsEnd] === "\t")
+  ) {
     wsEnd++;
   }
 
@@ -506,48 +495,4 @@ export function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024 * 1024)
     return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GiB`;
-}
-
-// ─── Extension entry point ─────────────────────────────────────────────────────
-
-export default function (pi: ExtensionAPI) {
-  const activeTees = new Map<string, TeeInfo>();
-
-  pi.on("tool_call", async (event) => {
-    if (!isToolCallEventType("bash", event)) return;
-
-    const result = injectTee(event.input.command);
-    if (!result) return;
-
-    activeTees.set(event.toolCallId, {
-      teePath: result.teePath,
-      originalCommand: event.input.command,
-    });
-    event.input.command = result.modified;
-  });
-
-  pi.on("tool_result", async (event) => {
-    if (!isBashToolResult(event)) return;
-
-    const info = activeTees.get(event.toolCallId);
-    if (!info) return;
-    activeTees.delete(event.toolCallId);
-
-    try {
-      const stat = statSync(info.teePath);
-      if (stat.size === 0) return;
-      const size = formatSize(stat.size);
-      return {
-        content: [
-          ...event.content,
-          {
-            type: "text" as const,
-            text: `\n[Full unfiltered output saved to ${info.teePath} (${size})]`,
-          },
-        ],
-      };
-    } catch {
-      return; // File doesn't exist
-    }
-  });
 }

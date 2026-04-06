@@ -2,8 +2,8 @@
 	"name": "@cgamesplay/pi-extensions",
 	"type": "module",
 	"scripts": {
-		"test": "tsx --test tests/**/*.test.ts",
-		"test:update": "tsx --test --test-update-snapshots tests/**/*.test.ts"
+		"test": "tsx --test extensions/customizations/tests/**/*.test.ts",
+		"test:update": "tsx --test --test-update-snapshots extensions/customizations/tests/**/*.test.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.0.0",

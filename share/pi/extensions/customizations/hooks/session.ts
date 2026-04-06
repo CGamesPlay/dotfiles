@@ -1,122 +1,33 @@
 /**
- * Git-based checkpoint extension for pi-coding-agent
+ * Session Lifecycle Handlers
  *
- * Creates checkpoints at the start of each turn so you can restore
- * code state when forking conversations.
- *
- * Features:
- * - Captures tracked, staged, AND untracked files (respects .gitignore)
- * - Persists checkpoints as git refs (survives session resume)
- * - Saves current state before restore (allows going back to latest)
- *
- * Usage:
- *   pi --extension ./checkpoint.ts
- *
- * Or add to ~/.pi/agent/extensions/ or .pi/extensions/ for automatic loading.
+ * Orchestrates all session-related concerns in a defined order within each handler:
+ * checkpoint detection, terminal setup, theme detection, state reconstruction.
  */
 
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@mariozechner/pi-coding-agent";
 import { spawn } from "child_process";
 import {
   isGitRepo,
-  getRepoRoot,
+  isSafeId,
   createCheckpoint,
   restoreCheckpoint,
   listCheckpointRefs,
   loadCheckpointFromRef,
   computeCurrentWorktreeTreeSha,
   getDiffStat,
-  isSafeId,
+  getRepoRoot,
   type CheckpointData,
-} from "./checkpoint-core.js";
+} from "../lib/checkpoint-core.js";
+import { queryOsc11, STATUS_KEY } from "../lib/terminal.js";
+import { reconstructTodoState, refreshTodoWidget } from "../tools/todo.js";
+import type { AppState } from "../state.js";
 
-// ============================================================================
-// Minimal local types (avoid hard dependency on pi-coding-agent types)
-// ============================================================================
+// ─── Repo Root Cache ───────────────────────────────────────────────────────────
 
-type ExtensionAPI = {
-  on: (
-    event: string,
-    handler: (event: any, ctx: ExtensionContext) => any,
-  ) => void;
-};
-
-interface SessionManager {
-  getSessionFile(): string | undefined;
-  getHeader(): { id?: string; parentSession?: string } | undefined;
-  getEntry(id: string):
-    | {
-        timestamp?: string;
-        turnIndex?: number;
-        turn?: number;
-        sessionId?: string;
-        role?: string;
-        type?: string;
-        kind?: string;
-        author?: string;
-        message?: { role?: string };
-      }
-    | undefined;
-}
-
-interface ExtensionUIDialogOptions {
-  signal?: AbortSignal;
-  timeout?: number;
-}
-
-interface ExtensionUI {
-  select(
-    title: string,
-    options: string[],
-    opts?: ExtensionUIDialogOptions,
-  ): Promise<string | undefined>;
-  confirm(
-    title: string,
-    message: string,
-    opts?: ExtensionUIDialogOptions,
-  ): Promise<boolean>;
-  notify(message: string, type: "info" | "error" | "warning"): void;
-}
-
-interface ExtensionContext {
-  cwd: string;
-  sessionManager: SessionManager;
-  ui: ExtensionUI;
-}
-
-// ============================================================================
-// State management
-// ============================================================================
-
-interface CheckpointState {
-  gitAvailable: boolean;
-  checkpointingFailed: boolean;
-  currentSessionId: string;
-  currentSessionFile: string | undefined;
-  checkpointCache: CheckpointData[] | null;
-  pendingCheckpoint: Promise<void> | null;
-}
-
-function createInitialState(): CheckpointState {
-  return {
-    gitAvailable: false,
-    checkpointingFailed: false,
-    currentSessionId: "",
-    currentSessionFile: undefined,
-    checkpointCache: null,
-    pendingCheckpoint: null,
-  };
-}
-
-/** Add checkpoint to cache */
-function addToCache(state: CheckpointState, cp: CheckpointData): void {
-  if (!state.checkpointCache) {
-    state.checkpointCache = [];
-  }
-  if (state.checkpointCache.some((existing) => existing.id === cp.id)) return;
-  state.checkpointCache.push(cp);
-}
-
-// Repo root cache (module-level for efficiency across sessions)
 let cachedRepoRoot: string | null = null;
 let cachedRepoCwd: string | null = null;
 
@@ -136,25 +47,70 @@ function resetRepoCache(): void {
   cachedRepoCwd = null;
 }
 
-/** Read first line of a file using head (efficient, doesn't load entire file) */
+// Re-export for use by other hooks
+export { getCachedRepoRoot };
+
+// ─── Checkpoint Helpers ────────────────────────────────────────────────────────
+
+function addToCache(state: AppState, cp: CheckpointData): void {
+  if (!state.checkpoint.checkpointCache) {
+    state.checkpoint.checkpointCache = [];
+  }
+  if (
+    state.checkpoint.checkpointCache.some((existing) => existing.id === cp.id)
+  )
+    return;
+  state.checkpoint.checkpointCache.push(cp);
+}
+
+// Re-export for use by other hooks
+export { addToCache };
+
 function readFirstLine(filePath: string): Promise<string> {
   return new Promise((resolve) => {
     const proc = spawn("head", ["-1", filePath], {
       stdio: ["ignore", "pipe", "ignore"],
     });
     let data = "";
-    proc.stdout.on("data", (chunk) => (data += chunk));
+    proc.stdout.on("data", (chunk: Buffer) => (data += chunk));
     proc.on("close", () => resolve(data.trim()));
     proc.on("error", () => resolve(""));
   });
 }
 
-/** Extract a JSON field from a line using regex (avoids JSON.parse overhead) */
 function extractJsonField(line: string, field: string): string | undefined {
   const regex = new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, "i");
   const match = line.match(regex);
   return match?.[1] || undefined;
 }
+
+async function getSessionIdFromFile(sessionFile: string): Promise<string> {
+  try {
+    const line = await readFirstLine(sessionFile);
+    if (line) {
+      const id = extractJsonField(line, "id") || "";
+      if (isSafeId(id)) return id;
+    }
+  } catch {}
+
+  const basename = sessionFile.split("/").pop() || "";
+  const match = basename.match(/_([0-9a-f-]{36})\.jsonl$/);
+  if (match && isSafeId(match[1])) {
+    return match[1];
+  }
+
+  return "";
+}
+
+function updateSessionInfo(state: AppState, sessionManager: any): void {
+  state.checkpoint.currentSessionFile = sessionManager.getSessionFile();
+  const header = sessionManager.getHeader();
+  state.checkpoint.currentSessionId =
+    header?.id && isSafeId(header.id) ? header.id : "";
+}
+
+// Re-export for use by agent hooks
+export { getSessionIdFromFile, updateSessionInfo };
 
 interface CheckpointRefInfo {
   id: string;
@@ -162,10 +118,10 @@ interface CheckpointRefInfo {
 }
 
 function getCachedCheckpointById(
-  state: CheckpointState,
+  state: AppState,
   id: string,
 ): CheckpointData | undefined {
-  return state.checkpointCache?.find((cp) => cp.id === id);
+  return state.checkpoint.checkpointCache?.find((cp) => cp.id === id);
 }
 
 function parseCheckpointTimestampFromId(id: string): number | undefined {
@@ -199,52 +155,15 @@ function isUserEntry(entry: any): boolean | undefined {
   return undefined;
 }
 
-// ============================================================================
-// Session helpers
-// ============================================================================
-
-/** Extract session ID from a session file */
-async function getSessionIdFromFile(sessionFile: string): Promise<string> {
-  try {
-    const line = await readFirstLine(sessionFile);
-    if (line) {
-      const id = extractJsonField(line, "id") || "";
-      if (isSafeId(id)) return id;
-    }
-  } catch {}
-
-  const basename = sessionFile.split("/").pop() || "";
-  const match = basename.match(/_([0-9a-f-]{36})\.jsonl$/);
-  if (match && isSafeId(match[1])) {
-    return match[1];
-  }
-
-  return "";
-}
-
-/** Update session info from context */
-function updateSessionInfo(
-  state: CheckpointState,
-  sessionManager: SessionManager,
-): void {
-  state.currentSessionFile = sessionManager.getSessionFile();
-  const header = sessionManager.getHeader();
-  state.currentSessionId = header?.id && isSafeId(header.id) ? header.id : "";
-}
-
-// ============================================================================
-// Checkpoint operations
-// ============================================================================
-
-/** Load the best matching checkpoint for a target timestamp */
 async function loadCheckpointForTarget(
-  state: CheckpointState,
+  state: AppState,
   cwd: string,
   header: { id?: string; parentSession?: string } | undefined,
   targetTs: number,
   options: { targetTurnIndex?: number; targetSessionId?: string } = {},
 ): Promise<CheckpointData | null> {
-  if (state.pendingCheckpoint) await state.pendingCheckpoint;
+  if (state.checkpoint.pendingCheckpoint)
+    await state.checkpoint.pendingCheckpoint;
 
   const sessionIds: string[] = [];
   const directSessionIds: string[] = [];
@@ -258,8 +177,8 @@ async function loadCheckpointForTarget(
     directSessionIds.push(targetSessionId);
   } else if (header?.id && isSafeId(header.id)) {
     directSessionIds.push(header.id);
-  } else if (state.currentSessionId) {
-    directSessionIds.push(state.currentSessionId);
+  } else if (state.checkpoint.currentSessionId) {
+    directSessionIds.push(state.checkpoint.currentSessionId);
   }
 
   directSessionIds.forEach((id) => sessionIds.push(id));
@@ -339,21 +258,20 @@ async function loadCheckpointForTarget(
   return checkpoint ?? null;
 }
 
-/** Save current state and restore to checkpoint */
 async function saveAndRestore(
-  state: CheckpointState,
+  state: AppState,
   cwd: string,
   target: CheckpointData,
   notify: (msg: string, type: "info" | "error" | "warning") => void,
 ): Promise<void> {
   try {
     const root = await getCachedRepoRoot(cwd);
-    const beforeId = `${state.currentSessionId}-before-restore-${Date.now()}`;
+    const beforeId = `${state.checkpoint.currentSessionId}-before-restore-${Date.now()}`;
     const newCp = await createCheckpoint(
       root,
       beforeId,
       0,
-      state.currentSessionId,
+      state.checkpoint.currentSessionId,
     );
     addToCache(state, newCp);
     await restoreCheckpoint(root, target);
@@ -366,32 +284,11 @@ async function saveAndRestore(
   }
 }
 
-/** Create a checkpoint for the current turn */
-async function createTurnCheckpoint(
-  state: CheckpointState,
-  cwd: string,
-  turnIndex: number,
-  timestamp: number,
-): Promise<void> {
-  const root = await getCachedRepoRoot(cwd);
-  const id = `${state.currentSessionId}-turn-${turnIndex}-${timestamp}`;
-  const cp = await createCheckpoint(
-    root,
-    id,
-    turnIndex,
-    state.currentSessionId,
-  );
-  addToCache(state, cp);
-}
+// ─── Restore Prompt ────────────────────────────────────────────────────────────
 
-// ============================================================================
-// Restore UI
-// ============================================================================
-
-/** Handle restore prompt for fork/tree navigation */
 async function handleRestorePrompt(
-  state: CheckpointState,
-  ctx: ExtensionContext,
+  state: AppState,
+  ctx: any,
   getTargetEntryId: () => string,
   options: { requireUserEntry?: boolean } = {},
 ): Promise<undefined> {
@@ -429,7 +326,6 @@ async function handleRestorePrompt(
 
   const root = await getCachedRepoRoot(ctx.cwd);
 
-  // Check whether the current working tree differs from the checkpoint snapshot.
   let currentTreeSha: string | null = null;
   try {
     currentTreeSha = await computeCurrentWorktreeTreeSha(root);
@@ -444,11 +340,9 @@ async function handleRestorePrompt(
     currentTreeSha !== null &&
     currentTreeSha === checkpoint.worktreeTreeSha
   ) {
-    // Code is identical — no restore needed, proceed without prompting.
     return undefined;
   }
 
-  // Build the diff --stat message to show in the confirm dialog.
   let message = "";
   if (currentTreeSha !== null) {
     const stat = await getDiffStat(
@@ -473,65 +367,133 @@ async function handleRestorePrompt(
   return undefined;
 }
 
-// ============================================================================
-// Extension entry point
-// ============================================================================
+// ─── Exported Handlers ─────────────────────────────────────────────────────────
 
-export default function (pi: ExtensionAPI) {
-  const state = createInitialState();
-
-  pi.on("session_start", async (_event: any, ctx: ExtensionContext) => {
-    resetRepoCache();
-
-    state.gitAvailable = await isGitRepo(ctx.cwd);
-    if (!state.gitAvailable) return;
-
+export async function onSessionStart(
+  state: AppState,
+  _pi: ExtensionAPI,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // 1. Detect git repo for checkpointing
+  resetRepoCache();
+  state.checkpoint.gitAvailable = await isGitRepo(ctx.cwd);
+  if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
-  });
+  }
 
-  pi.on("session_switch", async (_event: any, ctx: ExtensionContext) => {
-    if (!state.gitAvailable) return;
-    updateSessionInfo(state, ctx.sessionManager);
-  });
+  // 2. Enable terminal focus reporting (for agent-end notification)
+  if (ctx.hasUI) {
+    process.stdout.write("\x1b[?1004h");
 
-  pi.on("session_fork", async (_event: any, ctx: ExtensionContext) => {
-    if (!state.gitAvailable) return;
-    updateSessionInfo(state, ctx.sessionManager);
-  });
-
-  pi.on("session_before_fork", async (event: any, ctx: ExtensionContext) => {
-    if (!state.gitAvailable) return undefined;
-    return handleRestorePrompt(state, ctx, () => event.entryId);
-  });
-
-  pi.on("session_before_tree", async (event: any, ctx: ExtensionContext) => {
-    if (!state.gitAvailable) return undefined;
-    return handleRestorePrompt(state, ctx, () => event.preparation.targetId, {
-      requireUserEntry: true,
-    });
-  });
-
-  pi.on("turn_start", async (event: any, ctx: ExtensionContext) => {
-    if (!state.gitAvailable || state.checkpointingFailed) return;
-
-    if (!state.currentSessionId && state.currentSessionFile) {
-      state.currentSessionId = await getSessionIdFromFile(
-        state.currentSessionFile,
-      );
-    }
-    if (!state.currentSessionId) return;
-
-    state.pendingCheckpoint = (async () => {
-      try {
-        await createTurnCheckpoint(
-          state,
-          ctx.cwd,
-          event.turnIndex,
-          event.timestamp,
-        );
-      } catch {
-        state.checkpointingFailed = true;
+    ctx.ui.onTerminalInput((data) => {
+      if (data === "\x1b[O") {
+        return { consume: true };
       }
-    })();
+      // Focus gained or any input — cancel notification timer
+      if (state.notify.delayTimer !== undefined) {
+        clearTimeout(state.notify.delayTimer);
+        state.notify.delayTimer = undefined;
+      }
+      if (data === "\x1b[I") {
+        return { consume: true };
+      }
+      return undefined;
+    });
+  }
+
+  // 3. Query OSC 11 for theme
+  if (ctx.hasUI) {
+    queryOsc11(ctx);
+  }
+
+  // 4. Reconstruct todo state
+  reconstructTodoState(state, ctx);
+  refreshTodoWidget(state, ctx);
+}
+
+export async function onSessionSwitch(
+  state: AppState,
+  _pi: ExtensionAPI,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // 1. Update checkpoint session info
+  if (state.checkpoint.gitAvailable) {
+    updateSessionInfo(state, ctx.sessionManager);
+  }
+
+  // 2. Query OSC 11
+  if (ctx.hasUI) {
+    queryOsc11(ctx);
+  }
+
+  // 3. Reconstruct todo state
+  reconstructTodoState(state, ctx);
+  refreshTodoWidget(state, ctx);
+}
+
+export async function onSessionFork(
+  state: AppState,
+  _pi: ExtensionAPI,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // 1. Update checkpoint session info
+  if (state.checkpoint.gitAvailable) {
+    updateSessionInfo(state, ctx.sessionManager);
+  }
+
+  // 2. Reconstruct todo state
+  reconstructTodoState(state, ctx);
+  refreshTodoWidget(state, ctx);
+}
+
+export async function onSessionTree(
+  state: AppState,
+  _pi: ExtensionAPI,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // 1. Reconstruct todo state and refresh widget
+  reconstructTodoState(state, ctx);
+  refreshTodoWidget(state, ctx);
+}
+
+export async function onSessionBeforeFork(
+  state: AppState,
+  event: any,
+  ctx: ExtensionContext,
+) {
+  if (!state.checkpoint.gitAvailable) return undefined;
+  return handleRestorePrompt(state, ctx, () => event.entryId);
+}
+
+export async function onSessionBeforeTree(
+  state: AppState,
+  event: any,
+  ctx: ExtensionContext,
+) {
+  if (!state.checkpoint.gitAvailable) return undefined;
+  return handleRestorePrompt(state, ctx, () => event.preparation.targetId, {
+    requireUserEntry: true,
   });
+}
+
+export async function onSessionShutdown(
+  state: AppState,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // 1. Stop elapsed timer
+  if (state.timer.interval) {
+    clearInterval(state.timer.interval);
+    state.timer.interval = null;
+  }
+  ctx.ui.setStatus(STATUS_KEY, undefined);
+
+  // 2. Disable focus reporting
+  if (ctx.hasUI) {
+    process.stdout.write("\x1b[?1004l");
+  }
 }

@@ -1,59 +1,17 @@
 /**
- * Custom Tool Renderer Extension
+ * Diff Computation & Formatting
  *
- * Overrides built-in edit and write tool rendering to show minimal colored diffs
- * instead of raw tool call arguments.
+ * Pure functions for computing diffs, formatting them with side-by-side
+ * line numbers, and rendering collapsible output.
  *
  * Diff format uses side-by-side line numbers:
  *   10 ⋮ 10 │context line
  *   11 ⋮    │removed line        (red)
  *      ⋮ 11 │added line          (green)
- *
- * During streaming:
- * - write: sync-loads old file content into state on first render, diffs against streaming args.content
- * - edit: diffs args.oldText vs args.newText directly
- *
- * ## ToolRenderContext lifecycle states
- *
- * renderCall is invoked in all states; renderResult only when a result exists.
- * The context fields that matter for deciding what to show:
- *
- * | State                          | argsComplete | executionStarted | isPartial |
- * |--------------------------------|--------------|------------------|-----------|
- * | Live, streaming args           | false        | false            | true      |
- * | Live, args done, pending exec  | true         | false            | true      |
- * | Live, executing                | true         | true             | true      |
- * | Live, execution complete       | true         | true             | false     |
- * | Session replay                 | true         | false            | false     |
- *
- * Key insight: on session replay, executionStarted is never set (markExecutionStarted
- * is only called during live execution). The way to distinguish "replay" from
- * "live pre-execution" is isPartial: it starts true and becomes false only when
- * updateResult() is called with a final result (including during replay).
- *
- * So: `isPartial && !executionStarted` = live, pre-execution (show preview diff)
- *     `!isPartial` = final result exists
- *
- * For the edit tool, renderResult handles the final diff (using details.diff
- * from the built-in tool which has correct file-level line numbers).
- *
- * For the write tool, renderCall handles ALL rendering (streaming preview,
- * execution, and final result). renderResult just returns empty to suppress
- * the built-in "Successfully wrote N bytes" message. Old file content is
- * loaded synchronously on first renderCall to avoid race conditions with
- * the write execution.
  */
 
-import type {
-  EditToolDetails,
-  ExtensionAPI,
-  Theme,
-} from "@mariozechner/pi-coding-agent";
-import { createEditTool, createWriteTool } from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+import type { Theme } from "@mariozechner/pi-coding-agent";
 import * as Diff from "diff";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 
 export const COLLAPSED_MAX_LINES = 10;
 
@@ -321,37 +279,58 @@ export function trimContext(lines: DiffLine[], contextLines = 1): DiffLine[] {
 }
 
 /**
- * Reorder diff lines so additions come before removals in each hunk.
- * (-minus, +plus) and (+plus, -minus) are equivalent operations, but the
- * latter is more useful during streaming: the last + line is the streaming
- * frontier, and having removals after it means the truncation window shows
- * useful added content instead of a wall of deletions.
+ * Trim excess trailing removed lines during streaming.
+ *
+ * While the tool call is streaming, the diff tail looks like:
+ *   ... additions ...  ← new content written so far
+ *   ... removals ...   ← old-file lines not yet replaced
+ *
+ * We only want to show as many trailing removals as are "unaccounted for"
+ * by the additions above them. Algorithm:
+ *
+ * 1. Walk backwards from the end; count consecutive `+` lines → num_plus.
+ * 2. Continue walking backwards; count consecutive `-` lines → num_minus.
+ * 3. Keep the first (num_minus - num_plus + 1) minus lines and drop the rest.
+ *    e.g. 1 plus + 1 minus → keep 1, drop 0
+ *         1 plus + 10 minus → keep 1, drop 9
+ *         0 plus + 5 minus → keep 5, drop 0 (no additions yet)
  */
-export function reorderAdditionsFirst(lines: DiffLine[]): DiffLine[] {
-  const result: DiffLine[] = [];
-  let i = 0;
-  while (i < lines.length) {
-    if (lines[i].type === "removed") {
-      // Collect the run of removals
-      const removals: DiffLine[] = [];
-      while (i < lines.length && lines[i].type === "removed") {
-        removals.push(lines[i]);
-        i++;
-      }
-      // Collect any immediately following additions
-      const additions: DiffLine[] = [];
-      while (i < lines.length && lines[i].type === "added") {
-        additions.push(lines[i]);
-        i++;
-      }
-      // Emit additions first, then removals
-      result.push(...additions, ...removals);
-    } else {
-      result.push(lines[i]);
-      i++;
-    }
+export function trimTrailingRemovals(lines: DiffLine[]): DiffLine[] {
+  let i = lines.length - 1;
+
+  // Count trailing + lines
+  let numPlus = 0;
+  while (i >= 0 && lines[i].type === "added") {
+    numPlus++;
+    i--;
   }
-  return result;
+
+  // Count the - lines immediately before those + lines
+  const minusEnd = i; // index of last - line in the block (if any)
+  let numMinus = 0;
+  while (i >= 0 && lines[i].type === "removed") {
+    numMinus++;
+    i--;
+  }
+
+  if (numMinus === 0 || numPlus === 0) {
+    // Nothing to trim: no trailing removals, or no additions to pair them with
+    return lines;
+  }
+
+  const keep = Math.min(numMinus, numPlus);
+  const drop = numMinus - keep;
+
+  if (drop === 0) {
+    return lines;
+  }
+
+  // Remove `drop` lines starting right after the keep-th minus line
+  // The minus block spans indices [minusEnd - numMinus + 1 .. minusEnd]
+  // We keep the first `keep` of those and drop the remaining `drop`.
+  const minusStart = minusEnd - numMinus + 1;
+  const dropStart = minusStart + keep; // first index to drop
+  return [...lines.slice(0, dropStart), ...lines.slice(dropStart + drop)];
 }
 
 /** Remove line numbers (for preview diffs where numbers are snippet-relative). */
@@ -513,7 +492,7 @@ export function diffSummary(lines: DiffLine[], theme: Theme): string {
     theme.fg("success", `+${additions}`) +
     theme.fg("dim", " / ") +
     theme.fg("error", `-${removals}`) +
-    theme.fg("muted", " lines changed")
+    theme.fg("muted", " lines")
   );
 }
 
@@ -566,144 +545,4 @@ export function collectEditDiffLines(args: any): DiffLine[] {
     }
   }
   return normalizeGaps(allLines);
-}
-
-// ─── Extension entry point ─────────────────────────────────────────────────────
-
-export default function (pi: ExtensionAPI) {
-  const cwd = process.cwd();
-
-  // --- Edit tool ---
-  const originalEdit = createEditTool(cwd);
-  pi.registerTool({
-    name: "edit",
-    label: "edit",
-    description: originalEdit.description,
-    parameters: originalEdit.parameters,
-
-    async execute(toolCallId, params, signal, onUpdate) {
-      return originalEdit.execute(toolCallId, params, signal, onUpdate);
-    },
-
-    renderCall(args, theme, context) {
-      let text = theme.fg("toolTitle", theme.bold("edit "));
-      text += theme.fg("accent", args.path ?? "");
-
-      // Show mini-diff from args while in-flight (no final result yet).
-      // Strip line numbers since they're snippet-relative.
-      if (context.isPartial) {
-        const allLines = reorderAdditionsFirst(collectEditDiffLines(args));
-        if (allLines.length) {
-          stripLineNumbers(allLines);
-          text += "\n" + renderDiffResult(allLines, context.expanded, theme);
-        }
-      }
-
-      return new Text(text, 0, 0);
-    },
-
-    renderResult(result, { expanded, isPartial }, theme, context) {
-      // During execution, renderCall handles the preview diff
-      if (isPartial) return new Text("", 0, 0);
-
-      const details = result.details as EditToolDetails | undefined;
-      const content = result.content[0];
-
-      if (content?.type === "text" && content.text.startsWith("Error")) {
-        return new Text(theme.fg("error", content.text.split("\n")[0]), 0, 0);
-      }
-
-      // Prefer the full-file diff from details (has correct line numbers);
-      // fall back to diffing the args (line numbers relative to snippet).
-      let diffLines: DiffLine[] | undefined;
-      if (details?.diff) {
-        diffLines = trimContext(parsePiDiff(details.diff), 1);
-      }
-      if (!diffLines?.length) {
-        diffLines = collectEditDiffLines(context.args);
-      }
-
-      if (!diffLines?.length) {
-        const msg = content?.type === "text" ? content.text : "Done";
-        return new Text(theme.fg("success", msg), 0, 0);
-      }
-
-      return new Text(
-        renderDiffResult(reorderAdditionsFirst(diffLines), expanded, theme),
-        0,
-        0,
-      );
-    },
-  });
-
-  // --- Write tool ---
-  const originalWrite = createWriteTool(cwd);
-
-  interface WriteRenderState {
-    oldContent?: string; // undefined = not loaded; '' = new file
-  }
-
-  pi.registerTool({
-    name: "write",
-    label: "write",
-    description: originalWrite.description,
-    parameters: originalWrite.parameters,
-
-    async execute(toolCallId, params, signal, onUpdate) {
-      return originalWrite.execute(toolCallId, params, signal, onUpdate);
-    },
-
-    renderCall(args, theme, context) {
-      const state = context.state as WriteRenderState;
-      const isReplay = !context.isPartial && !context.executionStarted;
-
-      // Load old content synchronously on first render (before execute writes).
-      // Sync avoids the race condition where async read completes after write.
-      if (state.oldContent === undefined && !isReplay && args.path) {
-        try {
-          state.oldContent = readFileSync(resolve(cwd, args.path), "utf-8");
-        } catch {
-          state.oldContent = ""; // New file
-        }
-      }
-
-      let text = theme.fg("toolTitle", theme.bold("write "));
-      text += theme.fg("accent", args.path ?? "");
-
-      const newContent = args.content ?? "";
-      if (!newContent) return new Text(text, 0, 0);
-
-      if (isReplay) {
-        // Can't recover old content on replay — show file listing
-        text +=
-          "\n" + renderWrittenContent(newContent, context.expanded, theme);
-      } else if (state.oldContent !== undefined) {
-        const diffLines = computeDiffLines(state.oldContent, newContent);
-        if (diffLines.length) {
-          // Reorder so additions come before removals — during streaming
-          // this puts the frontier (last +) before the trailing deletions,
-          // making the truncation window show useful content.
-          const reordered = reorderAdditionsFirst(diffLines);
-          const formatted = formatDiffLines(reordered, theme);
-          const summary = diffSummary(reordered, theme);
-          text +=
-            "\n" +
-            formatCollapsibleAtFrontier(
-              formatted,
-              reordered,
-              summary,
-              context.expanded,
-              theme,
-            );
-        }
-      }
-
-      return new Text(text, 0, 0);
-    },
-
-    renderResult(_result, _opts, _theme) {
-      // All rendering handled by renderCall; suppress built-in message
-      return new Text("", 0, 0);
-    },
-  });
 }
