@@ -24,11 +24,12 @@ import {
   onAgentEnd,
   onBeforeAgentStart,
   onTurnStart,
+  onTurnEnd,
 } from "./hooks/agent.js";
 import { onToolCall, onToolResult, onUserBash } from "./hooks/tool-events.js";
 
 // Tools & Commands
-import { registerTodoTool, registerTodoCommands } from "./tools/todo.js";
+import { registerTodoCommands } from "./tools/todo.js";
 import {
   registerPlanningTools,
   registerPlanningCommands,
@@ -64,14 +65,14 @@ export default function (pi: ExtensionAPI) {
     onBeforeAgentStart(state, pi, e, ctx),
   );
   pi.on("turn_start", (e, ctx) => onTurnStart(state, e, ctx));
+  pi.on("turn_end", (e, ctx) => onTurnEnd(state, pi, e, ctx));
 
   // Tool interception
   pi.on("tool_call", (e, ctx) => onToolCall(state, pi, e, ctx));
-  pi.on("tool_result", (e, ctx) => onToolResult(state, e, ctx));
+  pi.on("tool_result", (e, ctx) => onToolResult(state, pi, e, ctx));
   pi.on("user_bash", (e, ctx) => onUserBash(pi, e, ctx));
 
   // ── Tools ──────────────────────────────────────────────
-  registerTodoTool(state, pi);
   registerPlanningTools(state, pi);
   registerDiffRenderers(pi);
   registerSystemAssistantTools(state, pi);

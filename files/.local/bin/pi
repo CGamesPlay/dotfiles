@@ -81,8 +81,7 @@ main() {
 		fi
 		script="set -a && source '$PI_ENV_FILE' && exec direnv exec . \"\$@\""
 		safehouse_args=(
-			--enable=clipboard
-			--enable=xcode
+			--enable="clipboard,macos-gui,xcode"
 			--add-dirs-ro /Library/Preferences/com.apple.dt.Xcode.plist
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after
@@ -93,9 +92,13 @@ main() {
 			--add-dirs-ro ~/.config/direnv
 			--add-dirs-ro ~/.local/share/nvim
 			--add-dirs-ro ~/.local/share/direnv
+			--add-dirs-ro ~/Applications
 			--add-dirs ~/.local/state/nvim
 			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.pi
+			--add-dirs ~/.local/share/claude
+			--add-dirs ~/.claude
+			--add-dirs ~/.claude.json
 			--env-pass "EDITOR,NVM_DIR,DFM_DIR"
 			${argc_safehouse_rw+"${argc_safehouse_rw[@]/#/--add-dirs=}"}
 			${argc_safehouse_ro+"${argc_safehouse_rw[@]/#/--add-dirs-ro=}"}

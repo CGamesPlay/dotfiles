@@ -30,7 +30,17 @@ import {
   addToCache,
   getSessionIdFromFile,
 } from "./session.js";
+import { detectExternalModifications } from "../lib/session-storage.js";
+import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
 import type { AppState } from "../state.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const extensionPrompt = readFileSync(
+  path.join(__dirname, "..", "prompt.md"),
+  "utf-8",
+);
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -145,13 +155,14 @@ export async function onBeforeAgentStart(
   let systemPrompt = event.systemPrompt;
   let customMessage: any = undefined;
 
-  // 1. Inject todo reminder into system prompt
-  const firstUnfinished = state.todo.items.find((t) => !t.done);
-  if (firstUnfinished) {
-    systemPrompt += `\n\nCurrent todo item is "#${firstUnfinished.id} ${firstUnfinished.text}". Remember to keep this up to date with the todo tool.`;
-  }
+  // 1. Detect external modifications to session storage
+  await detectExternalModifications(state, pi, ctx);
 
-  // 2. Inject plan context note (if finish_plan was called but user didn't implement)
+  // 2. Customize the system prompt
+  systemPrompt += `\n\n${extensionPrompt}\n\nCurrent value of $PI_SESSION_STORAGE: ${state.sessionStorage.dir}`;
+  systemPrompt = modifySystemPrompt(pi, systemPrompt) ?? systemPrompt;
+
+  // 3. Decide if we need to generate a guidance message before the turn starts.
   const branch = [...ctx.sessionManager.getBranch()].reverse();
   for (const entry of branch) {
     const msg = (entry as any)?.message;
@@ -172,22 +183,21 @@ export async function onBeforeAgentStart(
     }
   }
 
-  // 3. Strip repo AGENTS.md + inject completion guidance (system-assistant)
-  const modifiedPrompt = modifySystemPrompt(pi, systemPrompt);
-  if (modifiedPrompt !== undefined) {
-    systemPrompt = modifiedPrompt;
-  }
+  return { systemPrompt, customMessage };
+}
 
-  // Build return value
-  const result: any = {};
-  if (systemPrompt !== event.systemPrompt) {
-    result.systemPrompt = systemPrompt;
-  }
-  if (customMessage) {
-    result.message = customMessage;
-  }
+export async function onTurnEnd(
+  state: AppState,
+  pi: ExtensionAPI,
+  _event: any,
+  ctx: ExtensionContext,
+) {
+  // Detect external modifications to session storage
+  await detectExternalModifications(state, pi, ctx);
 
-  return Object.keys(result).length > 0 ? result : undefined;
+  // Sync todo state from storage (agent may have written TODO.md)
+  syncTodoStateFromStorage(state);
+  refreshTodoWidget(state, ctx);
 }
 
 export async function onTurnStart(

@@ -39,14 +39,31 @@ export interface AppState {
 
   // Todo
   todo: {
-    items: Array<{ id: number; text: string; done: boolean }>;
-    nextId: number;
+    /** Parsed from TODO.md — null if file doesn't exist or can't be parsed */
+    items: Array<{ text: string; done: boolean }> | null;
+    /** Whether we've already warned the agent about parse failure for current file content */
+    parseErrorNotified: boolean;
+    /** Raw content of TODO.md last time we parsed (to detect changes for re-warning) */
+    lastRawContent: string | null;
+    /** Manual widget visibility override */
     widgetVisibility: boolean | null;
   };
 
   // System assistant (completion mode)
   completion: {
     currentCommand: string | null;
+  };
+
+  // Session storage
+  sessionStorage: {
+    dir: string;
+    /** What we believe the FS looks like. Absolute path → snapshot. */
+    trackedFiles: Map<
+      string,
+      { content: string; ino: number; mtimeMs: number }
+    >;
+    /** Files currently being written by internal write/edit tools (suppress detection). */
+    pendingInternalWrites: Set<string>;
   };
 }
 
@@ -74,12 +91,18 @@ export function createAppState(): AppState {
       pendingFinishPlan: false,
     },
     todo: {
-      items: [],
-      nextId: 1,
+      items: null,
+      parseErrorNotified: false,
+      lastRawContent: null,
       widgetVisibility: null,
     },
     completion: {
       currentCommand: null,
+    },
+    sessionStorage: {
+      dir: "",
+      trackedFiles: new Map(),
+      pendingInternalWrites: new Set(),
     },
   };
 }

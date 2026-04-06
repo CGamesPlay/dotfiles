@@ -11,10 +11,21 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@mariozechner/pi-coding-agent": "^0.63.2",
+		"@mariozechner/pi-coding-agent": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-coding-agent.tgz",
+		"@mariozechner/pi-ai": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-ai.tgz",
+		"@mariozechner/pi-tui": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-tui.tgz",
 		"@sinclair/typebox": "^0.34.33",
 		"diff": "^8.0.2",
 		"vscode-languageserver-protocol": "^3.17.5"
+	},
+	"overrides": {
+		"@mariozechner/pi-coding-agent": "$@mariozechner/pi-coding-agent",
+		"@mariozechner/pi-ai": "$@mariozechner/pi-ai",
+		"@mariozechner/pi-tui": "$@mariozechner/pi-tui",
+		"@mariozechner/pi-agent-core": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-agent-core.tgz",
+		"@mariozechner/pi-mom": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-mom.tgz",
+		"@mariozechner/pi-web-ui": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-web-ui.tgz",
+		"@mariozechner/pi": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi.tgz"
 	},
 	"pi": {
 		"extensions": [

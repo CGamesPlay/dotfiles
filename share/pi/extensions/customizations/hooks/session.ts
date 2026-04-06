@@ -23,7 +23,12 @@ import {
   type CheckpointData,
 } from "../lib/checkpoint-core.js";
 import { queryOsc11, STATUS_KEY } from "../lib/terminal.js";
-import { reconstructTodoState, refreshTodoWidget } from "../tools/todo.js";
+import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
+import {
+  resyncSessionStorage,
+  clearSessionDirContents,
+  removeSessionDirIfEmpty,
+} from "../lib/session-storage.js";
 import type { AppState } from "../state.js";
 
 // ─── Repo Root Cache ───────────────────────────────────────────────────────────
@@ -407,8 +412,11 @@ export async function onSessionStart(
     queryOsc11(ctx);
   }
 
-  // 4. Reconstruct todo state
-  reconstructTodoState(state, ctx);
+  // 4. Resync session storage
+  await resyncSessionStorage(state, ctx);
+
+  // 5. Sync todo state from storage (must be after resync)
+  syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }
 
@@ -428,8 +436,11 @@ export async function onSessionSwitch(
     queryOsc11(ctx);
   }
 
-  // 3. Reconstruct todo state
-  reconstructTodoState(state, ctx);
+  // 3. Resync session storage
+  await resyncSessionStorage(state, ctx);
+
+  // 4. Sync todo state from storage
+  syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }
 
@@ -444,8 +455,11 @@ export async function onSessionFork(
     updateSessionInfo(state, ctx.sessionManager);
   }
 
-  // 2. Reconstruct todo state
-  reconstructTodoState(state, ctx);
+  // 2. Resync session storage
+  await resyncSessionStorage(state, ctx);
+
+  // 3. Sync todo state from storage
+  syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }
 
@@ -455,8 +469,11 @@ export async function onSessionTree(
   _event: any,
   ctx: ExtensionContext,
 ) {
-  // 1. Reconstruct todo state and refresh widget
-  reconstructTodoState(state, ctx);
+  // 1. Resync session storage
+  await resyncSessionStorage(state, ctx);
+
+  // 2. Sync todo state from storage
+  syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }
 
@@ -495,5 +512,11 @@ export async function onSessionShutdown(
   // 2. Disable focus reporting
   if (ctx.hasUI) {
     process.stdout.write("\x1b[?1004l");
+  }
+
+  // 3. Clean up session storage (remove materialized files, remove dir if empty)
+  if (state.sessionStorage.dir) {
+    await clearSessionDirContents(state.sessionStorage.dir);
+    await removeSessionDirIfEmpty(state.sessionStorage.dir);
   }
 }
