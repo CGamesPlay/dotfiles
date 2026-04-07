@@ -14,11 +14,7 @@ dotfiles() { :; }
 # @cmd Open an editor in the dotfiles directory
 dotfiles::edit() {
 	cd "$(dotfiles_root)"
-	if command -v neovide >/dev/null; then
-		neovide
-	else
-		$EDITOR
-	fi
+	neovide
 }
 
 # @cmd Pull the latest version and sync.

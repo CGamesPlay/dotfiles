@@ -49,7 +49,7 @@ pick_socket() {
 
 	# Build label → socket map and check for pwd matches.
 	local -a pwd_matches=()
-	for sock in "${sockets[@]}"; do
+	for sock in ${sockets+"${sockets[@]}"}; do
 		cwd=$(nvim --headless --server "$sock" --remote-expr "getcwd()" 2>/dev/null) || continue
 		if [[ "$cwd" == "$PWD" ]]; then
 			pwd_matches+=("$sock")

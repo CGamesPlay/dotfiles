@@ -16,6 +16,8 @@
 # @flag   --pi-reinstall     Reinstall/Upgrade Pi even if already installed
 # @option --model <MODEL>    Use a specific model
 # @option --thinking <LEVEL> Use a specific thinking level
+# @option --safehouse-rw <DIR> Add a writable directory to safehouse
+# @option --safehouse-ro <DIR> Add a readable directory to safehouse
 # @arg  args~               Additional arguments, passed verbatim
 
 set -eu
@@ -46,9 +48,11 @@ main() {
 	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -x "$PI_BIN" ]]; then
 		echo "Pi is not installed. Installing..." >&2
 		pushd "$DFM_DIR/share/pi" >/dev/null
+		rm -rf node_modules/@mariozechner
 		npm --no-update-notifier clean-install --ignore-scripts --omit=dev
 		"$PI_BIN" install "$DFM_DIR/share/pi"
 		popd >/dev/null
+		argc_pi_version=1
 	fi
 
 	rm -f "$lock_file"
@@ -93,9 +97,14 @@ main() {
 			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.pi
 			--env-pass "EDITOR,NVM_DIR,DFM_DIR"
+			${argc_safehouse_rw+"${argc_safehouse_rw[@]/#/--add-dirs=}"}
+			${argc_safehouse_ro+"${argc_safehouse_rw[@]/#/--add-dirs-ro=}"}
 		)
 		if jj_repo_config=$(jj config path --repo 2>/dev/null); then
 			safehouse_args+=(--add-dirs "$(dirname "$jj_repo_config")")
+		fi
+		if jj_workspace_config=$(jj config path --workspace 2>/dev/null); then
+			safehouse_args+=(--add-dirs "$(dirname "$jj_workspace_config")")
 		fi
 		if [[ ${argc_debug_safehouse+1} ]]; then
 			args=("$SHELL")

@@ -210,11 +210,8 @@ install_hl() {
 
 # Jujutsu - git alternative
 install_jj() {
-	eget jj-vcs/jj --to="$BINDIR"
-
-	eget jj-vcs/jj -a 'docs' -d --to=jj-docs.tar.gz
-	mkdir -p ~/.local/share/doc/jj
-	tar xf jj-docs.tar.gz -C ~/.local/share/doc/jj
+	# XXX - Using my own fork
+	eget CGamesPlay/jj --to="$BINDIR" --pre-release
 
 	mkdir -p ~/.local/share/man
 	jj util install-man-pages ~/.local/share/man
@@ -264,7 +261,7 @@ install_rg() {
 
 # macOS Sandboxing tool
 install_safehouse() {
-	SAFEHOUSE_SHA=588171d534450ef43a7bced063e924179e3fc3f7
+	SAFEHOUSE_SHA=38bcdfefda50fb47dd8c2058b48d73ffbd48b2ed
 	SAFEHOUSE_URL=https://raw.githubusercontent.com/eugene1g/agent-safehouse/$SAFEHOUSE_SHA/dist/safehouse.sh
 	curl -fsSL "$SAFEHOUSE_URL" -o ~/.local/bin/safehouse
 	chmod +x ~/.local/bin/safehouse
