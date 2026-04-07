@@ -22,7 +22,7 @@ main() {
 	if [[ ${argc_socket:+1} ]]; then
 		echo "Opening in existing Neovide session" >&2
 		if [[ ${argc_files+1} ]]; then
-			cmd="<C-\\><C-N>:drop $(printf '%q ' "${argc_files[@]}") | NeovideFocus<CR>"
+			cmd="<C-\\><C-N>:drop $(printf '%q ' "$PWD/${argc_files[@]}") | NeovideFocus<CR>"
 		else
 			cmd="<C-\\><C-N>:NeovideFocus<CR>"
 		fi

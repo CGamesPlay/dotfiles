@@ -68,7 +68,7 @@ prepare() {
 	fi
 
 	if [[ ${argc_bookmark+1} ]]; then
-		destination=($(jj bookmark list "${argc_bookmark}" -T 'name'))
+		destination=($(jj log -G -r "bookmarks(${argc_bookmark})" -T 'bookmarks.map(|r| r.name()).join(" ") ++ " "'))
 	elif [[ ${argc_pr+1} ]]; then
 		if [[ ${argc_pr:+1} && "$(jj bookmark list "$argc_pr" -T 'name')" ]]; then
 			# Updating an existing PR is the same as a direct branch push to

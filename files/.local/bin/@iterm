@@ -249,7 +249,7 @@ receive-file() {
 		fi
 		echo "$line" >> "$tar_file"
 	done
-	base64 -d <"$tar_file" | tar -xvz -C "${argc_dest:?}" | sed "s@^./@$argc_dest@"
+	base64 -d <"$tar_file" | tar -xvz -C "${argc_dest:?}" | sed "s@^./@${argc_dest/%\//}/@"
 }
 
 # @cmd Rich file display

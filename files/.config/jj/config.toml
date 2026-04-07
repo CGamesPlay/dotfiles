@@ -114,9 +114,11 @@ default-status = ["log", "-r", "@", "-GT", '''
 
 # Interactively select an operation to restore
 rewind = ["util", "exec", "--", "sh", "-c", '''
-choice=$(jj op log -G -T 'id ++ "\x07" ++ id.short() ++ ": " ++ description ++ "\0"' | \
-  fzf --read0 --delimiter='\07' --with-nth=2 --accept-nth=1 \
-  --preview='jj --color=always --at-op={1}')
+choice=$(jj op log --color=always -G -T \
+  'concat(id, "\x07", separate(" ", id.short(), format_short_timestamp(time.start()), description), "\0")' | \
+  fzf --read0 --ansi --delimiter='\07' --with-nth=2 --accept-nth=1 \
+  --preview='jj --color=always --at-op={1}' \
+  --preview-window="right:40%")
 if [ $? -eq 0 ]; then
   jj op restore "$choice"
 fi
@@ -250,15 +252,15 @@ if(commit.root(),
     concat(
       separate(' ',
         format_short_change_id_with_change_offset(commit),
-        format_short_signature_oneline(commit.author()),
-        format_short_timestamp(commit_timestamp(commit)),
         format_short_commit_id(commit.commit_id()),
+        format_short_timestamp(commit_timestamp(commit)),
         surround(
           '[',
           ']',
           separate(', ', commit.bookmarks().join(", "), commit.tags().join(", ")),
         ),
         commit.working_copies(),
+        format_short_signature_oneline(commit.author()),
         if(commit.conflict(), label('conflict', 'conflict')),
         if(config('ui.show-cryptographic-signatures').as_boolean(),
           format_short_cryptographic_signature(commit.signature())),
