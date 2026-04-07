@@ -116,7 +116,6 @@
 [push]
 	default = current
 	recurseSubmodules = on-demand
-	followTags = true
 [branch]
 	autoSetupRebase = always
 [filter "lfs"]

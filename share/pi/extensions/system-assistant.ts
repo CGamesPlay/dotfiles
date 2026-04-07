@@ -10,7 +10,7 @@
  *   --completion         Enable command completion mode (requires --system-assistant):
  *     - Registers set_command tool for proposing shell commands
  *     - Injects system prompt guidance to prefer set_command over running commands
- *     - /accept writes the current command to fd 3 and exits
+ *     - /accept writes the current command to fd 100 and exits
  */
 
 import type {
@@ -187,10 +187,13 @@ export default function (pi: ExtensionAPI) {
 
           if (accepted) {
             try {
-              writeSync(3, currentCommand);
-              closeSync(3);
+              writeSync(100, currentCommand);
+              closeSync(100);
             } catch (e: any) {
-              ctx.ui.notify(`Failed to write to fd 3: ${e.message}`, "warning");
+              ctx.ui.notify(
+                `Failed to write to fd 100: ${e.message}`,
+                "warning",
+              );
             }
             ctx.abort();
             ctx.shutdown();
@@ -227,10 +230,10 @@ export default function (pi: ExtensionAPI) {
       }
 
       try {
-        writeSync(3, currentCommand);
-        closeSync(3);
+        writeSync(100, currentCommand);
+        closeSync(100);
       } catch (e: any) {
-        ctx.ui.notify(`Failed to write to fd 3: ${e.message}`, "warning");
+        ctx.ui.notify(`Failed to write to fd 100: ${e.message}`, "warning");
       }
 
       // TODO: not possible to install /accept as a keyboard shortcut because then this won't work.
