@@ -1,5 +1,5 @@
 /**
- * Customizations Extension — Entry Point
+ * Session State Extension — Entry Point
  *
  * Single registration function wiring all hooks, tools, commands, and flags.
  * This is the event surface map — every hook, tool, command, and flag at a glance.
@@ -30,16 +30,29 @@ import { registerTodoCommands } from "./tools/todo.js";
 import {
   registerPlanningTools,
   registerPlanningCommands,
+  registerPlanningRenderers,
 } from "./tools/planning.js";
 
 export default function (pi: ExtensionAPI) {
   const state = createAppState();
+  let planningToolsRegistered = false;
 
   // ── Hooks ──────────────────────────────────────────────
+  pi.on("resources_discover", (_, ctx) => {
+    // finish_plan is fundamentally interactive — its dialog can't run in
+    // print/JSON mode. Register the tool only when the first session reports
+    // a UI so the LLM doesn't see a tool it can't invoke.
+    if (!planningToolsRegistered && ctx.hasUI) {
+      registerPlanningTools(state, pi);
+      planningToolsRegistered = true;
+    }
+  });
   // Session lifecycle
   // Note: session_switch and session_fork events were removed in pi v0.65.0
   // Use onSessionStart with event.reason === "fork" or event.reason === "resume"/"new"
-  pi.on("session_start", (e, ctx) => onSessionStart(state, pi, e, ctx));
+  pi.on("session_start", (e, ctx) => {
+    return onSessionStart(state, pi, e, ctx);
+  });
   pi.on("session_tree", (e, ctx) => onSessionTree(state, pi, e, ctx));
   pi.on("session_before_fork", (e, ctx) => onSessionBeforeFork(state, e, ctx));
   pi.on("session_before_tree", (e, ctx) => onSessionBeforeTree(state, e, ctx));
@@ -58,7 +71,9 @@ export default function (pi: ExtensionAPI) {
   pi.on("tool_result", (e, ctx) => onToolResult(state, e, ctx));
 
   // ── Tools ──────────────────────────────────────────────
-  registerPlanningTools(state, pi);
+  // registerPlanningTools is deferred to the first session_start with hasUI;
+  // see the session_start handler above.
+  registerPlanningRenderers(pi);
 
   // ── Commands ───────────────────────────────────────────
   registerTodoCommands(state, pi);

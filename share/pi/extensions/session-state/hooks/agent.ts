@@ -11,19 +11,15 @@ import type {
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
 import path from "node:path";
-import { existsSync } from "node:fs";
-import os from "node:os";
 import { createCheckpoint } from "../lib/checkpoint-core.js";
-import {
-  autoNameSessionFromPlan,
-  runFinishPlanFlow,
-} from "../tools/planning.js";
+import { autoNameSessionFromPlan, getPlanFile } from "../tools/planning.js";
 import {
   getCachedRepoRoot,
   addToCache,
   getSessionIdFromFile,
 } from "./session.js";
 import { detectExternalModifications } from "../lib/session-storage.js";
+import { planModePrompt } from "../lib/prompts.js";
 import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
 import type { AppState } from "../state.js";
 import { readFileSync } from "node:fs";
@@ -37,22 +33,6 @@ const extensionPrompt = readFileSync(
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function getAgentDir(): string {
-  const envKeys = ["PI_CODING_AGENT_DIR", "TAU_CODING_AGENT_DIR"];
-  for (const k of envKeys) {
-    const v = process.env[k];
-    if (v) {
-      if (v === "~") return os.homedir();
-      if (v.startsWith("~/")) return path.join(os.homedir(), v.slice(2));
-      return v;
-    }
-  }
-  for (const [k, v] of Object.entries(process.env)) {
-    if (k.endsWith("_CODING_AGENT_DIR") && v) return v;
-  }
-  return path.join(os.homedir(), ".pi", "agent");
-}
-
 // ─── Exported Handlers ─────────────────────────────────────────────────────────
 
 export async function onAgentEnd(
@@ -61,25 +41,7 @@ export async function onAgentEnd(
   event: any,
   ctx: ExtensionContext,
 ) {
-  // 1. Auto-name session from plan
-  await autoNameSessionFromPlan(state, pi, ctx);
-
-  // 2. Handle finish_plan review flow
-  let planFlowEngaged = false;
-  if (state.plan.pendingFinishPlan) {
-    state.plan.pendingFinishPlan = false;
-
-    if (ctx.hasUI) {
-      const agentDir = getAgentDir();
-      const sessionId = ctx.sessionManager.getSessionId();
-      const planFile = path.join(agentDir, "plans", `${sessionId}.md`);
-
-      if (existsSync(planFile)) {
-        planFlowEngaged = true;
-        await runFinishPlanFlow(state, pi, agentDir, planFile, ctx);
-      }
-    }
-  }
+  autoNameSessionFromPlan(state, pi, ctx);
 }
 
 export async function onBeforeAgentStart(
@@ -89,7 +51,7 @@ export async function onBeforeAgentStart(
   ctx: ExtensionContext,
 ) {
   let systemPrompt = event.systemPrompt;
-  let customMessage: any = undefined;
+  let message: any = undefined;
 
   // 1. Detect external modifications to session storage
   await detectExternalModifications(state, pi, ctx);
@@ -97,28 +59,20 @@ export async function onBeforeAgentStart(
   // 2. Customize the system prompt
   systemPrompt += `\n\n${extensionPrompt}\n\nCurrent value of $PI_SESSION_STORAGE: ${state.sessionStorage.dir}`;
 
-  // 3. Decide if we need to generate a guidance message before the turn starts.
-  const branch = [...ctx.sessionManager.getBranch()].reverse();
-  for (const entry of branch) {
-    const msg = (entry as any)?.message;
-    if (!msg) continue;
-
-    if (msg.role === "user") {
-      break;
-    }
-
-    if (msg.role === "toolResult" && msg.toolName === "finish_plan") {
-      customMessage = {
-        customType: "plan-files-rejected",
-        content:
-          "The user reviewed the plan and chose not to implement it yet.",
-        display: false,
-      };
-      break;
-    }
+  // 3. Inject plan mode instructions once when /plan kicks off the turn.
+  //    The agent carries them forward in conversation history; re-injecting
+  //    on every subsequent turn would waste context.
+  if (state.plan.pendingPlanModeMessage && !message) {
+    state.plan.pendingPlanModeMessage = false;
+    const planFile = getPlanFile();
+    message = {
+      customType: "plan-mode",
+      content: planModePrompt(planFile),
+      display: true,
+    };
   }
 
-  return { systemPrompt, customMessage };
+  return { systemPrompt, message };
 }
 
 export async function onTurnEnd(

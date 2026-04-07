@@ -236,6 +236,13 @@ export function refreshTodoWidget(state: AppState, ctx: ExtensionContext) {
 export function registerTodoCommands(state: AppState, pi: ExtensionAPI) {
   pi.registerCommand("todo", {
     description: "Manage todos: /todo [list|show|hide]",
+    getArgumentCompletions: (prefix) => {
+      const subcommands = ["list", "show", "hide"];
+      const filtered = subcommands.filter((s) => s.startsWith(prefix));
+      return filtered.length > 0
+        ? filtered.map((s) => ({ value: s, label: s }))
+        : null;
+    },
     handler: async (args, ctx: ExtensionCommandContext) => {
       if (!ctx.hasUI) {
         ctx.ui.notify("/todo requires interactive mode", "error");

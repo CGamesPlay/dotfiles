@@ -18,7 +18,18 @@ export interface AppState {
 
   // Plan workflow
   plan: {
-    pendingFinishPlan: boolean;
+    /**
+     * One-shot: set by `/plan` so the next `before_agent_start` injects the
+     * plan-mode instructions as a custom message. Cleared once consumed —
+     * the agent carries the instructions forward in conversation history.
+     */
+    pendingPlanModeMessage: boolean;
+    /**
+     * One-shot override for the next session_before_tree event. When set,
+     * the hook consumes (and clears) it to supply a literal summary
+     * instead of letting pi run an AI summarization pass.
+     */
+    pendingTreeSummary?: { summary: string; details?: unknown };
   };
 
   // Todo
@@ -62,7 +73,7 @@ export function createAppState(): AppState {
       pendingCheckpoint: null,
     },
     plan: {
-      pendingFinishPlan: false,
+      pendingPlanModeMessage: false,
     },
     todo: {
       items: null,

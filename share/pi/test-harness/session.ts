@@ -150,6 +150,32 @@ export async function createTestSession(
 
   await session.bindExtensions({
     uiContext: mockUI,
+    commandContextActions: {
+      waitForIdle: () => (session as any).agent.waitForIdle(),
+      navigateTree: async (targetId: string, navigateOptions: any) => {
+        const result = await (session as any).navigateTree(
+          targetId,
+          navigateOptions,
+        );
+        return { cancelled: result.cancelled };
+      },
+      reload: async () => {
+        await (session as any).reload();
+      },
+      // These create new process-level sessions in production (delegated
+      // to a runtime host that owns process lifecycle). The test harness
+      // has no equivalent host. Throw so a test exercising them fails
+      // loudly rather than seeing silent stub behavior.
+      newSession: async () => {
+        throw new Error("test-harness: newSession is not supported");
+      },
+      fork: async () => {
+        throw new Error("test-harness: fork is not supported");
+      },
+      switchSession: async () => {
+        throw new Error("test-harness: switchSession is not supported");
+      },
+    },
     onError: (err: { event: string; error: string; stack?: string }) => {
       events.extensionErrors.push({
         event: err.event,

@@ -770,7 +770,7 @@ describe("session-storage replay", () => {
 
 // ─── Integration Tests (real pi session + real filesystem, via harness) ───────
 //
-// These tests run the customizations extension inside a real pi AgentSession
+// These tests run the session-state extension inside a real pi AgentSession
 // driven by the test harness. The session's real `session_start` and
 // `turn_end` hooks fire — which in turn call `resyncSessionStorage` and
 // `detectExternalModifications`. Tests observe behavior via the on-disk

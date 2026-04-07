@@ -5,14 +5,14 @@ import { createTestSession, calls, says, type TestSession } from "./index.js";
 
 const EXTENSION = path.resolve(
   import.meta.dirname,
-  "../extensions/customizations/index.ts",
+  "../extensions/session-state/index.ts",
 );
 
 describe("harness smoke", () => {
   let t: TestSession;
   afterEach(() => t?.dispose());
 
-  it("boots with the customizations extension and runs a turn", async () => {
+  it("boots with the session-state extension and runs a turn", async () => {
     t = await createTestSession({
       extensions: [EXTENSION],
       mockTools: { bash: "ok", read: "ok", write: "ok", edit: "ok" },

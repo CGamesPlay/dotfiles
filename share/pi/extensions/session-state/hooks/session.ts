@@ -512,10 +512,19 @@ export async function onSessionBeforeTree(
   event: any,
   ctx: ExtensionContext,
 ) {
-  if (!state.checkpoint.gitAvailable) return undefined;
-  return handleRestorePrompt(state, ctx, () => event.preparation.targetId, {
-    requireUserEntry: true,
-  });
+  if (state.checkpoint.gitAvailable) {
+    await handleRestorePrompt(state, ctx, () => event.preparation.targetId, {
+      requireUserEntry: true,
+    });
+  }
+
+  const override = state.plan.pendingTreeSummary;
+  if (override) {
+    delete state.plan.pendingTreeSummary;
+    return { summary: override };
+  }
+
+  return undefined;
 }
 
 export async function onSessionShutdown(
