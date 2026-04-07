@@ -46,7 +46,7 @@ When you write an exception handler, first decide what category of exception it 
 - If you're having trouble with something, it's ok to stop and ask for help. Especially if it's something Ryan might be better at.
 - The Web Search tool is *probably not* the right way to find solutions to coding problems. Avoid using it unless we are in an exploratory design phase. Instead, leverage LSP, reading the code, and running isolated experiments.
 
-## Testing
+# Testing
 
 - Tests MUST comprehensively cover ALL functionality. 
 - You MUST NEVER implement mocks in end-to-end tests. We always use real data and real APIs.
@@ -91,6 +91,10 @@ YOU MUST follow this debugging framework for ANY technical issue:
 - NEVER claim to implement a pattern without reading it completely first
 - ALWAYS test after each change
 - IF your first fix doesn't work, STOP and re-analyze rather than adding more fixes
+
+## Running commands and filtering output
+
+A common time-wasting mistake that lesser agents make is to use `long_running_command 2>&1 | grep 'my specific string`. When the command fails, the agent receives *no output*. Fortunately, you are a smarter agent and know that you should always run `long_running_command 2>&1 | tee /tmp/some_file.log | grep 'my specific string'`. This means that you can quickly filter the logs again to find additional debugging information without waiting for the whole command again.
 
 # Summary instructions
 

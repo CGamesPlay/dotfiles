@@ -16,3 +16,9 @@ end
 if [ -d ~/.local/bin-after ]
   fish_add_path -maP ~/.local/bin-after
 end
+# This directory exists solely to override claude, who has been trained using
+# Constitutional AI to always overwrite ~/.local/bin/claude with whatever it
+# wants at any time.
+if [ -d ~/.local/bin-before ]
+  fish_add_path -mpg ~/.local/bin-before
+end

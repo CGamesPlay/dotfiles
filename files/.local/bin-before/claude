@@ -20,7 +20,7 @@ set -eu
 # - nvim: https://github.com/olimorris/codecompanion.nvim
 # - nvim: https://github.com/coder/claudecode.nvim
 
-DFM_DIR=$(realpath -m "${BASH_SOURCE[0]}"/../..)
+DFM_DIR=$(realpath -m "${BASH_SOURCE[0]}"/../../../..)
 
 main() {
 	if [[ "${argc_claude_reinstall+1}" ]] || ! compgen -G ~/.local/share/claude/versions/* > /dev/null; then
@@ -28,7 +28,7 @@ main() {
 		@get claude --force
 	fi
 
-	claude_bin=$(compgen -G ~/.local/share/claude/versions/* | sort -rV | head -n 1)
+	claude_bin=$(find ~/.local/share/claude/versions | sort -rV | head -n 1)
 
 	if [[ ${argc_claude_help+1} ]] || [[ ${args_claude_version+1} ]]; then
 		exec "$claude_bin" \
@@ -115,6 +115,8 @@ EOF
 			--add-dirs-ro "$DFM_DIR"
 			--add-dirs-ro ~/.config/nvim
 			--add-dirs-ro ~/.local/share/nvim
+			--add-dirs-ro ~/Applications
+			--add-dirs-ro /Library/Developer
 			--add-dirs ~/.local/state/nvim
 			--add-dirs "$XDG_CACHE_HOME"
 			--add-dirs ~/.local/share/claude
