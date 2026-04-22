@@ -372,22 +372,20 @@ async function handleRestorePrompt(
   return undefined;
 }
 
-// ─── Exported Handlers ─────────────────────────────────────────────────────────
+// ─── Session Initialization Helpers ────────────────────────────────────────────
 
-export async function onSessionStart(
+async function initSessionBasics(
   state: AppState,
-  _pi: ExtensionAPI,
-  _event: any,
   ctx: ExtensionContext,
-) {
-  // 1. Detect git repo for checkpointing
+): Promise<void> {
+  // Detect git repo for checkpointing
   resetRepoCache();
   state.checkpoint.gitAvailable = await isGitRepo(ctx.cwd);
   if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
   }
 
-  // 2. Enable terminal focus reporting (for agent-end notification)
+  // Enable terminal focus reporting (for agent-end notification)
   if (ctx.hasUI) {
     process.stdout.write("\x1b[?1004h");
 
@@ -407,58 +405,112 @@ export async function onSessionStart(
     });
   }
 
-  // 3. Query OSC 11 for theme
+  // Query OSC 11 for theme
+  if (ctx.hasUI) {
+    queryOsc11(ctx);
+  }
+}
+
+async function syncSessionState(
+  state: AppState,
+  ctx: ExtensionContext,
+): Promise<void> {
+  // Update checkpoint session info (for git repos)
+  if (state.checkpoint.gitAvailable) {
+    updateSessionInfo(state, ctx.sessionManager);
+  }
+
+  // Query OSC 11 (for theme updates)
   if (ctx.hasUI) {
     queryOsc11(ctx);
   }
 
-  // 4. Resync session storage
+  // Resync session storage
   await resyncSessionStorage(state, ctx);
 
-  // 5. Sync todo state from storage (must be after resync)
+  // Sync todo state from storage
   syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }
 
+// ─── Exported Handlers ─────────────────────────────────────────────────────────
+
+export async function onSessionStart(
+  state: AppState,
+  _pi: ExtensionAPI,
+  event: any,
+  ctx: ExtensionContext,
+) {
+  // Initialize basics for all session starts
+  await initSessionBasics(state, ctx);
+
+  // Handle session-specific logic based on reason
+  const reason = event.reason as
+    | "startup"
+    | "reload"
+    | "new"
+    | "resume"
+    | "fork";
+
+  switch (reason) {
+    case "fork":
+      // Fork: update checkpoint info and sync state
+      if (state.checkpoint.gitAvailable) {
+        updateSessionInfo(state, ctx.sessionManager);
+      }
+      await resyncSessionStorage(state, ctx);
+      syncTodoStateFromStorage(state);
+      refreshTodoWidget(state, ctx);
+      break;
+
+    case "resume":
+    case "new":
+      // Resume/new: check if switching between sessions (has previousSessionFile)
+      if (event.previousSessionFile) {
+        // Switching sessions: sync session state
+        await syncSessionState(state, ctx);
+      } else {
+        // Fresh start: just resync session storage and sync todos
+        await resyncSessionStorage(state, ctx);
+        syncTodoStateFromStorage(state);
+        refreshTodoWidget(state, ctx);
+      }
+      break;
+
+    case "startup":
+    case "reload":
+    default:
+      // Startup/reload: resync session storage and sync todos
+      await resyncSessionStorage(state, ctx);
+      syncTodoStateFromStorage(state);
+      refreshTodoWidget(state, ctx);
+      break;
+  }
+}
+
+// Deprecated: kept for backward compatibility, use onSessionStart with reason check
+// This is no longer registered as a handler since session_switch event was removed
 export async function onSessionSwitch(
   state: AppState,
   _pi: ExtensionAPI,
   _event: any,
   ctx: ExtensionContext,
 ) {
-  // 1. Update checkpoint session info
-  if (state.checkpoint.gitAvailable) {
-    updateSessionInfo(state, ctx.sessionManager);
-  }
-
-  // 2. Query OSC 11
-  if (ctx.hasUI) {
-    queryOsc11(ctx);
-  }
-
-  // 3. Resync session storage
-  await resyncSessionStorage(state, ctx);
-
-  // 4. Sync todo state from storage
-  syncTodoStateFromStorage(state);
-  refreshTodoWidget(state, ctx);
+  await syncSessionState(state, ctx);
 }
 
+// Deprecated: kept for backward compatibility, use onSessionStart with reason === "fork"
+// This is no longer registered as a handler since session_fork event was removed
 export async function onSessionFork(
   state: AppState,
   _pi: ExtensionAPI,
   _event: any,
   ctx: ExtensionContext,
 ) {
-  // 1. Update checkpoint session info
   if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
   }
-
-  // 2. Resync session storage
   await resyncSessionStorage(state, ctx);
-
-  // 3. Sync todo state from storage
   syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
 }

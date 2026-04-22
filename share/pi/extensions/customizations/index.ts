@@ -12,8 +12,6 @@ import { createAppState } from "./state.js";
 // Hooks
 import {
   onSessionStart,
-  onSessionSwitch,
-  onSessionFork,
   onSessionTree,
   onSessionBeforeFork,
   onSessionBeforeTree,
@@ -40,6 +38,7 @@ import {
   registerSystemAssistantTools,
   registerSystemAssistantCommands,
 } from "./tools/system-assistant.js";
+import { registerPresetFeatures } from "./tools/preset.js";
 
 // Terminal helpers (for notify-test command)
 import { notify } from "./lib/terminal.js";
@@ -50,9 +49,9 @@ export default function (pi: ExtensionAPI) {
 
   // ── Hooks ──────────────────────────────────────────────
   // Session lifecycle
+  // Note: session_switch and session_fork events were removed in pi v0.65.0
+  // Use onSessionStart with event.reason === "fork" or event.reason === "resume"/"new"
   pi.on("session_start", (e, ctx) => onSessionStart(state, pi, e, ctx));
-  pi.on("session_switch", (e, ctx) => onSessionSwitch(state, pi, e, ctx));
-  pi.on("session_fork", (e, ctx) => onSessionFork(state, pi, e, ctx));
   pi.on("session_tree", (e, ctx) => onSessionTree(state, pi, e, ctx));
   pi.on("session_before_fork", (e, ctx) => onSessionBeforeFork(state, e, ctx));
   pi.on("session_before_tree", (e, ctx) => onSessionBeforeTree(state, e, ctx));
@@ -85,6 +84,7 @@ export default function (pi: ExtensionAPI) {
 
   // ── Flags ──────────────────────────────────────────────
   registerSystemAssistantFlags(pi);
+  registerPresetFeatures(state, pi);
 }
 
 // ─── Notify Test Command ───────────────────────────────────────────────────────

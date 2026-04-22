@@ -2,6 +2,7 @@
 	"name": "@cgamesplay/pi-extensions",
 	"type": "module",
 	"scripts": {
+		"check": "tsc --noEmit",
 		"test": "tsx --test extensions/customizations/tests/**/*.test.ts",
 		"test:update": "tsx --test --test-update-snapshots extensions/customizations/tests/**/*.test.ts"
 	},

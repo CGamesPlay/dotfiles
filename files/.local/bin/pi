@@ -16,6 +16,7 @@
 # @flag   --pi-reinstall     Reinstall/Upgrade Pi even if already installed
 # @option --model <MODEL>    Use a specific model
 # @option --thinking <LEVEL> Use a specific thinking level
+# @option --preset <PRESET>  Use a saved preset for model/thinking level
 # @option --safehouse-rw <DIR> Add a writable directory to safehouse
 # @option --safehouse-ro <DIR> Add a readable directory to safehouse
 # @arg  args~               Additional arguments, passed verbatim
@@ -72,6 +73,7 @@ main() {
 		${argc_no_session+--no-session}
 		${argc_model+--model "$argc_model"}
 		${argc_thinking+--thinking "$argc_thinking"}
+		${argc_preset+--preset "$argc_preset"}
 	)
 
 	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
