@@ -54,11 +54,6 @@ export interface AppState {
     currentCommand: string | null;
   };
 
-  // Model presets
-  preset: {
-    activePresetName: string | undefined;
-  };
-
   // Session storage
   sessionStorage: {
     dir: string;
@@ -103,9 +98,6 @@ export function createAppState(): AppState {
     },
     completion: {
       currentCommand: null,
-    },
-    preset: {
-      activePresetName: undefined,
     },
     sessionStorage: {
       dir: "",

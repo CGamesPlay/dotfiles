@@ -42,7 +42,6 @@ export function registerPresetFlags(pi: ExtensionAPI) {
 async function detectAndSetCurrentPreset(
   state: AppState,
   pi: ExtensionAPI,
-  ctx: ExtensionContext,
 ): Promise<void> {
   try {
     let currentThinkingLevel = pi.getThinkingLevel?.();
@@ -84,12 +83,24 @@ export async function applyPresetOnStartup(
 ): Promise<void> {
   const flagPreset = pi.getFlag("preset") as string | undefined;
 
-  // Both --preset flag and .default only apply on startup/new sessions,
-  // never on resume/fork/reload to avoid overwriting stored session state.
-  const presetName =
-    event.reason === "startup" || event.reason === "new"
-      ? (flagPreset ?? (await getDefaultPresetName()))
-      : undefined;
+  // Check if session has stored model/thinking settings
+  const entries = ctx.sessionManager.getEntries();
+  const hasModelSettings = entries.some(
+    (e: { type: string }) =>
+      e.type === "model_change" || e.type === "thinking_level_change",
+  );
+
+  // --preset flag and .default apply on:
+  //   - initial program startup (pi) with no existing model settings
+  //   - new sessions (/new)
+  // Never on resume/fork/reload to avoid overwriting stored session state.
+  const presetName = flagPreset
+    ? flagPreset
+    : event.reason === "new"
+      ? await getDefaultPresetName()
+      : event.reason === "startup" && !hasModelSettings
+        ? await getDefaultPresetName()
+        : undefined;
 
   if (presetName) {
     // Explicit preset was requested or configured as default
@@ -104,7 +115,7 @@ export async function applyPresetOnStartup(
     await applyPreset(state, pi, ctx, preset, presetName);
   } else {
     // No explicit preset - try to detect if current settings match an existing preset
-    await detectAndSetCurrentPreset(state, pi, ctx);
+    await detectAndSetCurrentPreset(state, pi);
   }
 }
 

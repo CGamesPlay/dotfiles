@@ -38,7 +38,6 @@ import {
   registerSystemAssistantTools,
   registerSystemAssistantCommands,
 } from "./tools/system-assistant.js";
-import { registerPresetFeatures } from "./tools/preset.js";
 
 // Terminal helpers (for notify-test command)
 import { notify } from "./lib/terminal.js";
@@ -84,7 +83,6 @@ export default function (pi: ExtensionAPI) {
 
   // ── Flags ──────────────────────────────────────────────
   registerSystemAssistantFlags(pi);
-  registerPresetFeatures(state, pi);
 }
 
 // ─── Notify Test Command ───────────────────────────────────────────────────────

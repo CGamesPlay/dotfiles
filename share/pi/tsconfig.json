@@ -7,12 +7,13 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "lib": ["ES2023"]
+    "lib": [
+      "ES2023"
+    ]
   },
   "include": [
     "extensions/**/*.ts",
     "tests/**/*.ts",
-    "extensions/customizations/**/*.ts",
     "test-harness/**/*.ts"
   ]
 }
