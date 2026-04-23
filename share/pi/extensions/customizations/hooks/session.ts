@@ -22,7 +22,6 @@ import {
   getRepoRoot,
   type CheckpointData,
 } from "../lib/checkpoint-core.js";
-import { queryOsc11, STATUS_KEY } from "../lib/terminal.js";
 import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
 import {
   resyncSessionStorage,
@@ -384,31 +383,6 @@ async function initSessionBasics(
   if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
   }
-
-  // Enable terminal focus reporting (for agent-end notification)
-  if (ctx.hasUI) {
-    process.stdout.write("\x1b[?1004h");
-
-    ctx.ui.onTerminalInput((data) => {
-      if (data === "\x1b[O") {
-        return { consume: true };
-      }
-      // Focus gained or any input — cancel notification timer
-      if (state.notify.delayTimer !== undefined) {
-        clearTimeout(state.notify.delayTimer);
-        state.notify.delayTimer = undefined;
-      }
-      if (data === "\x1b[I") {
-        return { consume: true };
-      }
-      return undefined;
-    });
-  }
-
-  // Query OSC 11 for theme
-  if (ctx.hasUI) {
-    queryOsc11(ctx);
-  }
 }
 
 async function syncSessionState(
@@ -418,11 +392,6 @@ async function syncSessionState(
   // Update checkpoint session info (for git repos)
   if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
-  }
-
-  // Query OSC 11 (for theme updates)
-  if (ctx.hasUI) {
-    queryOsc11(ctx);
   }
 
   // Resync session storage
@@ -552,21 +521,9 @@ export async function onSessionBeforeTree(
 export async function onSessionShutdown(
   state: AppState,
   _event: any,
-  ctx: ExtensionContext,
+  _ctx: ExtensionContext,
 ) {
-  // 1. Stop elapsed timer
-  if (state.timer.interval) {
-    clearInterval(state.timer.interval);
-    state.timer.interval = null;
-  }
-  ctx.ui.setStatus(STATUS_KEY, undefined);
-
-  // 2. Disable focus reporting
-  if (ctx.hasUI) {
-    process.stdout.write("\x1b[?1004l");
-  }
-
-  // 3. Clean up session storage (remove materialized files, remove dir if empty)
+  // Clean up session storage (remove materialized files, remove dir if empty)
   if (state.sessionStorage.dir) {
     await clearSessionDirContents(state.sessionStorage.dir);
     await removeSessionDirIfEmpty(state.sessionStorage.dir);

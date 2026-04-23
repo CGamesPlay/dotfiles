@@ -18,7 +18,6 @@ import {
   onSessionShutdown,
 } from "./hooks/session.js";
 import {
-  onAgentStart,
   onAgentEnd,
   onBeforeAgentStart,
   onTurnStart,
@@ -39,10 +38,6 @@ import {
   registerSystemAssistantCommands,
 } from "./tools/system-assistant.js";
 
-// Terminal helpers (for notify-test command)
-import { notify } from "./lib/terminal.js";
-import path from "node:path";
-
 export default function (pi: ExtensionAPI) {
   const state = createAppState();
 
@@ -57,7 +52,6 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_shutdown", (e, ctx) => onSessionShutdown(state, e, ctx));
 
   // Agent lifecycle
-  pi.on("agent_start", (e, ctx) => onAgentStart(state, e, ctx));
   pi.on("agent_end", (e, ctx) => onAgentEnd(state, pi, e, ctx));
   pi.on("before_agent_start", (e, ctx) =>
     onBeforeAgentStart(state, pi, e, ctx),
@@ -79,22 +73,7 @@ export default function (pi: ExtensionAPI) {
   registerTodoCommands(state, pi);
   registerPlanningCommands(state, pi);
   registerSystemAssistantCommands(state, pi);
-  registerNotifyTestCommand(pi);
 
   // ── Flags ──────────────────────────────────────────────
   registerSystemAssistantFlags(pi);
-}
-
-// ─── Notify Test Command ───────────────────────────────────────────────────────
-
-function registerNotifyTestCommand(pi: ExtensionAPI) {
-  pi.registerCommand("notify-test", {
-    description: "Test the agent-end notification (fires after 2s)",
-    handler: async (_args, ctx) => {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const sessionName = pi.getSessionName();
-      const dirName = path.basename(ctx.cwd);
-      notify(`pi: ${sessionName ?? dirName}`);
-    },
-  });
 }

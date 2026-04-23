@@ -15,12 +15,6 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import { createCheckpoint } from "../lib/checkpoint-core.js";
 import {
-  formatElapsed,
-  STATUS_KEY,
-  notify,
-  DELAY_MS,
-} from "../lib/terminal.js";
-import {
   autoNameSessionFromPlan,
   runFinishPlanFlow,
 } from "../tools/planning.js";
@@ -62,41 +56,16 @@ function getAgentDir(): string {
 
 // ─── Exported Handlers ─────────────────────────────────────────────────────────
 
-export async function onAgentStart(
-  state: AppState,
-  _event: any,
-  ctx: ExtensionContext,
-) {
-  // Start elapsed timer
-  if (state.timer.interval) {
-    clearInterval(state.timer.interval);
-    state.timer.interval = null;
-  }
-  state.timer.startTime = Date.now();
-  ctx.ui.setStatus(STATUS_KEY, formatElapsed(0));
-
-  state.timer.interval = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - state.timer.startTime!) / 1000);
-    ctx.ui.setStatus(STATUS_KEY, formatElapsed(elapsed));
-  }, 1000);
-}
-
 export async function onAgentEnd(
   state: AppState,
   pi: ExtensionAPI,
   event: any,
   ctx: ExtensionContext,
 ) {
-  // 1. Stop elapsed timer
-  if (state.timer.interval) {
-    clearInterval(state.timer.interval);
-    state.timer.interval = null;
-  }
-
-  // 2. Auto-name session from plan
+  // 1. Auto-name session from plan
   await autoNameSessionFromPlan(state, pi, ctx);
 
-  // 3. Handle finish_plan review flow
+  // 2. Handle finish_plan review flow
   let planFlowEngaged = false;
   if (state.plan.pendingFinishPlan) {
     state.plan.pendingFinishPlan = false;
@@ -111,41 +80,6 @@ export async function onAgentEnd(
         await runFinishPlanFlow(state, pi, agentDir, planFile, ctx);
       }
     }
-  }
-
-  // 4. Schedule notification (only if plan review didn't take over)
-  if (!planFlowEngaged && ctx.hasUI) {
-    const sessionName = pi.getSessionName();
-    const dirName = path.basename(ctx.cwd);
-    const titleText = `pi: ${sessionName ?? dirName}`;
-
-    // Extract the first 20 words of the last assistant message
-    const lastAssistant = [...event.messages]
-      .reverse()
-      .find((m: any) => m.role === "assistant");
-    const text =
-      lastAssistant?.content
-        .filter(
-          (c: any): c is { type: "text"; text: string } => c.type === "text",
-        )
-        .map((c: any) => c.text)
-        .join(" ") ?? "";
-    const snippet = text.split(/\s+/).slice(0, 20).join(" ");
-    const messageText = snippet.length > 0 ? snippet : "I've finished working";
-
-    // Cancel any existing timer
-    if (state.notify.delayTimer !== undefined) {
-      clearTimeout(state.notify.delayTimer);
-      state.notify.delayTimer = undefined;
-    }
-
-    // .unref() so a pending notification doesn't hold the event loop open
-    // on shutdown (also lets test processes exit immediately).
-    state.notify.delayTimer = setTimeout(() => {
-      state.notify.delayTimer = undefined;
-      notify(titleText, messageText);
-    }, DELAY_MS);
-    state.notify.delayTimer.unref();
   }
 }
 

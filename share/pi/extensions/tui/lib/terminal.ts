@@ -1,10 +1,7 @@
 /**
  * Terminal Escape Sequence Helpers
  *
- * Combines terminal-related utilities:
- * - OSC 11 color parsing and theme detection
- * - iTerm2 notification escape sequences
- * - Elapsed time formatting
+ * OSC 11 color parsing and theme detection, plus iTerm2 notification escape sequences.
  */
 
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
@@ -16,9 +13,6 @@ const TIMEOUT_MS = 500;
 
 /** Delay before firing agent-end notification (ms) */
 export const DELAY_MS = 15_000;
-
-/** Status bar key for the elapsed timer */
-export const STATUS_KEY = "elapsed-timer";
 
 // ─── OSC 11 Theme Detection ───────────────────────────────────────────────────
 
@@ -138,12 +132,4 @@ export function notify(
   process.stdout.write(
     `\x1b]1337;Notification=message=${message};title=${title}\x07`,
   );
-}
-
-// ─── Elapsed Timer ─────────────────────────────────────────────────────────────
-
-export function formatElapsed(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `⏱ ${m}:${s.toString().padStart(2, "0")}`;
 }

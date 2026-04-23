@@ -6,17 +6,6 @@
  */
 
 export interface AppState {
-  // Elapsed timer
-  timer: {
-    interval: ReturnType<typeof setInterval> | null;
-    startTime: number | undefined;
-  };
-
-  // Agent-end notification
-  notify: {
-    delayTimer: ReturnType<typeof setTimeout> | undefined;
-  };
-
   // Bash tee tracking
   bashTee: {
     activeTees: Map<string, { teePath: string; originalCommand: string }>;
@@ -69,13 +58,6 @@ export interface AppState {
 
 export function createAppState(): AppState {
   return {
-    timer: {
-      interval: null,
-      startTime: undefined,
-    },
-    notify: {
-      delayTimer: undefined,
-    },
     bashTee: {
       activeTees: new Map(),
     },
