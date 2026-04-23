@@ -40,10 +40,14 @@ end, { desc = "[S]earch Git [G]rep" })
 keys:set("n", "<C-p>", function()
   local builtin = require("telescope.builtin")
   local path = vim.fn.getcwd(0)
-  local is_git = os.execute("git -C " .. path .. " rev-parse --is-inside-work-tree") == 0
+  local is_git = function() return os.execute("git -C " .. path .. " rev-parse --is-inside-work-tree") == 0 end
+  local is_jj = function() return os.execute("cd " .. path .. " && jj --ignore-working-copy workspace root") == 0 end
 
-  if is_git then
+  if is_git() then
     builtin.git_files({ cwd = path, use_git_root = false, show_untracked = true })
+  elseif is_jj() then
+    -- dsds
+    builtin.find_files({ cwd = path, find_command = { "jj", "--ignore-working-copy", "file", "list", "." } })
   else
     builtin.find_files()
   end
