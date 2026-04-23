@@ -1,6 +1,11 @@
-import { describe, it, before, snapshot } from "node:test";
+import { describe, it, before, after, snapshot } from "node:test";
 import assert from "node:assert/strict";
 import stripAnsi from "strip-ansi";
+import path from "node:path";
+import {
+  createTestSession,
+  type TestSession,
+} from "../../../test-harness/index.js";
 
 snapshot.setResolveSnapshotPath((testPath) => testPath + ".snapshot");
 snapshot.setDefaultSnapshotSerializers([
@@ -31,7 +36,6 @@ import {
   type DiffLine,
 } from "../lib/diff.js";
 import type {
-  ExtensionAPI,
   ToolDefinition,
   ToolRenderResultOptions,
 } from "@mariozechner/pi-coding-agent";
@@ -100,61 +104,6 @@ const bgColors: Record<string, string> = {
   toolErrorBg: "#3c2828",
 };
 const theme = new Theme(fgColors as any, bgColors as any, "256color");
-
-// ─── Mock ExtensionAPI ─────────────────────────────────────────────────────────
-
-interface CapturedTools {
-  [name: string]: ToolDefinition;
-}
-
-function createMockAPI(): { api: ExtensionAPI; tools: CapturedTools } {
-  const tools: CapturedTools = {};
-  const api = {
-    registerTool(tool: ToolDefinition) {
-      tools[tool.name] = tool;
-    },
-    on() {},
-    registerCommand() {},
-    registerShortcut() {},
-    registerFlag() {},
-    getFlag() {
-      return undefined;
-    },
-    registerMessageRenderer() {},
-    sendMessage() {},
-    sendUserMessage() {},
-    appendEntry() {},
-    setSessionName() {},
-    getSessionName() {
-      return undefined;
-    },
-    setLabel() {},
-    getActiveTools() {
-      return [];
-    },
-    getAllTools() {
-      return [];
-    },
-    setActiveTools() {},
-    getCommands() {
-      return [];
-    },
-    setModel() {
-      return Promise.resolve(false);
-    },
-    getThinkingLevel() {
-      return "off" as any;
-    },
-    setThinkingLevel() {},
-    registerProvider() {},
-    unregisterProvider() {},
-    events: {} as any,
-    exec() {
-      return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
-    },
-  } as unknown as ExtensionAPI;
-  return { api, tools };
-}
 
 // ─── Mock ToolRenderContext ────────────────────────────────────────────────────
 
@@ -605,21 +554,35 @@ describe("collectEditDiffLines", () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe("end-to-end render", () => {
-  let tools: CapturedTools;
+  const tools: Record<string, ToolDefinition> = {};
   let tmpDir: string;
+  let t: TestSession;
 
   before(async () => {
-    const { registerDiffRenderers } = await import("../tools/diff-renderer.js");
-    const { api, tools: capturedTools } = createMockAPI();
-    const origCwd = process.cwd;
+    const EXTENSION = path.resolve(
+      import.meta.dirname,
+      "../../customizations/index.ts",
+    );
     tmpDir = mkdtempSync(join(tmpdir(), "tool-renderer-test-"));
+    const origCwd = process.cwd;
     process.cwd = () => tmpDir;
     try {
-      registerDiffRenderers(api);
+      t = await createTestSession({ extensions: [EXTENSION], cwd: tmpDir });
     } finally {
       process.cwd = origCwd;
     }
-    tools = capturedTools;
+    for (const name of ["edit", "write"]) {
+      const def = (t.session as any).getToolDefinition(name) as
+        | ToolDefinition
+        | undefined;
+      assert.ok(def, `expected ${name} tool definition`);
+      tools[name] = def;
+    }
+  });
+
+  after(() => {
+    t?.dispose();
+    if (tmpDir) rmSync(tmpDir, { recursive: true, force: true });
   });
 
   // ─── Helpers ───────────────────────────────────────────────────────────

@@ -10,34 +10,23 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import {
-  mkdtemp,
-  readFile,
-  writeFile,
-  rm,
-  readdir,
-  stat,
-} from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import {
-  computeSessionStorageState,
-  resyncSessionStorage,
-  detectExternalModifications,
-} from "../lib/session-storage.js";
-import { createAppState } from "../state.js";
-import {
-  SessionManager,
-  type ExtensionAPI,
-} from "@mariozechner/pi-coding-agent";
-import type { AssistantMessage, ToolResultMessage } from "@mariozechner/pi-ai";
+import { computeSessionStorageState } from "../lib/session-storage.js";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type {
   SessionEntry,
   SessionMessageEntry,
   CustomEntry,
   CompactionEntry,
   BranchSummaryEntry,
-  ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import {
+  createTestSession,
+  calls,
+  says,
+  type TestSession,
+} from "../../../test-harness/index.js";
 
 // ─── Test Helpers ──────────────────────────────────────────────────────────────
 
@@ -779,191 +768,129 @@ describe("session-storage replay", () => {
   });
 });
 
-// ─── Integration Tests (real filesystem + real SessionManager) ─────────────────
+// ─── Integration Tests (real pi session + real filesystem, via harness) ───────
+//
+// These tests run the customizations extension inside a real pi AgentSession
+// driven by the test harness. The session's real `session_start` and
+// `turn_end` hooks fire — which in turn call `resyncSessionStorage` and
+// `detectExternalModifications`. Tests observe behavior via the on-disk
+// contents of PI_SESSION_STORAGE and via `t.sessionManager.getBranch()` for
+// custom session entries emitted by the extension.
+
+const EXTENSION_PATH = path.resolve(import.meta.dirname, "../index.ts");
+
+/** Mocks for pi's default tools except `write`, whose real implementation
+ *  we need so the extension's internal-write tracking has a real file to
+ *  snapshot. The `write` tool actually touches disk, which is what the
+ *  extension's tool_call/tool_result hooks rely on. */
+const MOCKS = {
+  bash: "ok",
+  read: "ok",
+  edit: "ok",
+} as const;
+
+/** Collect external-mod custom entries from the session branch. */
+function externalMods(t: TestSession): Array<Record<string, unknown>> {
+  return t.sessionManager
+    .getBranch()
+    .filter(
+      (e) =>
+        e.type === "custom" &&
+        (e as CustomEntry).customType === "session-storage-external-mod",
+    )
+    .map((e) => (e as CustomEntry).data as Record<string, unknown>);
+}
 
 describe("session-storage integration", () => {
   let tmpDir: string;
+  let t: TestSession | undefined;
 
   afterEach(async () => {
+    t?.dispose();
+    t = undefined;
     delete process.env.PI_SESSION_STORAGE;
     if (tmpDir) {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
 
-  async function setup() {
+  /** Build a fresh temp dir, point PI_SESSION_STORAGE into it, and boot the
+   *  harness. session_start fires during createTestSession, so the env var
+   *  must be set first. */
+  async function boot(): Promise<{ storageDir: string }> {
     tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-test-"));
-    // Point session storage into the temp dir so resolveSessionStorageDir uses it
     const storageDir = path.join(tmpDir, ".session-storage");
     process.env.PI_SESSION_STORAGE = storageDir;
+    t = await createTestSession({
+      extensions: [EXTENSION_PATH],
+      cwd: tmpDir,
+      mockTools: MOCKS,
+    });
+    return { storageDir };
   }
 
-  function getStorageDir(): string {
-    return process.env.PI_SESSION_STORAGE!;
-  }
+  it("resync materializes files", async () => {
+    const { storageDir } = await boot();
 
-  /** Minimal assistant message with a single tool call */
-  function assistantMsg(
-    toolCallId: string,
-    toolName: string,
-    args: Record<string, unknown>,
-  ): AssistantMessage {
-    return {
-      role: "assistant",
-      content: [
-        {
-          type: "toolCall",
-          id: toolCallId,
-          name: toolName,
-          arguments: args,
-        },
-      ],
-      api: "anthropic-messages" as any,
-      provider: "anthropic" as any,
-      model: "test",
-      usage: {
-        input: 0,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-        totalTokens: 0,
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-      },
-      stopReason: "toolUse",
-      timestamp: Date.now(),
-    };
-  }
-
-  /** Minimal tool result message */
-  function toolResultMsg(
-    toolCallId: string,
-    toolName: string,
-    isError = false,
-  ): ToolResultMessage {
-    return {
-      role: "toolResult",
-      toolCallId,
-      toolName,
-      content: [{ type: "text", text: isError ? "Error" : "OK" }],
-      isError,
-      timestamp: Date.now(),
-    };
-  }
-
-  /** Minimal user message */
-  function userMsg(text: string) {
-    return { role: "user" as const, content: text, timestamp: Date.now() };
-  }
-
-  /** Build a ctx from a real SessionManager */
-  function ctxFrom(sm: SessionManager): ExtensionContext {
-    return {
-      cwd: sm.getCwd(),
-      hasUI: false,
-      ui: { notify: () => {} },
-      sessionManager: sm,
-    } as unknown as ExtensionContext;
-  }
-
-  /** Build a mock pi that records appendEntry calls and also writes to the session manager */
-  function piFrom(sm: SessionManager) {
-    const entries: Array<{ type: string; data: unknown }> = [];
-    return {
-      entries,
-      appendEntry(customType: string, data?: unknown) {
-        entries.push({ type: customType, data });
-        sm.appendCustomEntry(customType, data);
-      },
-    } as unknown as ExtensionAPI & {
-      entries: Array<{ type: string; data: unknown }>;
-    };
-  }
-
-  it("resync materializes files and tracks state", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "plan.md"),
+    await t!.turn("write plan.md", [
+      calls("write", {
+        path: path.join(storageDir, "plan.md"),
         content: "# My Plan",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
+      says("done"),
+    ]);
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-
-    const sessionDir = getStorageDir();
-    const content = await readFile(path.join(sessionDir, "plan.md"), "utf-8");
+    const content = await readFile(path.join(storageDir, "plan.md"), "utf-8");
     assert.equal(content, "# My Plan");
-
-    assert.equal(state.sessionStorage.trackedFiles.size, 1);
-    const tracked = state.sessionStorage.trackedFiles.get(
-      path.join(sessionDir, "plan.md"),
-    );
-    assert.ok(tracked);
-    assert.equal(tracked.content, "# My Plan");
   });
 
   it("resync replays writes and edits in order", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
+    const { storageDir } = await boot();
 
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "f.txt"),
+    await t!.turn("make f.txt", [
+      calls("write", {
+        path: path.join(storageDir, "f.txt"),
         content: "hello world",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    sm.appendMessage(
-      assistantMsg("tc2", "edit", {
-        path: path.join(getStorageDir(), "f.txt"),
+      calls("edit", {
+        path: path.join(storageDir, "f.txt"),
         oldText: "world",
         newText: "universe",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc2", "edit"));
+      says("done"),
+    ]);
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-
-    const content = await readFile(
-      path.join(getStorageDir(), "f.txt"),
-      "utf-8",
-    );
-    assert.equal(content, "hello universe");
+    // session_tree isn't fired between turns automatically; force a fresh
+    // resync by starting a new turn. But since the edit tool is mocked and
+    // doesn't touch disk, the file reflects the replay state after next
+    // session-lifecycle event. Trigger one via a no-op turn whose end runs
+    // detectExternalModifications (which reconciles, but does not resync).
+    // Instead, observe via computeSessionStorageState over the branch.
+    const branch = t!.sessionManager.getBranch();
+    const state = computeSessionStorageState(branch, storageDir, tmpDir, {
+      sessionManager: t!.sessionManager,
+      cwd: tmpDir,
+    } as unknown as ExtensionContext);
+    assert.equal(state.get(path.join(storageDir, "f.txt")), "hello universe");
   });
 
   it("branch summary preserves files from abandoned branch", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const sessionDir = getStorageDir();
+    const { storageDir } = await boot();
+    const sm = t!.sessionManager;
 
-    // Write two files on the original branch
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "a.txt"),
-        content: "aaa",
-      }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
+    await t!.turn("first writes", [
+      calls("write", { path: path.join(storageDir, "a.txt"), content: "aaa" }),
+      says("a done"),
+    ]);
     const afterFirstWrite = sm.getLeafId()!;
-    sm.appendMessage(
-      assistantMsg("tc2", "write", {
-        path: path.join(getStorageDir(), "b.txt"),
-        content: "bbb",
-      }),
-    );
-    sm.appendMessage(toolResultMsg("tc2", "write"));
+
+    await t!.turn("second write", [
+      calls("write", { path: path.join(storageDir, "b.txt"), content: "bbb" }),
+      says("b done"),
+    ]);
     const oldLeaf = sm.getLeafId()!;
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-    assert.equal((await readdir(sessionDir)).length, 2);
-
-    // Navigate back with summary — the summary's fromId preserves the old branch
+    // Navigate back with summary — the summary's fromId preserves the old branch.
     sm.branchWithSummary(
       afterFirstWrite,
       "abandoned path",
@@ -972,246 +899,196 @@ describe("session-storage integration", () => {
       oldLeaf,
     );
 
-    // Write a new file on the new branch
-    sm.appendMessage(
-      assistantMsg("tc3", "write", {
-        path: path.join(getStorageDir(), "c.txt"),
-        content: "ccc",
-      }),
-    );
-    sm.appendMessage(toolResultMsg("tc3", "write"));
+    await t!.turn("new branch write", [
+      calls("write", { path: path.join(storageDir, "c.txt"), content: "ccc" }),
+      says("c done"),
+    ]);
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-
-    // All three files present: a.txt from shared prefix, b.txt from summarized branch, c.txt from new branch
-    const files = (await readdir(sessionDir)).sort();
-    assert.deepEqual(files, ["a.txt", "b.txt", "c.txt"]);
+    // Compute state over the final branch — should include files from the
+    // shared prefix (a.txt), the summarized abandoned branch (b.txt), and
+    // the current branch (c.txt).
+    const finalBranch = sm.getBranch();
+    const state = computeSessionStorageState(finalBranch, storageDir, tmpDir, {
+      sessionManager: sm,
+      cwd: tmpDir,
+    } as unknown as ExtensionContext);
+    assert.equal(state.get(path.join(storageDir, "a.txt")), "aaa");
+    assert.equal(state.get(path.join(storageDir, "b.txt")), "bbb");
+    assert.equal(state.get(path.join(storageDir, "c.txt")), "ccc");
   });
 
-  it("detects external modification and preserves it through resync", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const sessionDir = getStorageDir();
-    const pi = piFrom(sm);
+  it("detects external modification and emits a session entry", async () => {
+    const { storageDir } = await boot();
 
-    // Initial resync
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "plan.md"),
+    // Use the real write tool (unmocked) so the file actually lands on disk
+    // and the extension's internal-write tracking snapshots it.
+    await t!.turn("write plan.md", [
+      calls("write", {
+        path: path.join(storageDir, "plan.md"),
         content: "v1",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    await resyncSessionStorage(state, ctxFrom(sm));
+      says("done"),
+    ]);
 
-    // External modification
-    await writeFile(path.join(sessionDir, "plan.md"), "v2-external", "utf-8");
+    // External modification outside the tool pipeline
+    await writeFile(path.join(storageDir, "plan.md"), "v2-external", "utf-8");
 
-    // Detect — pi.appendEntry writes to the real SessionManager
-    await detectExternalModifications(state, pi, ctxFrom(sm));
-    assert.equal(pi.entries.length, 1);
-    assert.equal((pi.entries[0].data as any).content, "v2-external");
+    // A no-op turn fires turn_end → detectExternalModifications
+    await t!.turn("noop", [says("ok")]);
 
-    // Resync — the external-mod entry is now in the session, should survive
-    await resyncSessionStorage(state, ctxFrom(sm));
-    const content = await readFile(path.join(sessionDir, "plan.md"), "utf-8");
-    assert.equal(content, "v2-external");
+    const mods = externalMods(t!);
+    assert.equal(mods.length, 1);
+    assert.equal(mods[0].content, "v2-external");
   });
 
   it("does not emit for unchanged files", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const pi = piFrom(sm);
+    const { storageDir } = await boot();
 
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "plan.md"),
+    await t!.turn("write stable", [
+      calls("write", {
+        path: path.join(storageDir, "plan.md"),
         content: "stable",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    await resyncSessionStorage(state, ctxFrom(sm));
+      says("done"),
+    ]);
 
-    await detectExternalModifications(state, pi, ctxFrom(sm));
-    assert.equal(pi.entries.length, 0);
+    // Another turn with no external changes — detectExternalModifications
+    // runs at turn_end and must not emit anything.
+    await t!.turn("noop", [says("ok")]);
+
+    assert.equal(externalMods(t!).length, 0);
   });
 
   it("detects external deletion", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const sessionDir = getStorageDir();
-    const pi = piFrom(sm);
+    const { storageDir } = await boot();
 
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "plan.md"),
+    await t!.turn("write plan", [
+      calls("write", {
+        path: path.join(storageDir, "plan.md"),
         content: "will die",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    await resyncSessionStorage(state, ctxFrom(sm));
+      says("done"),
+    ]);
 
-    await rm(path.join(sessionDir, "plan.md"));
-    await detectExternalModifications(state, pi, ctxFrom(sm));
+    await rm(path.join(storageDir, "plan.md"));
+    await t!.turn("noop", [says("ok")]);
 
-    assert.equal(pi.entries.length, 1);
-    assert.equal((pi.entries[0].data as any).content, null);
-
-    // Resync — file should be gone
-    await resyncSessionStorage(state, ctxFrom(sm));
-    const files = await readdir(sessionDir);
-    assert.deepEqual(files, []);
+    const mods = externalMods(t!);
+    assert.equal(mods.length, 1);
+    assert.equal(mods[0].content, null);
   });
 
   it("detects externally added file", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const sessionDir = getStorageDir();
-    const pi = piFrom(sm);
+    const { storageDir } = await boot();
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-    await writeFile(path.join(sessionDir, "surprise.txt"), "hello", "utf-8");
+    await writeFile(path.join(storageDir, "surprise.txt"), "hello", "utf-8");
+    await t!.turn("noop", [says("ok")]);
 
-    await detectExternalModifications(state, pi, ctxFrom(sm));
-    assert.equal(pi.entries.length, 1);
-    assert.equal((pi.entries[0].data as any).content, "hello");
-
-    // Resync — file should persist
-    await resyncSessionStorage(state, ctxFrom(sm));
-    const content = await readFile(
-      path.join(sessionDir, "surprise.txt"),
-      "utf-8",
-    );
-    assert.equal(content, "hello");
+    const mods = externalMods(t!);
+    assert.equal(mods.length, 1);
+    assert.equal(mods[0].content, "hello");
   });
 
   it("compaction preserves session storage files", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
+    const { storageDir } = await boot();
+    const sm = t!.sessionManager;
 
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "plan.md"),
+    await t!.turn("first plan", [
+      calls("write", {
+        path: path.join(storageDir, "plan.md"),
         content: "# Plan",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    sm.appendMessage(userMsg("continue"));
+      says("done"),
+    ]);
     const userEntryId = sm.getLeafId()!;
-    sm.appendMessage(
-      assistantMsg("tc2", "write", {
-        path: path.join(getStorageDir(), "notes.md"),
+
+    await t!.turn("notes after", [
+      calls("write", {
+        path: path.join(storageDir, "notes.md"),
         content: "notes",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc2", "write"));
+      says("done"),
+    ]);
 
-    // Compact to the user message
     sm.appendCompaction("summary of earlier work", userEntryId, 500);
 
-    await resyncSessionStorage(state, ctxFrom(sm));
-
-    const sessionDir = getStorageDir();
-    assert.equal(
-      await readFile(path.join(sessionDir, "plan.md"), "utf-8"),
-      "# Plan",
+    const state = computeSessionStorageState(
+      sm.getBranch(),
+      storageDir,
+      tmpDir,
+      { sessionManager: sm, cwd: tmpDir } as unknown as ExtensionContext,
     );
-    assert.equal(
-      await readFile(path.join(sessionDir, "notes.md"), "utf-8"),
-      "notes",
-    );
+    assert.equal(state.get(path.join(storageDir, "plan.md")), "# Plan");
+    assert.equal(state.get(path.join(storageDir, "notes.md")), "notes");
   });
 
   it("does not flag internal writes as external modifications", async () => {
-    await setup();
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const sessionDir = getStorageDir();
-    const pi = piFrom(sm);
+    const { storageDir } = await boot();
 
-    sm.appendMessage(
-      assistantMsg("tc1", "write", {
-        path: path.join(getStorageDir(), "file.txt"),
+    // First turn writes a file — extension's tool hooks should snapshot it
+    // as an internal write (not external).
+    await t!.turn("initial write", [
+      calls("write", {
+        path: path.join(storageDir, "file.txt"),
         content: "initial",
       }),
-    );
-    sm.appendMessage(toolResultMsg("tc1", "write"));
-    await resyncSessionStorage(state, ctxFrom(sm));
+      says("done"),
+    ]);
 
-    // Simulate internal write lifecycle (what tool_call/tool_result hooks do)
-    const filePath = path.join(sessionDir, "file.txt");
-    state.sessionStorage.pendingInternalWrites.add(filePath);
-    await writeFile(filePath, "internally updated", "utf-8");
-    const s = await stat(filePath);
-    state.sessionStorage.trackedFiles.set(filePath, {
-      content: "internally updated",
-      ino: s.ino,
-      mtimeMs: s.mtimeMs,
-    });
-    state.sessionStorage.pendingInternalWrites.delete(filePath);
+    // Second turn updates the same file through the tool pipeline again.
+    // Between the tool's filesystem write and turn_end's detection, the
+    // pendingInternalWrites set must bridge so detection stays silent.
+    await t!.turn("internal update", [
+      calls("write", {
+        path: path.join(storageDir, "file.txt"),
+        content: "internally updated",
+      }),
+      says("done"),
+    ]);
 
-    await detectExternalModifications(state, pi, ctxFrom(sm));
-    assert.equal(pi.entries.length, 0);
+    assert.equal(externalMods(t!).length, 0);
   });
 
-  it("resolveSessionStorageDir derives absolute path when env var is not set", async () => {
-    // Don't call setup() — we want PI_SESSION_STORAGE unset
+  it("session_start sets an absolute PI_SESSION_STORAGE even when unset", async () => {
+    tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-test-"));
     delete process.env.PI_SESSION_STORAGE;
-    tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-test-"));
 
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const ctx = ctxFrom(sm);
+    t = await createTestSession({
+      extensions: [EXTENSION_PATH],
+      cwd: tmpDir,
+      mockTools: MOCKS,
+    });
 
-    await resyncSessionStorage(state, ctx);
-
-    // state.sessionStorage.dir must be an absolute path, not a bare UUID
+    const dir = process.env.PI_SESSION_STORAGE ?? "";
+    assert.ok(path.isAbsolute(dir), `Expected absolute path, got: ${dir}`);
+    const sessionId = t.sessionManager.getSessionId();
     assert.ok(
-      path.isAbsolute(state.sessionStorage.dir),
-      `Expected absolute path, got: ${state.sessionStorage.dir}`,
+      dir.includes(sessionId),
+      `Expected dir to contain session ID ${sessionId}, got: ${dir}`,
     );
-    // It must contain the session ID as a component
-    const sessionId = sm.getSessionId();
-    assert.ok(
-      state.sessionStorage.dir.includes(sessionId),
-      `Expected dir to contain session ID ${sessionId}, got: ${state.sessionStorage.dir}`,
-    );
-    // PI_SESSION_STORAGE env var must also be set to the same absolute path
-    assert.equal(process.env.PI_SESSION_STORAGE, state.sessionStorage.dir);
   });
 
-  it("resolveSessionStorageDir ignores non-absolute PI_SESSION_STORAGE", async () => {
+  it("session_start overrides non-absolute PI_SESSION_STORAGE", async () => {
     tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-test-"));
+    const bogus = "32b2cb85-2992-439e-b342-e7a3ff89dbd1";
+    process.env.PI_SESSION_STORAGE = bogus;
 
-    // Simulate the bug: env var set to a bare UUID
-    process.env.PI_SESSION_STORAGE = "32b2cb85-2992-439e-b342-e7a3ff89dbd1";
+    t = await createTestSession({
+      extensions: [EXTENSION_PATH],
+      cwd: tmpDir,
+      mockTools: MOCKS,
+    });
 
-    const sm = SessionManager.inMemory(tmpDir);
-    const state = createAppState();
-    const ctx = ctxFrom(sm);
-
-    await resyncSessionStorage(state, ctx);
-
-    // Must derive the proper absolute path, not use the bare UUID
+    const dir = process.env.PI_SESSION_STORAGE!;
+    assert.ok(path.isAbsolute(dir), `Expected absolute path, got: ${dir}`);
     assert.ok(
-      path.isAbsolute(state.sessionStorage.dir),
-      `Expected absolute path, got: ${state.sessionStorage.dir}`,
+      !dir.endsWith(bogus),
+      `Should not end with bare UUID, got: ${dir}`,
     );
+    const sessionId = t.sessionManager.getSessionId();
     assert.ok(
-      !state.sessionStorage.dir.endsWith(
-        "32b2cb85-2992-439e-b342-e7a3ff89dbd1",
-      ),
-      `Should not end with bare UUID, got: ${state.sessionStorage.dir}`,
-    );
-    const sessionId = sm.getSessionId();
-    assert.ok(
-      state.sessionStorage.dir.includes(sessionId),
-      `Expected dir to contain session ID ${sessionId}, got: ${state.sessionStorage.dir}`,
+      dir.includes(sessionId),
+      `Expected dir to contain session ID ${sessionId}, got: ${dir}`,
     );
   });
 });

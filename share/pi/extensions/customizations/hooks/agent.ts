@@ -139,10 +139,13 @@ export async function onAgentEnd(
       state.notify.delayTimer = undefined;
     }
 
+    // .unref() so a pending notification doesn't hold the event loop open
+    // on shutdown (also lets test processes exit immediately).
     state.notify.delayTimer = setTimeout(() => {
       state.notify.delayTimer = undefined;
       notify(titleText, messageText);
     }, DELAY_MS);
+    state.notify.delayTimer.unref();
   }
 }
 

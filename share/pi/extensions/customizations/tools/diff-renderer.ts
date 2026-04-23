@@ -41,6 +41,9 @@ export function registerDiffRenderers(pi: ExtensionAPI) {
     label: "edit",
     description: originalEdit.description,
     parameters: originalEdit.parameters,
+    // Built-in edit uses renderShell: "self" for its async diff preview.
+    // Our diff is computed synchronously, so opt back into the TUI's shell.
+    renderShell: "default",
 
     async execute(toolCallId, params, signal, onUpdate) {
       return originalEdit.execute(toolCallId, params, signal, onUpdate);

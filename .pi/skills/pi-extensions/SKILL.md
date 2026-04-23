@@ -62,7 +62,7 @@ After adding or modifying files, tell the user to `/reload` to see the results i
 
 ## Testing Extensions
 
-Extensions are tested using `node:test` (built into Node 24) with `tsx` for TypeScript execution. Tests live in `share/pi/tests/` and run from the `share/pi/` package root.
+Extensions are tested using `node:test` (built into Node 24) with `tsx` for TypeScript execution. Tests live under `share/pi/extensions/<name>/tests/` (colocated with the extension) or `share/pi/tests/` (cross-extension) and run from the `share/pi/` package root.
 
 ### Running Tests
 
@@ -72,31 +72,84 @@ npm test                    # run all tests against saved snapshots
 npm run test:update         # regenerate snapshot files
 ```
 
+Tests should run with no API keys in the environment. When debugging locally, prefer `env -u OPENAI_API_KEY -u ANTHROPIC_API_KEY npm test` so a stray key doesn't mask an auth-bypass regression in the harness.
+
 ### Writing Tests
 
-Test files go in `share/pi/tests/<extension-name>.test.ts`. Use snapshot tests (`t.assert.snapshot()`) for rendered output and structural assertions (`assert.deepStrictEqual`) for data structures.
+Pick the testing style that matches what you're exercising:
 
-**Mock Theme**: Create a mock `Theme` that wraps text with readable markers instead of ANSI codes. This makes snapshots human-readable and stable across terminal environments:
+- **Pure functions** (renderers, reducers, replay logic) — call them directly with synthetic inputs. Use `t.assert.snapshot()` for rendered output, `assert.deepStrictEqual` for data structures. No harness needed.
+- **Extension behavior** (hooks firing, tools running, custom session entries being emitted, tool_call/tool_result enrichment) — use the test harness at `share/pi/test-harness/`. It boots the extension inside a real pi `AgentSession` with a scripted "LLM" so you can exercise end-to-end flows without a network or API keys.
+
+#### Test harness quick start
 
 ```typescript
-function createMockTheme(): Theme {
-  return {
-    fg: (color: string, text: string) => `[${color}:${text}]`,
-    bold: (text: string) => `[bold:${text}]`,
-    // ... other methods
-  } as unknown as Theme;
-}
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import path from "node:path";
+import {
+  createTestSession,
+  calls,
+  says,
+  type TestSession,
+} from "../../../test-harness/index.js";
+
+const EXTENSION = path.resolve(import.meta.dirname, "../index.ts");
+
+describe("my-extension", () => {
+  let t: TestSession | undefined;
+  afterEach(() => { t?.dispose(); t = undefined; });
+
+  it("handles a tool call", async () => {
+    t = await createTestSession({
+      extensions: [EXTENSION],
+      mockTools: { bash: "ok", read: "ok", write: "ok", edit: "ok" },
+    });
+
+    await t.turn("do something", [
+      calls("write", { path: "/tmp/x", content: "hi" }),
+      says("done"),
+    ]);
+
+    assert.equal(t.events.toolResultsFor("write").length, 1);
+  });
+});
 ```
 
-**Mock ExtensionAPI**: To test registered tools end-to-end, create a mock `ExtensionAPI` that captures `registerTool` calls, then invoke `renderCall`/`renderResult` directly on the captured tool definitions.
+#### Harness API
 
-**Mock ToolRenderContext**: Build minimal context objects with the fields that matter for rendering: `isPartial`, `executionStarted`, `argsComplete`, `expanded`, `state`, `args`.
+- `createTestSession({ extensions, cwd?, mockTools?, mockUI?, extensionFactories?, systemPrompt?, propagateErrors? })` — boots a real `AgentSession` with the extension loaded. Auth is fully bypassed. If `cwd` is omitted, a temp dir is created and cleaned up on `dispose()`.
+- `t.turn(prompt, actions)` — runs one full user→`agent_end` cycle. The `actions` array scripts what the "model" does: `calls("tool", args)` and `says("text")`. Every turn must end with a `says(...)` or the harness will fail it. Call `t.turn` multiple times for multi-turn scenarios.
+- `calls(tool, args).then((result) => { ... })` — late callback fires with the tool result; useful when one call's output feeds the next. Pass a function for `args` to late-bind: `calls("x", () => ({ id: capturedId }))`.
+- `t.events` — recorded events: `toolCallsFor(name)`, `toolResultsFor(name)`, `toolSequence()`, `blockedCalls()`, `uiCallsFor(method)`, plus raw `all`, `toolCalls`, `toolResults`, `messages`, `ui`.
+- `t.sessionManager` — the real `SessionManager`. Use it between turns for `branchWithSummary`, `appendCompaction`, `getLeafId`, `getBranch` — e.g. to set up branch-summary or compaction scenarios without fighting the DSL.
+- `t.session` — escape hatch to the underlying `AgentSession` for anything else.
+- `t.dispose()` — cleans up the session and temp dir. Always call in `afterEach`.
 
-**Exporting internals**: When an extension has pure internal functions worth testing directly, add `export` to them. The default export (extension entry point) stays unchanged — pi only calls the default export, so named exports are invisible to the loader.
+#### Mocks
+
+- **`mockTools`**: map of tool name → handler. Handler is a string (returned as text), a full `ToolResult` object, or a function `(params) => string | ToolResult`. Mocked tools **do not** run their real implementations but extension `tool_call`/`tool_result` hooks **do** fire — so blocking and enrichment work normally. Leave a tool unmocked if the test needs its real side effects (e.g. leaving `write` unmocked so the file actually lands on disk).
+- **`mockUI`**: `confirm`/`select`/`input`/`editor` as static values or functions. Defaults: confirm→true, select→first option, input→"", editor→"". All UI calls are recorded in `t.events.ui` regardless.
+
+#### Common patterns
+
+- **Observable assertions, not internals**: the extension owns its own `createAppState()` inside the harness — tests cannot reach it. Assert on observable surfaces instead: on-disk files, `t.sessionManager.getBranch()` for custom session entries the extension emitted, `t.events.toolResultsFor(...)` for tool outputs, `t.events.ui` for UI interactions.
+- **Pre-boot environment**: hooks like `session_start` fire inside `createTestSession`. If the extension reads `process.env.FOO` during those hooks, set it **before** calling `createTestSession`.
+- **Exporting internals for direct unit tests**: when a lib function is worth testing with synthetic inputs (pure replay, parsers, etc.), add `export` and call it directly — don't force everything through the harness. The default export (extension entry point) stays unchanged; pi only calls the default, so named exports are invisible to the loader.
+- **Mock Theme for renderer tests**: wrap text with readable markers instead of ANSI codes so snapshots stay human-readable and terminal-independent:
+  ```typescript
+  function createMockTheme(): Theme {
+    return {
+      fg: (color, text) => `[${color}:${text}]`,
+      bold: (text) => `[bold:${text}]`,
+      // ...
+    } as unknown as Theme;
+  }
+  ```
 
 ### Snapshot Management
 
-Snapshot files (`tests/<name>.test.ts.snapshot`) are auto-generated by `node:test`. They use a `exports["test name 1"]` format. Always commit snapshot files. When a snapshot changes unexpectedly, inspect the diff before updating.
+Snapshot files (`<name>.test.ts.snapshot`) are auto-generated by `node:test`. They use an `exports["test name 1"]` format. Always commit snapshot files. When a snapshot changes unexpectedly, inspect the diff before updating.
 
 ## Fixes
 

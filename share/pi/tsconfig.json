@@ -12,6 +12,7 @@
   "include": [
     "extensions/**/*.ts",
     "tests/**/*.ts",
-    "extensions/customizations/**/*.ts"
+    "extensions/customizations/**/*.ts",
+    "test-harness/**/*.ts"
   ]
 }
