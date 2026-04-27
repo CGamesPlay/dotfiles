@@ -162,8 +162,10 @@ return {
           -- Use LSP folding when the LSP supports it
           if client and client:supports_method('textDocument/foldingRange') then
             local win = vim.api.nvim_get_current_win()
-            vim.wo[win][0].foldmethod = 'expr'
-            vim.wo[win][0].foldexpr = 'v:lua.vim.lsp.foldexpr()'
+            if not vim.wo[win][0].diff then
+              vim.wo[win][0].foldmethod = 'expr'
+              vim.wo[win][0].foldexpr = 'v:lua.vim.lsp.foldexpr()'
+            end
           end
         end,
       })
