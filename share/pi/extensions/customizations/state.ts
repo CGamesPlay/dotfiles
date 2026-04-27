@@ -6,11 +6,6 @@
  */
 
 export interface AppState {
-  // Bash tee tracking
-  bashTee: {
-    activeTees: Map<string, { teePath: string; originalCommand: string }>;
-  };
-
   // Checkpoint
   checkpoint: {
     gitAvailable: boolean;
@@ -58,9 +53,6 @@ export interface AppState {
 
 export function createAppState(): AppState {
   return {
-    bashTee: {
-      activeTees: new Map(),
-    },
     checkpoint: {
       gitAvailable: false,
       checkpointingFailed: false,

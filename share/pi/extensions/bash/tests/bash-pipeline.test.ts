@@ -304,11 +304,63 @@ describe("injectTee", () => {
     assertNotModified('echo "path\\\\to" | grep foo');
   });
 
-  // Additional: all segments mutatable → inject after first segment
-  it("all segments mutatable → injects after first segment", () => {
+  // Additional: all segments mutatable — first segment is free source → not modified
+  it("grep | tail → not modified (grep at pos 0 is free source)", () => {
+    assertNotModified("grep -i foo | tail -5");
+  });
+
+  // Free source: cat with filename
+  it("cat file | tail → not modified", () => {
+    assertNotModified(
+      "cat /Users/rpatterson/Projects/dotfiles-dev/share/pi/node_modules/@mariozechner/pi-coding-agent/dist/modes/interactive/components/footer.js | tail -80",
+    );
+  });
+
+  it("cat -n file | grep → not modified", () => {
+    assertNotModified("cat -n /var/log/syslog | grep ERROR");
+  });
+
+  it("cat no args | tail → injects tee (stdin source)", () => {
     assertTeeInjected(
-      "grep -i foo | tail -5",
-      /grep -i foo \| tee \/.*pi-bash-tee-.*\.log \| tail/,
+      "cat | tail -5",
+      /cat \| tee \/.*pi-bash-tee-.*\.log \| tail/,
+    );
+  });
+
+  // Free source: grep/egrep/fgrep with file
+  it("grep file | tail → not modified", () => {
+    assertNotModified("grep foo /var/log/syslog | tail -20");
+  });
+
+  it("egrep file | tail → not modified", () => {
+    assertNotModified("egrep 'pat' file.txt | tail -5");
+  });
+
+  it("fgrep file | tail → not modified", () => {
+    assertNotModified("fgrep 'pat' file.txt | tail -5");
+  });
+
+  // Free source: tail with filename (but not -f/--follow)
+  it("tail file | grep → not modified", () => {
+    assertNotModified("tail /var/log/syslog | grep ERROR");
+  });
+
+  it("tail -5 file | grep → not modified", () => {
+    assertNotModified("tail -5 /var/log/syslog | grep ERROR");
+  });
+
+  it("tail -f file | grep → injects tee (streaming)", () => {
+    assertTeeInjected(
+      "tail -f /var/log/syslog | grep ERROR",
+      /syslog \| tee \/.*pi-bash-tee-.*\.log \| grep/,
+    );
+  });
+
+  // Compound source with && — conservative: not treated as free source
+  it("cd && cat file | tail → injects tee (compound source not analyzed)", () => {
+    assertTeeInjected(
+      "cd /path && cat file | tail -5",
+      /cat file \| tee \/.*pi-bash-tee-.*\.log \| tail/,
     );
   });
 

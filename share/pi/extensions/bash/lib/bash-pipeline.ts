@@ -417,7 +417,40 @@ export function classifySegment(
   return "other";
 }
 
-// ─── Step 6: Inject tee ───────────────────────────────────────────────────────
+// ─── Step 6: Detect free (cheap file-reading) sources ───────────────────────
+
+export function isFreeSource(segmentText: string): boolean {
+  // Conservative: don't analyze compound commands
+  if (segmentText.includes("&&") || segmentText.includes(";")) return false;
+
+  const tokens = tokenizeArgs(segmentText);
+  if (tokens.length === 0) return false;
+
+  const cmd = tokens[0].value;
+  const baseName = cmd.includes("/") ? cmd.split("/").pop()! : cmd;
+
+  if (baseName === "grep" || baseName === "egrep" || baseName === "fgrep") {
+    return true;
+  }
+
+  if (baseName === "cat") {
+    // cat is free only when reading from a named file (has a non-flag arg)
+    return tokens.slice(1).some((t) => !t.value.startsWith("-"));
+  }
+
+  if (baseName === "tail") {
+    // tail -f / --follow is a streaming operation, not a cheap file read
+    const hasFollow = tokens
+      .slice(1)
+      .some((t) => t.value === "-f" || t.value === "--follow" || t.value.startsWith("--follow="));
+    if (hasFollow) return false;
+    return tokens.slice(1).some((t) => !t.value.startsWith("-"));
+  }
+
+  return false;
+}
+
+// ─── Step 7: Inject tee ───────────────────────────────────────────────────────
 
 export function injectTee(
   command: string,
@@ -426,6 +459,8 @@ export function injectTee(
 
   const segments = splitPipeline(command);
   if (!segments || segments.length < 2) return null;
+
+  if (isFreeSource(segments[0].text)) return null;
 
   // Scan backwards from last segment to find mutatable chain
   let firstMutatableIndex = -1;
