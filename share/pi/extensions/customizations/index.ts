@@ -31,7 +31,6 @@ import {
   registerPlanningTools,
   registerPlanningCommands,
 } from "./tools/planning.js";
-import { registerDiffRenderers } from "./tools/diff-renderer.js";
 import {
   registerSystemAssistantFlags,
   registerSystemAssistantTools,
@@ -66,7 +65,6 @@ export default function (pi: ExtensionAPI) {
 
   // ── Tools ──────────────────────────────────────────────
   registerPlanningTools(state, pi);
-  registerDiffRenderers(pi);
   registerSystemAssistantTools(state, pi);
 
   // ── Commands ───────────────────────────────────────────

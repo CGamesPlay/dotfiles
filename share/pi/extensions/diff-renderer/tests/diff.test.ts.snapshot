@@ -3,6 +3,7 @@ exports[`end-to-end render > edit complete — error 1`] = `
 edit test.ts
 --- renderResult ---
 Error: File not found: test.ts
+Stack trace...
 `;
 
 exports[`end-to-end render > edit complete — expanded view shows all lines 1`] = `

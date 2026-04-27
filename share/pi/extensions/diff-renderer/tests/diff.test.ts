@@ -559,10 +559,7 @@ describe("end-to-end render", () => {
   let t: TestSession;
 
   before(async () => {
-    const EXTENSION = path.resolve(
-      import.meta.dirname,
-      "../../customizations/index.ts",
-    );
+    const EXTENSION = path.resolve(import.meta.dirname, "../index.ts");
     tmpDir = mkdtempSync(join(tmpdir(), "tool-renderer-test-"));
     const origCwd = process.cwd;
     process.cwd = () => tmpDir;
@@ -748,6 +745,7 @@ describe("end-to-end render", () => {
       isPartial: false,
       executionStarted: true,
       argsComplete: true,
+      isError: true,
       args: { path: "test.ts" },
     });
     const result: AgentToolResult<any> = {

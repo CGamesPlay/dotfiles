@@ -1,5 +1,5 @@
 /**
- * Edit/Write Tool Overrides with Diff Rendering
+ * Diff Renderer Extension — Entry Point
  *
  * Registers custom edit and write tools that show minimal colored diffs
  * instead of raw tool call arguments.
@@ -27,11 +27,9 @@ import {
   renderDiffResult,
   renderWrittenContent,
   type DiffLine,
-} from "../lib/diff.js";
+} from "./lib/diff.js";
 
-// ─── Registration ──────────────────────────────────────────────────────────────
-
-export function registerDiffRenderers(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   const cwd = process.cwd();
 
   // --- Edit tool ---
@@ -70,12 +68,16 @@ export function registerDiffRenderers(pi: ExtensionAPI) {
       // During execution, renderCall handles the preview diff
       if (isPartial) return new Text("", 0, 0);
 
+      if (context.isError) {
+        const errorText = result.content
+          .filter((c) => c.type === "text")
+          .map((c) => (c as { text?: string }).text ?? "")
+          .join("\n");
+        return new Text(theme.fg("error", errorText), 0, 0);
+      }
+
       const details = result.details as EditToolDetails | undefined;
       const content = result.content[0];
-
-      if (content?.type === "text" && content.text.startsWith("Error")) {
-        return new Text(theme.fg("error", content.text.split("\n")[0]), 0, 0);
-      }
 
       // Prefer the full-file diff from details (has correct line numbers);
       // fall back to diffing the args (line numbers relative to snippet).
@@ -193,8 +195,15 @@ export function registerDiffRenderers(pi: ExtensionAPI) {
       return new Text(text, 0, 0);
     },
 
-    renderResult(_result, _opts, _theme) {
-      // All rendering handled by renderCall; suppress built-in message
+    renderResult(result, _opts, theme, context) {
+      if (context.isError) {
+        const errorText = result.content
+          .filter((c) => c.type === "text")
+          .map((c) => (c as { text?: string }).text ?? "")
+          .join("\n");
+        return new Text(theme.fg("error", errorText), 0, 0);
+      }
+      // Success path: rendering handled by renderCall; suppress built-in message
       return new Text("", 0, 0);
     },
   });
