@@ -18,7 +18,6 @@ import {
   autoNameSessionFromPlan,
   runFinishPlanFlow,
 } from "../tools/planning.js";
-import { modifySystemPrompt } from "../tools/system-assistant.js";
 import {
   getCachedRepoRoot,
   addToCache,
@@ -97,7 +96,6 @@ export async function onBeforeAgentStart(
 
   // 2. Customize the system prompt
   systemPrompt += `\n\n${extensionPrompt}\n\nCurrent value of $PI_SESSION_STORAGE: ${state.sessionStorage.dir}`;
-  systemPrompt = modifySystemPrompt(pi, systemPrompt) ?? systemPrompt;
 
   // 3. Decide if we need to generate a guidance message before the turn starts.
   const branch = [...ctx.sessionManager.getBranch()].reverse();

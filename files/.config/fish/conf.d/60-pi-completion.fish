@@ -1,7 +1,7 @@
 bind alt-p __pi_completion
 
 if ! set -q pi_completion_options
-  set -U pi_completion_options --thinking off --model claude-haiku-4-5
+  set -U pi_completion_options --preset small
 end
 
 function __pi_completion -d "Fill in the command using an LLM"

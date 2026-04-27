@@ -1,14 +1,11 @@
 /**
  * Tool Call/Result Interception
  *
- * Handles tool_call, tool_result, and user_bash events.
- * Coordinates system-assistant permission gating and bash-tee pipeline injection.
+ * Handles tool_call and tool_result events for session storage tracking
+ * and bash-tee pipeline injection.
  */
 
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
   isToolCallEventType,
   isBashToolResult,
@@ -16,41 +13,14 @@ import {
 import { statSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { injectTee, formatSize } from "../lib/bash-pipeline.js";
-import { getGateSummary, overrideUserBash } from "../tools/system-assistant.js";
 import { isSessionStoragePath } from "../lib/session-storage.js";
 import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
 import type { AppState } from "../state.js";
 
-const GATED_TOOLS = new Set(["bash", "read", "write", "edit"]);
-
 // ─── Exported Handlers ─────────────────────────────────────────────────────────
 
-export async function onToolCall(
-  state: AppState,
-  pi: ExtensionAPI,
-  event: any,
-  ctx: any,
-) {
-  // 1. System-assistant permission gating (runs first so rejected tools don't get tee-injected)
-  const isActive = () => !!pi.getFlag("system-assistant");
-  if (isActive() && GATED_TOOLS.has(event.toolName)) {
-    if (!ctx.hasUI) {
-      return {
-        block: true,
-        reason:
-          "System assistant mode requires interactive approval (no UI available)",
-      };
-    }
-
-    const summary = getGateSummary(event);
-    const approved = await ctx.ui.confirm("🔒 Approve?", summary);
-
-    if (!approved) {
-      return { block: true, reason: "Blocked by user" };
-    }
-  }
-
-  // 2. Session storage: track internal writes to suppress external-mod detection
+export async function onToolCall(state: AppState, event: any, ctx: any) {
+  // 1. Session storage: track internal writes to suppress external-mod detection
   if (
     (event.toolName === "write" || event.toolName === "edit") &&
     state.sessionStorage.dir
@@ -66,7 +36,7 @@ export async function onToolCall(
     }
   }
 
-  // 3. Bash-tee pipeline injection
+  // 2. Bash-tee pipeline injection
   if (!isToolCallEventType("bash", event)) return;
 
   const result = injectTee(event.input.command);
@@ -81,7 +51,6 @@ export async function onToolCall(
 
 export async function onToolResult(
   state: AppState,
-  pi: ExtensionAPI,
   event: any,
   _ctx: ExtensionContext,
 ) {
@@ -169,9 +138,4 @@ export async function onToolResult(
   } catch {
     return; // File doesn't exist
   }
-}
-
-export async function onUserBash(pi: ExtensionAPI, _event: any, _ctx: any) {
-  // System-assistant $SHELL override
-  return overrideUserBash(pi);
 }
