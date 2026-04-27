@@ -9,7 +9,10 @@ import type {
   EditToolDetails,
   ExtensionAPI,
 } from "@mariozechner/pi-coding-agent";
-import { createEditTool, createWriteTool } from "@mariozechner/pi-coding-agent";
+import {
+  createEditToolDefinition,
+  createWriteToolDefinition,
+} from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import { readFileSync } from "fs";
 
@@ -33,18 +36,20 @@ export default function (pi: ExtensionAPI) {
   const cwd = process.cwd();
 
   // --- Edit tool ---
-  const originalEdit = createEditTool(cwd);
+  const originalEdit = createEditToolDefinition(cwd);
   pi.registerTool({
     name: "edit",
     label: "edit",
     description: originalEdit.description,
+    promptSnippet: originalEdit.promptSnippet,
+    promptGuidelines: originalEdit.promptGuidelines,
     parameters: originalEdit.parameters,
     // Built-in edit uses renderShell: "self" for its async diff preview.
     // Our diff is computed synchronously, so opt back into the TUI's shell.
     renderShell: "default",
 
-    async execute(toolCallId, params, signal, onUpdate) {
-      return originalEdit.execute(toolCallId, params, signal, onUpdate);
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      return originalEdit.execute(toolCallId, params, signal, onUpdate, ctx);
     },
 
     renderCall(args, theme, context) {
@@ -99,7 +104,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // --- Write tool ---
-  const originalWrite = createWriteTool(cwd);
+  const originalWrite = createWriteToolDefinition(cwd);
 
   interface WriteRenderState {
     /** The path we loaded oldContent for (cache key). */
@@ -114,10 +119,12 @@ export default function (pi: ExtensionAPI) {
     name: "write",
     label: "write",
     description: originalWrite.description,
+    promptSnippet: originalWrite.promptSnippet,
+    promptGuidelines: originalWrite.promptGuidelines,
     parameters: originalWrite.parameters,
 
-    async execute(toolCallId, params, signal, onUpdate) {
-      return originalWrite.execute(toolCallId, params, signal, onUpdate);
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
+      return originalWrite.execute(toolCallId, params, signal, onUpdate, ctx);
     },
 
     renderCall(args, theme, context) {

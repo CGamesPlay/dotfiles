@@ -6,7 +6,6 @@
 #
 # To upgrade, run `npm install` in share/pi directly.
 # @version wrapper, use --pi-version for version information
-# @flag   --resume           Immediately open session picker to resume
 # @flag   --continue         Continue the latest session
 # @flag   --no-session       Don't save this session
 # @flag   --skip-safehouse   Don't run in agent-safehouse
@@ -14,6 +13,7 @@
 # @flag   --pi-help          Show help for Pi
 # @flag   --pi-version       Show version for Pi
 # @flag   --pi-reinstall     Reinstall/Upgrade Pi even if already installed
+# @option --resume <FILE?>   Resume the given session (or picker if not session file given)
 # @option --model <MODEL>    Use a specific model
 # @option --thinking <LEVEL> Use a specific thinking level
 # @option --preset <PRESET>  Use a saved preset for model/thinking level
@@ -68,13 +68,20 @@ main() {
 	local args
 	args=(
 		"$PI_BIN"
-		${argc_resume+--resume}
-		${argc_continue+--continue}
-		${argc_no_session+--no-session}
 		${argc_model+--model "$argc_model"}
 		${argc_thinking+--thinking "$argc_thinking"}
 		${argc_preset+--preset "$argc_preset"}
 	)
+
+	if [[ ${argc_no_session+1} ]]; then
+		args+=(--no-session)
+	elif [[ ${argc_continue+1} ]]; then
+		args+=(--continue)
+	elif [[ -n ${argc_resume:-} ]]; then
+		args+=(--session "$argc_resume")
+	elif [[ ${argc_resume+1} ]]; then
+		args+=(--resume)
+	fi
 
 	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
 		if ! command -v safehouse >/dev/null; then
