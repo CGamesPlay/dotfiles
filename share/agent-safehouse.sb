@@ -1,0 +1,4 @@
+(allow mach-lookup
+    (global-name "com.apple.PowerManagement.control")  ;; caffeinate
+)
+;; vim:ft=scheme

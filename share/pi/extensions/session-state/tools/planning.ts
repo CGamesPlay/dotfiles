@@ -253,6 +253,15 @@ export function registerPlanningTools(state: AppState, pi: ExtensionAPI) {
         };
       }
 
+      // Notify any listening extensions (e.g. tui) that we're about to block
+      // on user input so they can arm a delayed notification for users who've
+      // switched focus away from the terminal.
+      const planTitle = extractPlanTitle(planContents) ?? "Untitled plan";
+      pi.events.emit("tui:waiting-for-user", {
+        title: `pi: ${pi.getSessionName() ?? path.basename(ctx.cwd)}`,
+        message: `Plan ready for review: ${planTitle}`,
+      });
+
       // Ask the user what to do
       const choice = await ctx.ui.select("What would you like to do?", [
         "1. Begin implementing immediately",

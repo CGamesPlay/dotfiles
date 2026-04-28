@@ -43,3 +43,19 @@ A markdown checkbox list, parsed and surfaced in the UI.
 - **Status-bar widget**: shows `done/total TODOs` plus the trailing block of items starting at the last completed one. Auto-shown when the list is non-empty; toggled manually with `/todo show` and `/todo hide`.
 - **`/todo [list]`**: full-screen overlay with the parsed list (Escape to close).
 - **Re-sync triggers**: `session_start`, `session_tree`, `turn_end`, and any internal `write`/`edit` to `TODO.md`.
+
+## Events emitted
+
+Cross-extension messages sent on the pi event bus (`pi.events.emit`):
+
+### `tui:waiting-for-user`
+
+Emitted by the `finish_plan` tool just before it opens the review dialog. Soft dependency on the [tui](../tui/README.md) extension — if tui isn't installed, no listener fires and the dialog still works as before. The intent is to let tui (or any equivalent listener) alert a user who has switched focus away from the terminal.
+
+Payload:
+
+```ts
+{ title: string; message: string }
+```
+
+The title follows the `pi: <session-name|cwd>` convention used elsewhere; the message is `Plan ready for review: <plan H1 title>` (or `Untitled plan` if no H1 is found).

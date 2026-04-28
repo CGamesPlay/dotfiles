@@ -91,6 +91,7 @@ main() {
 		script="set -a && source '$PI_ENV_FILE' && exec direnv exec . \"\$@\""
 		safehouse_args=(
 			--enable="clipboard,macos-gui,xcode"
+			--append-profile "$DFM_DIR/share/agent-safehouse.sb"
 			--add-dirs-ro /Library/Preferences/com.apple.dt.Xcode.plist
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after

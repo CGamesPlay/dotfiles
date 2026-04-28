@@ -24,3 +24,23 @@ While the agent is running, a `⏱ M:SS` widget is shown in the status bar, upda
 ## Commands
 
 - `/notify-test` — fire an iTerm2 notification after a 2-second delay, for testing the notification path.
+
+## Events consumed
+
+The extension subscribes to the following pi event-bus channels (`pi.events.on`) so other extensions can integrate with the notification timer:
+
+### `tui:waiting-for-user`
+
+Emitted by another extension when it opens a blocking UI element (e.g. `ctx.ui.select`) and wants to alert a user who may have switched focus away. Receiving this event arms the same 15-second delayed notification used by `agent_end`. Gaining terminal focus or pressing any key cancels the pending notification — there is no paired end event because the user returning to the terminal naturally cancels the timer.
+
+Payload:
+
+```ts
+{ title: string; message: string }
+```
+
+Both strings are passed verbatim to the iTerm2 notification — the emitting extension is responsible for formatting (the tui extension has no domain knowledge about the caller's situation).
+
+Currently emitted by:
+
+- `session-state` — when the `finish_plan` tool opens its review dialog.

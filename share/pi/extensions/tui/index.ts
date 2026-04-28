@@ -9,10 +9,14 @@
 
 import type {
   ExtensionAPI,
+  ExtensionCommandContext,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { queryOsc11, notify, DELAY_MS } from "./lib/terminal.js";
+
+const CAFFEINATE_IDLE_KILL_DELAY_MS = 20_000;
 
 const STATUS_KEY = "00-clock";
 
@@ -36,11 +40,37 @@ export default function (pi: ExtensionAPI) {
       interval: null as ReturnType<typeof setInterval> | null,
       startTime: undefined as number | undefined,
     },
+    caffeinate: {
+      process: undefined as ChildProcess | undefined,
+      killTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+    },
+    ctx: undefined as ExtensionContext | undefined,
+  };
+
+  const caffeinateEnabled = process.platform === "darwin";
+
+  const scheduleCaffeinateKill = (_ctx: ExtensionCommandContext) => {
+    if (!state.caffeinate.process) return;
+    if (state.caffeinate.killTimer) return;
+
+    state.caffeinate.killTimer = setTimeout(() => {
+      state.caffeinate.killTimer = undefined;
+      if (!state.caffeinate.process) return;
+      if (state.ctx?.isIdle()) {
+        state.caffeinate.process.kill();
+        state.caffeinate.process = undefined;
+      } else {
+        pi.runWhenIdle(scheduleCaffeinateKill);
+      }
+    }, CAFFEINATE_IDLE_KILL_DELAY_MS);
+    state.caffeinate.killTimer.unref();
   };
 
   // ── Session Start ──────────────────────────────────────
   pi.on("session_start", (_event, ctx: ExtensionContext) => {
     if (!ctx.hasUI) return;
+
+    state.ctx = ctx;
 
     // Enable terminal focus reporting (for agent-end notification)
     process.stdout.write("\x1b[?1004h");
@@ -91,6 +121,34 @@ export default function (pi: ExtensionAPI) {
       const elapsed = Math.floor((Date.now() - state.timer.startTime!) / 1000);
       ctx.ui.setStatus(STATUS_KEY, formatElapsed(elapsed));
     }, 1000);
+
+    if (caffeinateEnabled) {
+      // We're working again — cancel any pending idle-kill so the existing
+      // caffeinate keeps running.
+      if (state.caffeinate.killTimer) {
+        clearTimeout(state.caffeinate.killTimer);
+        state.caffeinate.killTimer = undefined;
+      }
+
+      if (!state.caffeinate.process) {
+        const child = spawn("caffeinate", ["-i", "-w", String(process.pid)], {
+          stdio: "ignore",
+        });
+        state.caffeinate.process = child;
+        child.on("exit", () => {
+          if (state.caffeinate.process === child) {
+            state.caffeinate.process = undefined;
+          }
+        });
+        child.on("error", () => {
+          if (state.caffeinate.process === child) {
+            state.caffeinate.process = undefined;
+          }
+        });
+      }
+
+      pi.runWhenIdle(scheduleCaffeinateKill);
+    }
   });
 
   // ── Agent End ──────────────────────────────────────────
@@ -130,6 +188,25 @@ export default function (pi: ExtensionAPI) {
     }, DELAY_MS).unref();
   });
 
+  // ── Cross-Extension: Waiting For User ──────────────────
+  // Other extensions (e.g. session-state's finish_plan tool) emit this when
+  // they open a blocking UI element so the user, who may have switched away,
+  // gets the same delayed notification used for agent_end.
+  pi.events.on("tui:waiting-for-user", (data) => {
+    if (!state.ctx?.hasUI) return;
+    const payload = data as { title: string; message: string };
+
+    if (state.notify.delayTimer !== undefined) {
+      clearTimeout(state.notify.delayTimer);
+      state.notify.delayTimer = undefined;
+    }
+
+    state.notify.delayTimer = setTimeout(() => {
+      state.notify.delayTimer = undefined;
+      notify(payload.title, payload.message);
+    }, DELAY_MS).unref();
+  });
+
   // ── Session Shutdown ───────────────────────────────────
   pi.on("session_shutdown", (_event, ctx: ExtensionContext) => {
     // Clear notification timer
@@ -151,6 +228,19 @@ export default function (pi: ExtensionAPI) {
     if (ctx.hasUI) {
       process.stdout.write("\x1b[?1004l");
     }
+
+    if (caffeinateEnabled) {
+      if (state.caffeinate.killTimer) {
+        clearTimeout(state.caffeinate.killTimer);
+        state.caffeinate.killTimer = undefined;
+      }
+      if (state.caffeinate.process) {
+        state.caffeinate.process.kill();
+        state.caffeinate.process = undefined;
+      }
+    }
+
+    state.ctx = undefined;
   });
 
   // ── Commands ───────────────────────────────────────────
