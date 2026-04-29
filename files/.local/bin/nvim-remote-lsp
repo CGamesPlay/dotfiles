@@ -1,0 +1,1019 @@
+#!/usr/bin/env bash
+# @describe Query LSP servers attached to a running nvim session.
+#
+# Talks to nvim over its RPC socket and asks its already-attached LSP
+# clients to answer queries. Lets short-lived callers (agents, scripts)
+# share the editor's LSP instead of starting their own.
+#
+# Line and column numbers are always 1-indexed in both input arguments and
+# formatted text output. Raw JSON output (--json) uses LSP-native 0-indexed
+# coordinates.
+#
+# The col parameter can be a numeric column (1-indexed) or a search string.
+# When a search string, it must match exactly once in the line, and the
+# first column of the match is used as the target column.
+#
+# @meta inherit-flag-options
+# @option --socket $NVIM <PATH>  Path to nvim socket
+# @flag --json                          Emit raw JSON instead of formatted text
+
+set -ue
+declare argc_file argc_line argc_col argc_json argc_socket argc_query
+
+# Shared lua prelude: helpers used by most commands. Wrapped as the prefix
+# of an IIFE so it composes with a spec table:
+#   `${LUA_PRELUDE} return { start = ... } end)()`
+#
+# Helpers:
+#   load_buffer(file, cb)         -- ensure file is loaded, wait for LSP to
+#                                    attach (1s), initialize (30s), and any
+#                                    in-flight work (60s) to drain. Calls
+#                                    cb(bufnr, clients) — clients is empty
+#                                    if no LSP attached/initialized in time.
+#                                    Non-blocking (defer_fn polling).
+#   load_buffer_attach(file, cb)  -- like load_buffer but returns as soon as
+#                                    a client attaches. If no LSP config is
+#                                    enabled for the buffer filetype,
+#                                    returns immediately with no clients;
+#                                    otherwise waits up to 5s for a cold
+#                                    attach. On a cold attach, registers
+#                                    a pending entry so a subsequent
+#                                    `diagnostics` call still waits for the
+#                                    server to settle. Use when you only
+#                                    care whether an LSP is present.
+#   register_pending(bufnr,       -- install the $/progress chain handler
+#                    is_new)         (idempotent) and mark `bufnr` as
+#                                    awaiting a fresh diagnostics publish.
+#                                    `diagnostics` blocks until pending
+#                                    entries resolve (DiagnosticChanged or
+#                                    progress-end with empty publish) or
+#                                    the 2.5s settle deadline elapses.
+#   strip_cwd(path)               -- drop a leading `<cwd>/` prefix.
+#   token_at(bufnr, line, col)    -- return the identifier-like token at
+#                                    a 0-indexed (line, col), or nil.
+#   request_all(clients, method,  -- fan out an LSP request to all clients,
+#               params, bufnr, cb)   collect responses, call cb(responses)
+#                                    once they all reply. bufnr may be nil
+#                                    for workspace requests. Each response
+#                                    is { error, result, client = name }.
+# shellcheck disable=SC2016 # no variable substitutions
+LUA_PRELUDE='(function()
+local function ensure_nrl_state()
+	_G.__nrl = _G.__nrl or { active_tokens = {}, pending = {}, hooks_installed = false }
+	local S = _G.__nrl
+	-- Install $/progress chain handler exactly once. begin/end track
+	-- in-flight tokens; end ALSO completes pending entries that have
+	-- received a publishDiagnostics with empty diags (authoritative
+	-- "server finished and reported nothing").
+	if not S.hooks_installed then
+		local saved = vim.lsp.handlers["$/progress"]
+		vim.lsp.handlers["$/progress"] = function(err, result, ctx, cfg)
+			if result and result.value and result.token then
+				local tok = tostring(result.token)
+				if result.value.kind == "begin" then
+					S.active_tokens[tok] = true
+				elseif result.value.kind == "end" then
+					S.active_tokens[tok] = nil
+					for bufnr, p in pairs(S.pending) do
+						if p.is_new and not p.resolved and p.got_publish
+								and #vim.diagnostic.get(bufnr) == 0 then
+							p.resolved = true
+							S.pending[bufnr] = nil
+						end
+					end
+				end
+			end
+			if saved then return saved(err, result, ctx, cfg) end
+		end
+		S.hooks_installed = true
+	end
+	return S
+end
+
+local function register_pending(bufnr, is_new)
+	local S = ensure_nrl_state()
+	if S.pending[bufnr] then return end
+	-- Settle window of 2.5s mirrors the heuristic in many editor LSP
+	-- clients: empty publish on a freshly opened file may be premature
+	-- (tsserver in particular sends empty before the real result). The
+	-- window is collapsed by the $/progress end handler when the server
+	-- signals completion AND we have a publish on record.
+	local pending = {
+		bufnr = bufnr,
+		is_new = is_new,
+		deadline = vim.uv.hrtime() + 2500e6,
+		got_publish = false,
+		resolved = false,
+	}
+	S.pending[bufnr] = pending
+	vim.api.nvim_create_autocmd("DiagnosticChanged", {
+		buffer = bufnr,
+		callback = function()
+			pending.got_publish = true
+			if #vim.diagnostic.get(bufnr) > 0 then
+				pending.resolved = true
+				S.pending[bufnr] = nil
+				return true
+			end
+		end,
+	})
+end
+local function load_buffer(file, cb)
+	local bufnr = vim.fn.bufnr(file)
+	if bufnr == -1 then
+		bufnr = vim.fn.bufadd(file)
+		vim.fn.bufload(bufnr)
+		-- bufload sets filetype but does not fire FileType autocmds in a way
+		-- that triggers the LSP autostart; fire it explicitly so rust-analyzer
+		-- and friends attach to the buffer.
+		vim.api.nvim_buf_call(bufnr, function() vim.cmd("doautocmd FileType") end)
+	end
+	local attach_deadline = vim.uv.hrtime() + 1e9
+	local init_deadline = vim.uv.hrtime() + 30e9
+	local progress_deadline = vim.uv.hrtime() + 60e9
+	local wait_attach, wait_initialized, wait_progress
+	-- Phase 1: poll up to 1s for any client to attach.
+	wait_attach = function()
+		if #vim.lsp.get_clients({ bufnr = bufnr }) > 0 then
+			return wait_initialized()
+		end
+		if vim.uv.hrtime() >= attach_deadline then
+			return cb(bufnr, {})
+		end
+		vim.defer_fn(wait_attach, 50)
+	end
+	-- Phase 2: poll up to 30s for all clients to be initialized.
+	wait_initialized = function()
+		local clients = vim.lsp.get_clients({ bufnr = bufnr })
+		local all = #clients > 0
+		for _, c in ipairs(clients) do
+			if not c.initialized then all = false break end
+		end
+		if all then return wait_progress() end
+		if vim.uv.hrtime() >= init_deadline then
+			return cb(bufnr, {})
+		end
+		vim.defer_fn(wait_initialized, 50)
+	end
+	-- Phase 3: poll up to 60s for all in-flight work to drain.
+	wait_progress = function()
+		local clients = vim.lsp.get_clients({ bufnr = bufnr })
+		local idle = true
+		for _, c in ipairs(clients) do
+			if c.progress and next(c.progress.pending) ~= nil then
+				idle = false break
+			end
+		end
+		if idle then return cb(bufnr, clients) end
+		if vim.uv.hrtime() >= progress_deadline then
+			return cb(bufnr, clients)
+		end
+		vim.defer_fn(wait_progress, 100)
+	end
+	wait_attach()
+end
+
+-- True if any enabled vim.lsp config could attach to the buffer
+-- filetype. Mirrors nvim core can_start (vim/lsp.lua): a config
+-- matches if its `filetypes` table contains the ft, or if `filetypes`
+-- is absent (then it matches all fts). Lets load_buffer_attach
+-- distinguish a real negative (nothing configured) from a slow
+-- cold attach (configured but not yet started).
+local function lsp_configured_for_buf(bufnr)
+	local ft = vim.bo[bufnr].filetype
+	for name in pairs(vim.lsp._enabled_configs or {}) do
+		local cfg = vim.lsp.config[name]
+		if cfg then
+			local fts = cfg.filetypes
+			if type(fts) ~= [[table]] or vim.tbl_contains(fts, ft) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- Like load_buffer but stops at phase 1: returns as soon as any client
+-- attaches. If no LSP config is enabled for the buffer filetype,
+-- returns immediately with no clients (a real negative); otherwise
+-- polls up to 5s for the cold attach to land. Use when the caller
+-- only needs to know whether an LSP is present (e.g. `load`). On a
+-- cold attach, registers a pending entry so a later `diagnostics`
+-- call still waits for the server to settle.
+local function load_buffer_attach(file, cb)
+	local existing = vim.fn.bufnr(file)
+	local was_attached = existing ~= -1
+		and #vim.lsp.get_clients({ bufnr = existing }) > 0
+	local bufnr = existing
+	if bufnr == -1 then
+		bufnr = vim.fn.bufadd(file)
+		vim.fn.bufload(bufnr)
+		vim.api.nvim_buf_call(bufnr, function() vim.cmd("doautocmd FileType") end)
+	end
+	-- vim.lsp.start() inside the FileType autocmd registers the client
+	-- synchronously, so the common case is settled by now. The poll below
+	-- only handles configurations that defer attachment.
+	local clients = vim.lsp.get_clients({ bufnr = bufnr })
+	if #clients > 0 then
+		if not was_attached then register_pending(bufnr, true) end
+		return cb(bufnr, clients)
+	end
+	if not lsp_configured_for_buf(bufnr) then
+		return cb(bufnr, {})
+	end
+	local deadline = vim.uv.hrtime() + 5e9
+	local poll
+	poll = function()
+		local cs = vim.lsp.get_clients({ bufnr = bufnr })
+		if #cs > 0 then
+			if not was_attached then register_pending(bufnr, true) end
+			return cb(bufnr, cs)
+		end
+		if vim.uv.hrtime() >= deadline then
+			return cb(bufnr, {})
+		end
+		vim.defer_fn(poll, 25)
+	end
+	vim.defer_fn(poll, 25)
+end
+
+local cwd = vim.fn.getcwd()
+local function strip_cwd(path)
+	if path:sub(1, #cwd + 1) == cwd .. "/" then
+		return path:sub(#cwd + 2)
+	end
+	return path
+end
+
+-- 0-indexed (line, col). Returns the identifier-like token covering col,
+-- or nil if the position is not on one.
+local function token_at(bufnr, line, col)
+	local text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+	if not text then return nil end
+	local s, e = 1, 0
+	while true do
+		local ns, ne = text:find("[%w_]+", e + 1)
+		if not ns or ns > col + 1 then break end
+		s, e = ns, ne
+		if e >= col + 1 then break end
+	end
+	if e >= col + 1 and s <= col + 1 then
+		return text:sub(s, e)
+	end
+	return nil
+end
+
+local function request_all(clients, method, params, bufnr, cb)
+	local responses = {}
+	local pending = #clients
+	for _, c in ipairs(clients) do
+		c:request(method, params, function(err, result)
+			table.insert(responses, { error = err, result = result, client = c.name })
+			pending = pending - 1
+			if pending == 0 then cb(responses) end
+		end, bufnr)
+	end
+end
+'
+
+# @cmd Goto-definition at file:line:col.
+# @arg file! <PATH>  File path (relative paths resolved against nvim's cwd)
+# @arg line!   1-indexed line
+# @arg col!    1-indexed character or search string
+definition() {
+	position_request "textDocument/definition" "$argc_file" "$argc_line" "$argc_col"
+}
+
+# @cmd Find references at file:line:col.
+# @arg file! <PATH>  File path
+# @arg line!   1-indexed line
+# @arg col!    1-indexed character or search string
+references() {
+	position_request "textDocument/references" "$argc_file" "$argc_line" "$argc_col"
+}
+
+# @cmd Goto type-definition at file:line:col.
+# @arg file! <PATH>  File path
+# @arg line!   1-indexed line
+# @arg col!    1-indexed character or search string
+type-definition() {
+	position_request "textDocument/typeDefinition" "$argc_file" "$argc_line" "$argc_col"
+}
+
+# @cmd Find implementations at file:line:col.
+# @arg file! <PATH>  File path
+# @arg line!   1-indexed line
+# @arg col!    1-indexed character or search string
+implementation() {
+	position_request "textDocument/implementation" "$argc_file" "$argc_line" "$argc_col"
+}
+
+# @cmd List symbols defined in a file.
+#
+# Output: `path:line:col: kind name` per symbol, indented by nesting depth
+# when the server returns hierarchical DocumentSymbol results. Servers that
+# return flat SymbolInformation use `container.name` instead of indentation.
+#
+# @arg file! <PATH>  File path
+document-symbol() {
+	remote_expr "$argc_file" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, file)
+		load_buffer(file, function(bufnr)
+			local clients = vim.lsp.get_clients({ bufnr = bufnr, method = "textDocument/documentSymbol" })
+			if #clients == 0 then
+				return done(nil, "no LSP client supports textDocument/documentSymbol on " .. file)
+			end
+			local params = { textDocument = { uri = vim.uri_from_bufnr(bufnr) } }
+			request_all(clients, "textDocument/documentSymbol", params, bufnr, done)
+		end)
+	end,
+
+	format = function(data, file)
+		local kinds = vim.lsp.protocol.SymbolKind
+		local lines = {}
+		local function emit_doc(sym, path, depth)
+			local r = sym.selectionRange or sym.range
+			local kind = kinds[sym.kind] or "Unknown"
+			local indent = string.rep("  ", depth)
+			lines[#lines + 1] = string.format("%s:%d:%d: %s%s %s\n",
+				path, r.start.line + 1, r.start.character + 1,
+				indent, kind, sym.name)
+			if sym.children then
+				for _, child in ipairs(sym.children) do
+					emit_doc(child, path, depth + 1)
+				end
+			end
+		end
+		for _, response in ipairs(data) do
+			local result = response.result
+			if type(result) == "table" then
+				for _, sym in ipairs(result) do
+					if sym.location then
+						-- SymbolInformation: flat, has location + containerName
+						local loc = sym.location
+						local path = strip_cwd(vim.uri_to_fname(loc.uri))
+						local kind = kinds[sym.kind] or "Unknown"
+						local name = sym.containerName and sym.containerName ~= ""
+							and (sym.containerName .. "." .. sym.name)
+							or sym.name
+						lines[#lines + 1] = string.format("%s:%d:%d: %s %s\n",
+							path, loc.range.start.line + 1,
+							loc.range.start.character + 1, kind, name)
+					else
+						-- DocumentSymbol: hierarchical, has range/selectionRange/children
+						emit_doc(sym, strip_cwd(file), 0)
+					end
+				end
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd Search workspace for symbols matching a query.
+#
+# Querying syntax is server-defined; rust-analyzer/gopls/clangd accept
+# substring or fuzzy matches, often with `#` prefixes for filters.
+#
+# Output: `path:line:col: kind container.name` per match. When the server
+# returns a WorkspaceSymbol without a range, line:col are omitted.
+#
+# @arg query!  Symbol query string
+symbol() {
+	remote_expr "$argc_query" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, query)
+		local clients = vim.lsp.get_clients({ method = "workspace/symbol" })
+		if #clients == 0 then
+			return done(nil, "no LSP client supports workspace/symbol")
+		end
+		request_all(clients, "workspace/symbol", { query = query }, nil, done)
+	end,
+
+	format = function(data)
+		local kinds = vim.lsp.protocol.SymbolKind
+		local lines = {}
+		for _, response in ipairs(data) do
+			local result = response.result
+			if type(result) == "table" then
+				for _, sym in ipairs(result) do
+					local loc = sym.location
+					if loc and loc.uri then
+						local path = strip_cwd(vim.uri_to_fname(loc.uri))
+						local kind = kinds[sym.kind] or "Unknown"
+						local name = sym.containerName and sym.containerName ~= ""
+							and (sym.containerName .. "." .. sym.name)
+							or sym.name
+						if loc.range then
+							lines[#lines + 1] = string.format("%s:%d:%d: %s %s\n",
+								path, loc.range.start.line + 1,
+								loc.range.start.character + 1, kind, name)
+						else
+							lines[#lines + 1] = string.format("%s: %s %s\n", path, kind, name)
+						end
+					end
+				end
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd Hover info at file:line:col.
+#
+# Returns the type signature and documentation for the symbol at the
+# position, as markdown. Aggregates results from all attached LSPs.
+#
+# @arg file! <PATH>  File path
+# @arg line!   1-indexed line
+# @arg col!    1-indexed character or search string
+hover() {
+	remote_expr "$argc_file" "$argc_line" "$argc_col" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, file, line, col)
+		line = tonumber(line) - 1
+		-- col can be a number or a search string
+		local is_search_string = type(col) ~= "number" and tonumber(col) == nil
+		if is_search_string then
+			-- col is a search string; resolve it to a column number
+			local bufnr = vim.fn.bufnr(file)
+			if bufnr == -1 then
+				bufnr = vim.fn.bufadd(file)
+				vim.fn.bufload(bufnr)
+			end
+			local text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+			if not text then
+				return done(nil, "line " .. line + 1 .. " not found in " .. file)
+			end
+			-- Find all matches and ensure there's exactly one
+			local matches = {}
+			local start_idx = 1
+			while true do
+				local s, e = text:find(col, start_idx, true)  -- plain match
+				if not s then break end
+				table.insert(matches, { start = s - 1, ["end"] = e - 1 })  -- 0-indexed
+				start_idx = e + 1
+			end
+			if #matches == 0 then
+				return done(nil, "search string '" .. col .. "' not found on line " .. line + 1)
+			elseif #matches > 1 then
+				return done(nil, "search string '" .. col .. "' matches " .. #matches .. " times on line " .. line + 1 .. "; must match exactly once")
+			end
+			col = matches[1].start
+		else
+			col = tonumber(col) - 1
+		end
+		load_buffer(file, function(bufnr)
+			local clients = vim.lsp.get_clients({ bufnr = bufnr, method = "textDocument/hover" })
+			if #clients == 0 then
+				return done(nil, "no LSP client supports textDocument/hover on " .. file)
+			end
+			local params = {
+				textDocument = { uri = vim.uri_from_bufnr(bufnr) },
+				position = { line = line, character = col },
+			}
+			request_all(clients, "textDocument/hover", params, bufnr, done)
+		end)
+	end,
+
+	format = function(data, file, line, col)
+		line = tonumber(line) - 1
+		local is_search_string = type(col) ~= "number" and tonumber(col) == nil
+		local col_num
+		if is_search_string then
+			-- Resolve search string to column for display
+			local bufnr = vim.fn.bufnr(file)
+			if bufnr == -1 then
+				bufnr = vim.fn.bufadd(file)
+				vim.fn.bufload(bufnr)
+			end
+			local text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+			local s = text and text:find(col, 1, true) or nil
+			col_num = s and s - 1 or 0
+		else
+			col_num = tonumber(col) - 1
+		end
+		local lines = {}
+		local bufnr = vim.fn.bufnr(file)
+		local token = bufnr ~= -1 and token_at(bufnr, line, col_num) or nil
+		if token then
+			lines[#lines + 1] = string.format("# hover for %s:%d:%d (%s):\n\n",
+				file, line + 1, col_num + 1, token)
+		end
+		local multi = #data > 1
+		for _, response in ipairs(data) do
+			local result = response.result
+			if type(result) == "table" and result.contents then
+				local md = vim.lsp.util.convert_input_to_markdown_lines(result.contents)
+				if md and #md > 0 then
+					if multi then
+						lines[#lines + 1] = string.format("## %s\n\n", response.client)
+					end
+					lines[#lines + 1] = table.concat(md, "\n") .. "\n"
+				end
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd Load a file into nvim and wait for an LSP to attach.
+#
+# Idempotent: if the buffer is already loaded, just checks for LSP clients.
+# Prints "true" if an LSP is attached, "false" otherwise.
+#
+# @arg file! <PATH>  File path
+load() {
+	remote_expr "$argc_file" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, file)
+		load_buffer_attach(file, function(_, clients)
+			done(#clients > 0)
+		end)
+	end,
+
+	format = function(data)
+		return tostring(data) .. "\n"
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd Diagnostics for one file, or all loaded buffers if omitted.
+#
+# Blocks (up to 30s) for any in-flight LSP work kicked off by a previous
+# `notify-file-changed` to settle, so results reflect current disk state.
+# When called without a prior notify, returns whatever the LSP last
+# published — possibly stale for files modified externally.
+#
+# May omit diagnostics for buffers nvim has not loaded; most LSPs do not
+# maintain diagnostics for files they have never seen.
+#
+# @arg file   File path (optional)
+diagnostics() {
+	local file="${argc_file:-}"
+	remote_expr "$file" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, file)
+		-- Wait for any pending notify-file-changed work to settle.
+		local S = _G.__nrl or { active_tokens = {}, pending = {} }
+		local function ready()
+			if next(S.active_tokens) ~= nil then return false end
+			local now = vim.uv.hrtime()
+			for bufnr, p in pairs(S.pending) do
+				if p.resolved then
+					S.pending[bufnr] = nil
+				elseif p.is_new and now >= p.deadline then
+					-- Settle deadline elapsed; accept current state.
+					p.resolved = true
+					S.pending[bufnr] = nil
+				else
+					return false
+				end
+			end
+			return true
+		end
+		vim.wait(30000, ready, 25)
+
+		local diags
+		if file ~= "" then
+			local bufnr = vim.fn.bufnr(file)
+			if bufnr == -1 then
+				return done(nil, "file not loaded in nvim: " .. file)
+			end
+			diags = vim.diagnostic.get(bufnr)
+		else
+			diags = vim.diagnostic.get()
+		end
+		local names = {}
+		for _, d in ipairs(diags) do
+			if not names[d.bufnr] then
+				names[d.bufnr] = strip_cwd(vim.api.nvim_buf_get_name(d.bufnr))
+			end
+			d.path = names[d.bufnr]
+		end
+		done(diags)
+	end,
+
+	format = function(data)
+		local sev = { [1] = "error", [2] = "warning", [3] = "info", [4] = "note" }
+		local lines = {}
+		for _, d in ipairs(data) do
+			local code = d.code and (" " .. d.code) or ""
+			table.insert(lines, string.format("%s:%d:%d: %s%s: %s\n",
+				d.path, d.lnum + 1, d.col + 1,
+				sev[d.severity] or "unknown", code, d.message))
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd List buffers that have at least one LSP client attached.
+buffers() {
+	remote_expr <<END_LUA
+${LUA_PRELUDE}
+return {
+	data = function()
+		local out = {}
+		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+			if vim.api.nvim_buf_is_loaded(buf) then
+				local clients = {}
+				for _, c in ipairs(vim.lsp.get_clients({ bufnr = buf })) do
+					table.insert(clients, {
+						id = c.id,
+						name = c.name,
+						pid = c.rpc and c.rpc.pid or vim.NIL,
+						root_dir = c.root_dir or vim.NIL,
+					})
+				end
+				if #clients > 0 then
+					table.insert(out, {
+						bufnr = buf,
+						name = vim.api.nvim_buf_get_name(buf),
+						filetype = vim.bo[buf].filetype,
+						clients = clients,
+					})
+				end
+			end
+		end
+		return out
+	end,
+
+	format = function(data)
+		local lines = {}
+		for _, b in ipairs(data) do
+			table.insert(lines, string.format("%s (buf %d, %s)\n",
+				strip_cwd(b.name), b.bufnr, b.filetype))
+			for _, c in ipairs(b.clients) do
+				local pid = c.pid ~= vim.NIL and ("pid=" .. c.pid) or ""
+				local root = ""
+				if c.root_dir ~= vim.NIL and c.root_dir ~= cwd then
+					root = "root=" .. c.root_dir
+				end
+				local extra = table.concat(vim.tbl_filter(function(s) return s ~= "" end, {pid, root}), " ")
+				table.insert(lines, string.format("     %s#%d%s\n",
+					c.name, c.id, extra ~= "" and (" " .. extra) or ""))
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# @cmd Tell nvim that files changed on disk so attached LSPs refresh.
+#
+# For each file, ensures it has an attached LSP (loading it into a hidden
+# buffer if necessary). When the buffer was already attached, runs
+# `:checktime` first so nvim reloads it from disk (under default
+# 'autoread'); that fires `didChange` to the LSP, ensuring the server
+# sees current text rather than its stale `didOpen` copy. Then sends
+# `textDocument/didSave`. Returns immediately — does NOT wait for the
+# server to publish refreshed diagnostics. Use `diagnostics` afterwards
+# to read results; that command blocks until all in-flight server work
+# has settled.
+#
+# A buffer with unsaved modifications is left alone (status
+# `modified-buffer`, no didSave): the user's work wins over the on-disk
+# version, and the caller can decide what to do.
+#
+# This is server-agnostic. We don't use `workspace/didChangeWatchedFiles`
+# because servers like rust-analyzer only treat it as an indexing hint,
+# not a trigger for fresh diagnostics.
+#
+# @arg file+   Files that changed on disk
+notify-file-changed() {
+	remote_expr "${argc_file[@]}" <<END_LUA
+${LUA_PRELUDE}
+return {
+	data = function(...)
+		local files = {...}
+		local results = {}
+		for _, file in ipairs(files) do
+			local path = vim.fn.fnamemodify(file, ":p")
+			local existing = vim.fn.bufnr(path)
+			local was_attached = existing ~= -1
+				and #vim.lsp.get_clients({ bufnr = existing }) > 0
+			local bufnr = vim.fn.bufadd(path)
+			vim.fn.bufload(bufnr)
+			if not was_attached then
+				vim.api.nvim_buf_call(bufnr, function()
+					vim.cmd("doautocmd BufRead")
+					vim.cmd("doautocmd FileType")
+				end)
+				vim.wait(2000, function()
+					return #vim.lsp.get_clients({ bufnr = bufnr }) > 0
+				end)
+			end
+			-- For an already-attached buffer, \`bufload\` is a no-op and
+			-- \`didSave\` carries only the URI — the server keeps its stale
+			-- in-memory text from didOpen. Some servers (ts_ls) trust that
+			-- copy and never re-read disk. Use :checktime to reload from
+			-- disk; with 'autoread' on (default) and an unmodified buffer
+			-- this fires LSP \`on_lines\` -> didChange before our didSave.
+			-- Skip when the buffer has unsaved edits: the user's work wins
+			-- over the on-disk version, so report it instead of pretending.
+			if was_attached and not vim.bo[bufnr].modified then
+				vim.api.nvim_buf_call(bufnr, function()
+					vim.cmd("checktime")
+				end)
+			end
+			local clients = vim.lsp.get_clients({ bufnr = bufnr })
+			if #clients == 0 then
+				table.insert(results, { file = file, status = "no-lsp" })
+			elseif was_attached and vim.bo[bufnr].modified then
+				table.insert(results, { file = file, status = "modified-buffer" })
+			else
+				local is_new = not was_attached
+				if is_new then
+					register_pending(bufnr, true)
+				end
+				for _, c in ipairs(clients) do
+					c:notify("textDocument/didSave",
+						{ textDocument = { uri = vim.uri_from_bufnr(bufnr) } })
+				end
+				table.insert(results, { file = file, status = "ok", is_new = is_new })
+			end
+		end
+		return results
+	end,
+
+	format = function(data)
+		local lines = {}
+		for _, r in ipairs(data) do
+			if r.status == "ok" then
+				lines[#lines + 1] = string.format("%s: ok%s\n",
+					r.file, r.is_new and " (cold)" or "")
+			else
+				lines[#lines + 1] = string.format("%s: %s\n", r.file, r.status)
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# Run a textDocument/* request that maps a position to a list of locations
+# (definition, references, typeDefinition, implementation). Output format is
+# `path:line:col` per result, with a header line naming the symbol at the
+# query position.
+position_request() {
+	local method="$1" file="$2" line="$3" col="$4"
+	remote_expr "$method" "$file" "$line" "$col" <<END_LUA
+${LUA_PRELUDE}
+return {
+	start = function(done, method, file, line, col)
+		line = tonumber(line) - 1
+		-- col can be a number or a search string
+		local is_search_string = type(col) ~= "number" and tonumber(col) == nil
+		if is_search_string then
+			-- col is a search string; resolve it to a column number
+			local bufnr = vim.fn.bufnr(file)
+			if bufnr == -1 then
+				bufnr = vim.fn.bufadd(file)
+				vim.fn.bufload(bufnr)
+			end
+			local text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+			if not text then
+				return done(nil, "line " .. line + 1 .. " not found in " .. file)
+			end
+			-- Find all matches and ensure there's exactly one
+			local matches = {}
+			local start_idx = 1
+			while true do
+				local s, e = text:find(col, start_idx, true)  -- plain match
+				if not s then break end
+				table.insert(matches, { start = s - 1, ["end"] = e - 1 })  -- 0-indexed
+				start_idx = e + 1
+			end
+			if #matches == 0 then
+				return done(nil, "search string '" .. col .. "' not found on line " .. line + 1)
+			elseif #matches > 1 then
+				return done(nil, "search string '" .. col .. "' matches " .. #matches .. " times on line " .. line + 1 .. "; must match exactly once")
+			end
+			col = matches[1].start
+		else
+			col = tonumber(col) - 1
+		end
+		load_buffer(file, function(bufnr)
+			local clients = vim.lsp.get_clients({ bufnr = bufnr, method = method })
+			if #clients == 0 then
+				return done(nil, "no LSP client supports " .. method .. " on " .. file)
+			end
+			local params = {
+				textDocument = { uri = vim.uri_from_bufnr(bufnr) },
+				position = { line = line, character = col },
+			}
+			if method == "textDocument/references" then
+				params.context = { includeDeclaration = true }
+			end
+			request_all(clients, method, params, bufnr, done)
+		end)
+	end,
+
+	format = function(data, method, file, line, col)
+		line = tonumber(line) - 1
+		local is_search_string = type(col) ~= "number" and tonumber(col) == nil
+		local col_num
+		if is_search_string then
+			-- Resolve search string to column for display
+			local bufnr = vim.fn.bufnr(file)
+			if bufnr == -1 then
+				bufnr = vim.fn.bufadd(file)
+				vim.fn.bufload(bufnr)
+			end
+			local text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+			local s = text and text:find(col, 1, true) or nil
+			col_num = s and s - 1 or 0
+		else
+			col_num = tonumber(col) - 1
+		end
+		local lines = {}
+		local bufnr = vim.fn.bufnr(file)
+		local token = bufnr ~= -1 and token_at(bufnr, line, col_num) or nil
+		if token then
+			lines[#lines + 1] = string.format("# %s for %s:%d:%d (%s):\n",
+				method, file, line + 1, col_num + 1, token)
+		end
+		for _, response in ipairs(data) do
+			local result = response.result
+			if type(result) == "table" and next(result) ~= nil then
+				-- result is either a list of Location/LocationLink or a single one
+				local items = result[1] ~= nil and result or { result }
+				for _, item in ipairs(items) do
+					local uri, range
+					if item.targetUri then
+						uri, range = item.targetUri, item.targetSelectionRange
+					else
+						uri, range = item.uri, item.range
+					end
+					if uri and range then
+						lines[#lines + 1] = string.format("%s:%d:%d\n",
+							strip_cwd(vim.uri_to_fname(uri)),
+							range.start.line + 1, range.start.character + 1)
+					end
+				end
+			end
+		end
+		return table.concat(lines, "")
+	end,
+}
+end)()
+END_LUA
+}
+
+# Run a remote query against the connected nvim.
+#
+# Usage: remote_expr [ARG ...] <<'END_LUA'
+#   {
+#     data   = function(...) ... end,           -- sync: returns value
+#     -- OR
+#     start  = function(done, ...) ... end,     -- async: calls done(value)
+#                                               --        or done(nil, errmsg)
+#     format = function(data, ...) ... end,     -- optional; --json bypasses it
+#   }
+#   END_LUA
+#
+# Sync specs return a value from data(); async specs run the work in the
+# background and call done() when ready. Both paths write a single line to
+# a FIFO that bash reads, so the editor's main loop is never blocked on
+# long waits.
+#
+# Wire format on the FIFO: <status_byte><escaped_text>\n
+#   status_byte: '0' = ok (write to stdout, exit 0)
+#                '1' = err (write to stderr, exit 1)
+#   escapes:     \n -> newline, \\ -> \, anything else \X -> literal \X
+remote_expr() {
+	local socket="${argc_socket:?NVIM not specified}"
+	local spec
+	spec=$(cat)
+	# Double `'` for Vim single-quoted string escaping. The
+	# replacement is `''` (two literal apostrophes), not `\'\'` —
+	# bash does not interpret `\'` inside `${var//pat/repl}` as an
+	# escaped quote, so writing it that way emits a literal
+	# backslash-quote pair into the Vim expression and breaks it.
+	local spec_q="${spec//\'/''}"
+	local args="" arg
+	for arg in "$@"; do
+		[[ -n "$args" ]] && args+=", "
+		args+="'${arg//\'/''}'"
+	done
+	local as_json="false"
+	[[ "${argc_json:-0}" == "1" ]] && as_json="true"
+
+	local fifo
+	fifo=$(mktemp -u "${TMPDIR:-/tmp}/nvim-remote-lsp.$$.XXXXXX")
+	mkfifo -m 600 "$fifo"
+	# Bake the value into the trap so it survives the local going out of scope.
+	trap "rm -f '$fifo'" EXIT
+
+	local fifo_q="${fifo//\'/\'\'}"
+	local expr="luaeval('(function(...)
+		local fifo = [[${fifo_q}]]
+		local spec = ${spec_q}
+		local args = {...}
+		if type(spec) ~= [[table]] then
+			return vim.json.encode({ error = [[remote_expr: stdin must be a lua table]] })
+		end
+		local NL = string.char(10)
+		local BS = string.char(92)
+		local function escape(s)
+			s = tostring(s or [[]])
+			s = s:gsub(BS, BS .. BS)
+			s = s:gsub(NL, BS .. [[n]])
+			return s
+		end
+		local function write_fifo(status, text)
+			vim.uv.fs_open(fifo, [[w]], 384, function(err, fd)
+				if err or not fd then return end
+				vim.uv.fs_write(fd, status .. escape(text) .. NL, -1, function()
+					vim.uv.fs_close(fd)
+				end)
+			end)
+		end
+		local function done(value, errmsg)
+			if errmsg then
+				write_fifo([[1]], tostring(errmsg))
+				return
+			end
+			local text
+			if ${as_json} or type(spec.format) ~= [[function]] then
+				text = vim.json.encode(value) .. NL
+			else
+				local ok, formatted = pcall(spec.format, value, unpack(args))
+				if not ok then
+					write_fifo([[1]], [[format error: ]] .. tostring(formatted))
+					return
+				end
+				text = formatted
+			end
+			write_fifo([[0]], text)
+		end
+		vim.schedule(function()
+			local ok, err
+			if type(spec.start) == [[function]] then
+				ok, err = pcall(spec.start, done, unpack(args))
+			elseif type(spec.data) == [[function]] then
+				local result
+				ok, result = pcall(spec.data, unpack(args))
+				if ok then done(result) else err = result end
+			else
+				ok, err = false, [[remote_expr: spec needs data or start]]
+			end
+			if not ok then write_fifo([[1]], tostring(err)) end
+		end)
+		return [[]]
+	end)(unpack(_A))', [${args}])"
+
+	# Kick off the work, then read the response from the FIFO.
+	nvim --headless --server "$socket" --remote-expr "$expr" >/dev/null
+
+	local line
+	if ! IFS= read -r -t 120 line < "$fifo"; then
+		echo "nvim-remote-lsp: timed out waiting for response" >&2
+		return 1
+	fi
+
+	local status="${line:0:1}"
+	local body="${line:1}"
+	# Decode escapes: \n -> newline, \\ -> \, anything else preserves the backslash.
+	# bash string replacement is O(n²) on large strings, so use awk.
+	local out
+	out=$(printf '%s' "$body" | awk '{gsub(/\\n/, "\n"); gsub(/\\\\/, "\\"); printf "%s", $0}')
+
+	if [[ "$status" == "0" ]]; then
+		printf '%s' "$out"
+		return 0
+	else
+		printf '%s\n' "$out" >&2
+		return 1
+	fi
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

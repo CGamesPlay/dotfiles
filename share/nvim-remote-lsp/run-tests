@@ -1,0 +1,589 @@
+#!/usr/bin/env python3
+"""Integration tests for nvim-remote-lsp.
+
+Spins up a fresh headless nvim against a copy of each fixture, drives
+the script through a handful of scenarios, and reports TAP. All real
+file ops happen in temp dirs; the committed fixtures are never touched.
+
+stdlib only. Process group cleanup is unconditional (context manager +
+atexit + signal handlers) so nvim and its LSP children always die.
+"""
+
+from __future__ import annotations
+
+import argparse
+import atexit
+import contextlib
+import dataclasses
+import json as jsonlib
+import os
+import re
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import traceback
+from pathlib import Path
+from typing import Callable, Iterator
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+# ---------------------------------------------------------------------------
+# Fixture spec
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class Fixture:
+    name: str
+    main: str
+    helper: str
+    readme: str
+    call_pos: tuple[int, int]   # 1-indexed (line, col) of the helper symbol's
+                                # call site inside main
+    def_pos: tuple[int, int]    # 1-indexed (line, col) of the helper symbol's
+                                # definition inside helper
+    symbol: str
+    inject_fault: Callable[[Path], None]
+
+
+def _inject_rust_fault(file: Path) -> None:
+    """Wedge an obvious type error after `fn main() {`.
+
+    Produces an E0308 from rustc, surfaced by rust-analyzer's clippy
+    flycheck.
+    """
+    text = file.read_text()
+    new = text.replace("fn main() {", 'fn main() { let _x: u32 = "string";', 1)
+    if new == text:
+        raise RuntimeError(f"inject_fault: pattern not found in {file}")
+    file.write_text(new)
+
+
+def _inject_ts_fault(file: Path) -> None:
+    """Wedge an obvious type error at the top of the file."""
+    text = file.read_text()
+    fault = 'const _x: number = "string";\n'
+    new = fault + text
+    file.write_text(new)
+
+
+FIXTURES: dict[str, Fixture] = {
+    "rust": Fixture(
+        name="rust",
+        main="src/main.rs",
+        helper="src/helper.rs",
+        readme="README.md",
+        call_pos=(4, 28),  # `helper::greet` -> column of `g`
+        def_pos=(1, 8),    # `pub fn greet`  -> column of `g`
+        symbol="greet",
+        inject_fault=_inject_rust_fault,
+    ),
+    "ts": Fixture(
+        name="ts",
+        main="src/main.ts",
+        helper="src/helper.ts",
+        readme="README.md",
+        call_pos=(4, 15),  # `  console.log(greet` -> column of `g`
+        def_pos=(1, 17),   # `export function greet` -> column of `g`
+        symbol="greet",
+        inject_fault=_inject_ts_fault,
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Process management
+# ---------------------------------------------------------------------------
+#
+# Every spawned nvim is added to _LIVE_PROCS so that signal handlers and
+# the atexit hook can kill the entire process group, including LSP
+# children, no matter how the script exits.
+
+_LIVE_PROCS: list[subprocess.Popen] = []
+
+
+def _killpg(proc: subprocess.Popen, sig: int = signal.SIGTERM) -> None:
+    try:
+        os.killpg(proc.pid, sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _cleanup_all() -> None:
+    for proc in list(_LIVE_PROCS):
+        if proc.poll() is None:
+            _killpg(proc, signal.SIGTERM)
+    deadline = time.monotonic() + 5
+    for proc in list(_LIVE_PROCS):
+        try:
+            proc.wait(timeout=max(0.1, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            _killpg(proc, signal.SIGKILL)
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
+    _LIVE_PROCS.clear()
+
+
+def _signal_handler(signum: int, _frame) -> None:
+    _cleanup_all()
+    # Re-raise default behavior: exit with conventional code.
+    os._exit(128 + signum)
+
+
+atexit.register(_cleanup_all)
+signal.signal(signal.SIGINT, _signal_handler)
+signal.signal(signal.SIGTERM, _signal_handler)
+
+
+# ---------------------------------------------------------------------------
+# Headless nvim session
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass
+class NvimSession:
+    socket: Path
+    workdir: Path
+    log: Path
+    proc: subprocess.Popen
+
+
+@contextlib.contextmanager
+def headless_nvim(workdir: Path, verbose: bool = False) -> Iterator[NvimSession]:
+    """Spawn a headless nvim in workdir, yield a session, kill on exit.
+
+    `start_new_session=True` puts nvim in its own process group; on
+    teardown we kill the entire group so rust-analyzer (and any other
+    LSP children) die with it.
+
+    The socket lives in a *separate*, short-named tempdir because
+    macOS limits unix-domain socket paths to ~104 bytes. The default
+    macOS TMPDIR (/var/folders/...) plus our descriptive workdir name
+    blows past that and nvim silently truncates the path.
+    """
+    sock_dir = Path(tempfile.mkdtemp(prefix="nrls-"))
+    sock = sock_dir / "n.sock"
+    log = workdir / ".nvim.log"
+    log_fp = open(log, "wb")
+    proc = subprocess.Popen(
+        ["nvim", "--headless", "--listen", str(sock)],
+        cwd=str(workdir),
+        start_new_session=True,
+        stdout=log_fp,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+    )
+    _LIVE_PROCS.append(proc)
+    try:
+        # Lazy.nvim with the user's full plugin set can take a few
+        # seconds on a cold cache; 15s is conservative.
+        try:
+            _wait_for_socket(sock, timeout=15)
+        except RuntimeError as e:
+            # Surface nvim's stderr/log on failure — usually the cause
+            # is a plugin error that prevented the socket from coming up.
+            log_fp.flush()
+            try:
+                log_text = log.read_text(errors="replace")
+            except OSError:
+                log_text = "(log unreadable)"
+            alive = proc.poll() is None
+            ls = sorted(p.name for p in workdir.iterdir())
+            raise RuntimeError(
+                f"{e}\nproc alive: {alive}, returncode: {proc.returncode}\n"
+                f"workdir contents: {ls}\n"
+                f"--- nvim log ---\n{log_text}\n--- end log ---"
+            ) from None
+        # Lazy plugins (mason, lspconfig) finish wiring shortly after
+        # the socket appears. One short beat is enough; nvim-remote-lsp
+        # itself does the per-buffer attach polling.
+        time.sleep(1.0)
+        yield NvimSession(sock, workdir, log, proc)
+    finally:
+        log_fp.close()
+        if proc.poll() is None:
+            _killpg(proc, signal.SIGTERM)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                _killpg(proc, signal.SIGKILL)
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
+        if proc in _LIVE_PROCS:
+            _LIVE_PROCS.remove(proc)
+        if verbose:
+            try:
+                print(f"--- nvim log ({log}) ---", file=sys.stderr)
+                sys.stderr.write(log.read_text(errors="replace"))
+            except OSError:
+                pass
+        shutil.rmtree(sock_dir, ignore_errors=True)
+
+
+def _wait_for_socket(sock: Path, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if sock.exists():
+            # Confirm it's actually accepting connections.
+            try:
+                with socket.socket(socket.AF_UNIX) as s:
+                    s.settimeout(0.1)
+                    s.connect(str(sock))
+                return
+            except OSError:
+                pass
+        time.sleep(0.05)
+    raise RuntimeError(f"nvim socket {sock} never appeared")
+
+
+# ---------------------------------------------------------------------------
+# nvim-remote-lsp wrapper
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass
+class NrlResult:
+    rc: int
+    out: str
+    err: str
+    argv: list[str]
+
+    def check_ok(self) -> "NrlResult":
+        if self.rc != 0:
+            raise AssertionError(self._fmt(f"expected rc=0, got rc={self.rc}"))
+        return self
+
+    def expect_match(self, pattern: str, msg: str | None = None) -> "NrlResult":
+        if not re.search(pattern, self.out, flags=re.MULTILINE):
+            label = msg or f"pattern /{pattern}/ not in stdout"
+            raise AssertionError(self._fmt(label))
+        return self
+
+    def expect_empty(self, msg: str = "expected empty stdout") -> "NrlResult":
+        if self.out.strip():
+            raise AssertionError(self._fmt(msg))
+        return self
+
+    def _fmt(self, msg: str) -> str:
+        return (
+            f"{msg}\n"
+            f"  cmd: nrl {' '.join(self.argv)}\n"
+            f"  rc:  {self.rc}\n"
+            f"  out: {self.out!r}\n"
+            f"  err: {self.err!r}"
+        )
+
+
+def nrl(session: NvimSession, *args, json: bool = False, timeout: float = 60.0,
+        nrl_bin: str | None = None) -> NrlResult:
+    bin_path = nrl_bin or os.environ["NRL_BIN"]
+    argv = [bin_path, "--socket", str(session.socket)]
+    if json:
+        argv.append("--json")
+    argv.extend(str(a) for a in args)
+    # Drop ambient NVIM so the explicit --socket wins. argc emits the
+    # env-var default (`# @option --socket $NVIM`) after the explicit
+    # value when the flag sits before a subcommand under
+    # `inherit-flag-options`, clobbering it. Scrubbing here keeps the
+    # test runner immune to whatever nvim socket the caller has open.
+    env = {k: v for k, v in os.environ.items()}
+    env.pop("NVIM", None)
+    try:
+        p = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(session.workdir),
+            env=env,
+        )
+    except subprocess.TimeoutExpired as e:
+        return NrlResult(
+            rc=124,
+            out=e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or ""),
+            err=f"nrl timed out after {timeout}s",
+            argv=list(args),
+        )
+    return NrlResult(p.returncode, p.stdout, p.stderr, list(args))
+
+
+# ---------------------------------------------------------------------------
+# Eventually-consistent retry
+# ---------------------------------------------------------------------------
+
+
+def eventually(fn: Callable[[], object], timeout: float = 10.0,
+               interval: float = 0.25):
+    """Run fn() until it returns without AssertionError or the deadline hits.
+
+    On timeout, re-raises the last AssertionError so the caller sees the
+    real failure instead of a generic "timeout".
+    """
+    deadline = time.monotonic() + timeout
+    last: AssertionError | None = None
+    while True:
+        try:
+            return fn()
+        except AssertionError as e:
+            last = e
+            if time.monotonic() >= deadline:
+                raise last
+            time.sleep(interval)
+
+
+# ---------------------------------------------------------------------------
+# Scenarios
+# ---------------------------------------------------------------------------
+#
+# Each scenario is a function taking (session, fix). It raises
+# AssertionError on failure. The runner catches that and reports TAP.
+
+
+def scenario_lsp_queries(session: NvimSession, fix: Fixture) -> None:
+    # Cold ts_ls in particular can take >10s before its index answers
+    # documentSymbol/workspace symbol; 20s is the same bar for both
+    # fixtures so the suite stays simple.
+    T = 20
+
+    nrl(session, "load", fix.main).check_ok().expect_match(r"^true$")
+
+    eventually(lambda: nrl(session, "buffers")
+               .check_ok().expect_match(re.escape(fix.main)),
+               timeout=T)
+
+    eventually(lambda: nrl(session, "document-symbol", fix.main)
+               .check_ok()
+               .expect_match(rf"^{re.escape(fix.main)}:\d+:\d+: .*[A-Za-z]+ [A-Za-z_]+"),
+               timeout=T)
+
+    eventually(lambda: nrl(session, "symbol", fix.symbol)
+               .check_ok().expect_match(re.escape(fix.symbol)),
+               timeout=T)
+
+    cl, cc = fix.call_pos
+    eventually(lambda: nrl(session, "definition", fix.main, cl, cc)
+               .check_ok()
+               .expect_match(rf"{re.escape(fix.helper)}:\d+:\d+"),
+               timeout=T)
+
+    # Same definition, but resolve the column via a search string
+    # instead of a numeric column.
+    eventually(lambda: nrl(session, "definition", fix.main, cl, fix.symbol)
+               .check_ok()
+               .expect_match(rf"{re.escape(fix.helper)}:\d+:\d+"),
+               timeout=T)
+
+    dl, dc = fix.def_pos
+    eventually(lambda: nrl(session, "references", fix.helper, dl, dc)
+               .check_ok()
+               .expect_match(rf"{re.escape(fix.main)}:\d+:\d+"),
+               timeout=T)
+
+    eventually(lambda: nrl(session, "hover", fix.helper, dl, dc)
+               .check_ok().expect_match(re.escape(fix.symbol)),
+               timeout=T)
+
+
+def _expect_diag_error(session: NvimSession, fix: Fixture) -> None:
+    nrl(session, "diagnostics", fix.main).check_ok().expect_match(
+        rf"^{re.escape(fix.main)}:\d+:\d+: error"
+    )
+
+
+def _expect_diag_empty(session: NvimSession, fix: Fixture) -> None:
+    nrl(session, "diagnostics", fix.main).check_ok().expect_empty(
+        f"expected zero diagnostics on {fix.main}"
+    )
+
+
+def scenario_diagnostics_pre_inject(session: NvimSession, fix: Fixture) -> None:
+    """Fault is on disk before nvim ever opens the file."""
+    fix.inject_fault(session.workdir / fix.main)
+    nrl(session, "notify-file-changed", fix.main).check_ok()
+    eventually(lambda: _expect_diag_error(session, fix), timeout=15)
+
+    # Restore + notify, expect diagnostics to clear.
+    pristine = SCRIPT_DIR / "fixtures" / fix.name / fix.main
+    shutil.copy(pristine, session.workdir / fix.main)
+    nrl(session, "notify-file-changed", fix.main).check_ok()
+    eventually(lambda: _expect_diag_empty(session, fix), timeout=15)
+
+
+def scenario_diagnostics_mid_inject(session: NvimSession, fix: Fixture) -> None:
+    """Cold the LSP via helper, then inject into main on disk."""
+    nrl(session, "load", fix.helper).check_ok()
+    fix.inject_fault(session.workdir / fix.main)
+    nrl(session, "notify-file-changed", fix.main).check_ok()
+    eventually(lambda: _expect_diag_error(session, fix), timeout=15)
+
+
+def scenario_notify_no_lsp(session: NvimSession, fix: Fixture) -> None:
+    """notify-file-changed for a file with no LSP support reports no-lsp."""
+    readme = session.workdir / fix.readme
+    readme.write_text("hello\n")
+    nrl(session, "notify-file-changed", fix.readme).check_ok().expect_match(
+        rf"{re.escape(fix.readme)}: no-lsp"
+    )
+
+
+def scenario_diagnostics_json(session: NvimSession, fix: Fixture) -> None:
+    fix.inject_fault(session.workdir / fix.main)
+    nrl(session, "notify-file-changed", fix.main).check_ok()
+
+    def check():
+        result = nrl(session, "diagnostics", fix.main, json=True).check_ok()
+        try:
+            data = jsonlib.loads(result.out)
+        except jsonlib.JSONDecodeError as e:
+            raise AssertionError(result._fmt(f"--json output not parseable: {e}"))
+        if not isinstance(data, list) or not data:
+            raise AssertionError(result._fmt("--json output empty or not a list"))
+
+    eventually(check, timeout=15)
+
+
+SCENARIOS: list[tuple[str, Callable[[NvimSession, Fixture], None]]] = [
+    ("lsp-queries", scenario_lsp_queries),
+    ("diagnostics-pre-inject", scenario_diagnostics_pre_inject),
+    ("diagnostics-mid-inject", scenario_diagnostics_mid_inject),
+    ("notify-no-lsp", scenario_notify_no_lsp),
+    ("diagnostics-json", scenario_diagnostics_json),
+]
+
+
+# ---------------------------------------------------------------------------
+# Runner
+# ---------------------------------------------------------------------------
+
+
+def resolve_nrl_bin() -> str:
+    explicit = os.environ.get("NRL_BIN")
+    if explicit:
+        return explicit
+    candidate = REPO_ROOT / "files" / ".local" / "bin" / "nvim-remote-lsp"
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return str(candidate)
+    onpath = shutil.which("nvim-remote-lsp")
+    if onpath:
+        return onpath
+    print("run-tests: cannot locate nvim-remote-lsp (set NRL_BIN)", file=sys.stderr)
+    sys.exit(2)
+
+
+def _have_lsp(name: str) -> bool:
+    """Mason puts LSPs in ~/.local/share/nvim/mason/bin, which nvim
+    prepends to PATH at startup but our pre-spawn probe does not see.
+    Check both PATH and Mason."""
+    if shutil.which(name) is not None:
+        return True
+    mason = Path.home() / ".local" / "share" / "nvim" / "mason" / "bin" / name
+    return mason.is_file() and os.access(mason, os.X_OK)
+
+
+def probe_dependencies(fix: Fixture) -> None:
+    if shutil.which("nvim") is None:
+        print("run-tests: nvim not on PATH", file=sys.stderr)
+        sys.exit(2)
+    if fix.name == "rust":
+        if not _have_lsp("rust-analyzer"):
+            print("run-tests: rust-analyzer not on PATH or in Mason", file=sys.stderr)
+            print("  install: rustup component add rust-analyzer", file=sys.stderr)
+            print("           or :MasonInstall rust-analyzer", file=sys.stderr)
+            sys.exit(2)
+    elif fix.name == "ts":
+        if not _have_lsp("typescript-language-server"):
+            print("run-tests: typescript-language-server not on PATH or in Mason", file=sys.stderr)
+            print("  install: :MasonInstall typescript-language-server", file=sys.stderr)
+            sys.exit(2)
+
+
+def run() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="dump nvim/LSP log on each scenario")
+    parser.add_argument("-f", "--filter", metavar="PATTERN",
+                        help="only run scenarios whose name contains PATTERN")
+    parser.add_argument("-F", "--fixture", metavar="NAME",
+                        choices=sorted(FIXTURES.keys()),
+                        help="restrict to one fixture (default: all)")
+    args = parser.parse_args()
+
+    os.environ["NRL_BIN"] = resolve_nrl_bin()
+    if args.fixture:
+        fixture_names = [args.fixture]
+    else:
+        fixture_names = sorted(FIXTURES.keys())
+
+    selected = [(n, f) for n, f in SCENARIOS
+                if not args.filter or args.filter in n]
+
+    pass_count = 0
+    fail_count = 0
+    failed_names: list[str] = []
+    test_index = 0
+
+    for fix_name in fixture_names:
+        fix = FIXTURES[fix_name]
+        probe_dependencies(fix)
+        fixture_src = SCRIPT_DIR / "fixtures" / fix.name
+        if not fixture_src.is_dir():
+            print(f"run-tests: fixture missing: {fixture_src}", file=sys.stderr)
+            return 2
+
+        for name, fn in selected:
+            test_index += 1
+            label = f"{fix.name}/{name}"
+            workdir = Path(tempfile.mkdtemp(prefix=f"nrl-test-{fix.name}-{name}-"))
+            shutil.copytree(fixture_src, workdir, dirs_exist_ok=True)
+            try:
+                with headless_nvim(workdir, verbose=args.verbose) as session:
+                    fn(session, fix)
+            except AssertionError as e:
+                print(f"not ok {test_index} - {label}")
+                print("  ---")
+                for line in str(e).splitlines():
+                    print(f"  {line}")
+                print("  ---")
+                fail_count += 1
+                failed_names.append(label)
+            except Exception:
+                # Unexpected failure (fixture problem, nvim crash, etc.)
+                # — still report as a fail and keep going.
+                print(f"not ok {test_index} - {label}")
+                print("  ---")
+                print("  unexpected exception:")
+                for line in traceback.format_exc().splitlines():
+                    print(f"  {line}")
+                print("  ---")
+                fail_count += 1
+                failed_names.append(label)
+            else:
+                print(f"ok {test_index} - {label}")
+                pass_count += 1
+            finally:
+                if not os.environ.get("NRL_KEEP_WORKDIR"):
+                    shutil.rmtree(workdir, ignore_errors=True)
+
+    print(f"1..{pass_count + fail_count}")
+    print(f"# pass={pass_count} fail={fail_count}")
+    if failed_names:
+        print("# failed:")
+        for n in failed_names:
+            print(f"#   {n}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(run())
