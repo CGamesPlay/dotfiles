@@ -12,10 +12,13 @@
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
+		"@anthropic-ai/claude-agent-sdk": "0.2.117",
+		"@anthropic-ai/sdk": "^0.73.0",
 		"@mariozechner/pi-coding-agent": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-coding-agent.tgz",
 		"@mariozechner/pi-ai": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-ai.tgz",
 		"@mariozechner/pi-tui": "https://github.com/CGamesPlay/pi-mono/releases/download/latest/mariozechner-pi-tui.tgz",
 		"@sinclair/typebox": "^0.34.33",
+		"change-case": "^5.4.4",
 		"diff": "^8.0.2",
 		"vscode-languageserver-protocol": "^3.17.5"
 	},

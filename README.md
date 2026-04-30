@@ -39,3 +39,11 @@ I also have a collection of custom scripts available in this repository:
 - `devserver/` contains a script that creates a scale-to-zero server on Hetzner with auto-shutdown capabilities.
 
 And finally, the "share" directory contains files that are also generally useful to have.
+
+## Automated Tests
+
+Where possible, some of the individual components of these dotfiles have automated tests. There is no formal process for running these or maintaining their correctness, but it provides a useful place to begin when modifying the components.
+
+- `share/pi` has `npm run check` and `npm run test`. Also look for tests gated behind the environment variable `RUN_LIVE_TESTS=1`
+- `files/.local/bin/nvim-remote-lsp` has `share/nvim-remote-lsp/run-tests`
+- `devserver/hetzner-bootable-volume` has an `integration-test` subcommand

@@ -17,3 +17,5 @@ DFM works by symlinking files from the DFM repos into the home directory. For ex
 If DFM gives "operation not permitted" errors, it's because the sandbox environment is enabled and restricting your operations. If this is blocking, ask Ryan to do the commands or to disable the sandbox.
 
 I use `@` as a prefix to several custom scripts in ~/.local/bin (so, located in one of files, macos, or linux directories under .local/bin).
+
+Make sure to read the README.md file in this directory for information about testing.
