@@ -125,7 +125,8 @@ clone() {
 	fi
 
 	if [ ${argc_command+1} ]; then
-		"$SHELL" -c "${argc_command[@]}"
+		cmd=$(printf 'cd %q && direnv exec . ' "$target"; printf '%q ' "${argc_command[@]}")
+		"$SHELL" -c "$cmd"
 	fi
 }
 
