@@ -15,10 +15,13 @@ import type {
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { queryOsc11, notify, DELAY_MS } from "./lib/terminal.js";
+import { createFooterFactory } from "./lib/footer.js";
 
 const CAFFEINATE_IDLE_KILL_DELAY_MS = 20_000;
 
-const STATUS_KEY = "00-clock";
+const STATUS_KEY = "clock";
+
+const STATUS_IDLE = "⏱ -:--";
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -27,6 +30,18 @@ function formatElapsed(seconds: number): string {
 }
 
 export default function (pi: ExtensionAPI) {
+  function setTabTitle(
+    ctx: ExtensionContext,
+    titleState: "idle" | "working" | "choice",
+  ) {
+    const name = pi.getSessionName();
+    const base = path.basename(ctx.cwd);
+    const piTitle = name ? `π - ${name} - ${base}` : `π - ${base}`;
+    const emoji =
+      titleState === "working" ? "⚙️" : titleState === "choice" ? "🔴" : "💤";
+    ctx.ui.setTitle(`${emoji} ${piTitle}`);
+  }
+
   // Only activate if stdout is a TTY (terminal)
   if (!process.stdout.isTTY) {
     return;
@@ -45,7 +60,10 @@ export default function (pi: ExtensionAPI) {
       killTimer: undefined as ReturnType<typeof setTimeout> | undefined,
     },
     ctx: undefined as ExtensionContext | undefined,
+    pi: pi as typeof pi | undefined,
   };
+
+  const footerFactory = createFooterFactory(state);
 
   const caffeinateEnabled = process.platform === "darwin";
 
@@ -72,6 +90,9 @@ export default function (pi: ExtensionAPI) {
 
     state.ctx = ctx;
 
+    ctx.ui.setStatus(STATUS_KEY, STATUS_IDLE);
+    ctx.ui.setFooter(footerFactory);
+
     // Enable terminal focus reporting (for agent-end notification)
     process.stdout.write("\x1b[?1004h");
 
@@ -92,6 +113,10 @@ export default function (pi: ExtensionAPI) {
 
     // Query OSC 11 for theme
     queryOsc11(ctx);
+
+    // Defer to macrotask so pi's updateTerminalTitle() (called after session_start
+    // resolves in rebindCurrentSession) runs first, then we overwrite it.
+    setTimeout(() => setTabTitle(ctx, "idle"), 0);
   });
 
   // ── Session Tree ───────────────────────────────────────
@@ -149,6 +174,8 @@ export default function (pi: ExtensionAPI) {
 
       pi.runWhenIdle(scheduleCaffeinateKill);
     }
+
+    setTabTitle(ctx, "working");
   });
 
   // ── Agent End ──────────────────────────────────────────
@@ -157,6 +184,8 @@ export default function (pi: ExtensionAPI) {
       clearInterval(state.timer.interval);
       state.timer.interval = null;
     }
+    ctx.ui.setStatus(STATUS_KEY, STATUS_IDLE);
+    setTabTitle(ctx, "idle");
 
     if (!ctx.hasUI) return;
 
@@ -205,6 +234,13 @@ export default function (pi: ExtensionAPI) {
       state.notify.delayTimer = undefined;
       notify(payload.title, payload.message);
     }, DELAY_MS).unref();
+
+    setTabTitle(state.ctx, "choice");
+  });
+
+  // ── Tool Execution End ───────────────────────────────────────────────
+  pi.on("tool_execution_end", (_event, ctx: ExtensionContext) => {
+    setTabTitle(ctx, "working");
   });
 
   // ── Session Shutdown ───────────────────────────────────

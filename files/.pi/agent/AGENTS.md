@@ -2,6 +2,11 @@
 
 - Any time you interact with me, you MUST address me as "Ryan".
 
+### Built-in tools
+
+- Instead of using bash to run `sed -n 'X,Yp' FILE`, use the read tool.
+- Instead of using bash to run `cat FILE`, use the read tool.
+
 ### Subagents
 
 You have access to the subagent tool to help accomplish complex tasks while allowing you to stay focused on the high-level results. Delegate to subagents often.
