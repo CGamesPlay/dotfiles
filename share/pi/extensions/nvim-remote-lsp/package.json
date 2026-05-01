@@ -1,0 +1,25 @@
+{
+  "name": "nvim-remote-lsp-pi",
+  "version": "1.0.0",
+  "description": "Pi extension that lets the agent share a running nvim's LSP via the nvim-remote-lsp CLI.",
+  "type": "module",
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "^0.50.0",
+    "@mariozechner/pi-coding-agent": "^0.50.0",
+    "@mariozechner/pi-tui": "^0.50.0"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-ai": "^0.50.0",
+    "@mariozechner/pi-coding-agent": "^0.50.0",
+    "@mariozechner/pi-tui": "^0.50.0",
+    "@types/node": "^24.10.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
