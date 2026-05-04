@@ -142,7 +142,6 @@ ssh() {
 	exec command ssh "${argc_workspace}.coder" ${argc_rest+"${argc_rest[@]}"}
 }
 
-# shellcheck disable=2032
 # @cmd SSH into a Coder workspace with a shpool session
 #
 # Like ssh, but creates/attaches a shpool session on the remote. Reconnects
@@ -184,7 +183,6 @@ shpool() {
 
 	while true; do
 		set +e
-		# shellcheck disable=2033
 		command ssh -t "$host" "$ssh_args"
 		local status=$?
 		if [[ "$status" -eq 0 ]]; then

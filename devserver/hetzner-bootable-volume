@@ -174,7 +174,7 @@ prepare-volume() {
 	fi
 	hcloud "${hcloud_args[@]}" server create "${create_args[@]}"
 	hcloud "${hcloud_args[@]}" volume attach "$argc_volume" --server "$argc_server_name"
-	# shellcheck disable=SC2317
+	# shellcheck disable=SC2317 # used in trap
 	cleanup() {
 		if [[ $? -eq 0 ]] || user_confirmation "Delete server $argc_server_name?'"; then
 			hcloud "${hcloud_args[@]}" server delete "$argc_server_name"
@@ -490,7 +490,7 @@ user_confirmation() {
 integration-test() {
 	hcloud_args=(--context="${argc_context:-$argc_name}")
 	hcloud "${hcloud_args[@]}" volume create --name "${argc_name:?}" --location "${argc_location:?}" --size 10
-	# shellcheck disable=SC2317
+	# shellcheck disable=SC2317 # used in trap
 	cleanup() {
 		hcloud "${hcloud_args[@]}" server delete "$argc_name"
 		hcloud "${hcloud_args[@]}" volume delete "$argc_name"

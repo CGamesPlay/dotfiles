@@ -69,10 +69,10 @@ bg::wait() {
 # @cmd Retry all failed jobs
 bg::retry() {
     ts -l | awk '$2 == "finished" && $4 != 0 {print $1}' | while read -r id; do
-	# ts does not allow us to actually reproduce the command, because
-	# spaces in arguments are printed unquoted.
 	cmd=$(ts -i "$id" | sed -n 's/.*Command: \(.*\)/\1/p')
 	ts -r "$id"
+	# ts does not allow us to actually reproduce the command, because
+	# spaces in arguments are printed unquoted.
 	# shellcheck disable=SC2086
 	ts -i "$(ts $cmd)"
     done

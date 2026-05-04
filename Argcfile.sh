@@ -67,7 +67,6 @@ pull() {
 			echo -e "\033[1;33m" >&2
 			echo "WARNING: Files in the 'tasks' directory have been modified!" >&2
 			echo "Modified task files:" >&2
-			# shellcheck disable=SC2001
 			echo "$tasks_modified" | sed 's/^/    /' >&2
 			echo >&2
 			echo "To fully update: @argc dotfiles pull --bootstrap" >&2
@@ -84,7 +83,8 @@ push() {
 	# https://github.com/jj-vcs/jj/issues/6688
 	jj config set --repo signing.key "$(ssh-add -L | tail -1)"
 
-	local sig=$(jj log -r master -GT 'signature.status()')
+	local sig
+	sig=$(jj log -r master -GT 'signature.status()')
 	if [[ "$sig" != "good" ]]; then
 		jj --quiet sign -r master
 	fi
@@ -97,7 +97,7 @@ push() {
 find-unmanaged() {
 	echo "The following files are in directories controlled by DFM, but are not themselves in DFM."
 	find files -type d -not -name files \
-		| sed 's/^files/'$(echo ~ | sed 's/\//\\\//g')'/' \
+		| sed "s@^files@$HOME@" \
 		| xargs -I {} find {} -maxdepth 1 -type f -not -name .DS_Store \
 		| grep -vE '.local/bin/|.ssh/id_'
 }

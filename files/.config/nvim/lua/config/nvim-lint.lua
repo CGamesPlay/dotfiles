@@ -28,7 +28,9 @@ return {
     -- To override args:
     --   :lua =require('lint').linters.ruff.args
     --table.insert(lint.linters.ruff.args, 2, "--foo")
-    table.insert(lint.linters.shellcheck.args, 1, "--exclude=2002")
+    for _, excl in ipairs({ "2001", "2002", "2064" }) do
+      table.insert(lint.linters.shellcheck.args, 1, "--exclude=" .. excl)
+    end
   end,
   lazy = true,
 }

@@ -352,7 +352,7 @@ tty_printf() {
 		echo "Not connected to a TTY" >&2
 		return 1
 	fi
-	# shellcheck disable=SC2059
+	# shellcheck disable=SC2059 # This is a printf wrapper
 	printf "$@" >/dev/tty
 }
 
