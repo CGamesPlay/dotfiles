@@ -1,0 +1,360 @@
+exports[`parallel-tasks > phases 1`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mexplorer[22m[39m: List files in /tmp…                                                   
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:00[39m                                             
+`;
+
+exports[`parallel-tasks > phases 2`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mexplorer[22m[39m                                                                        
+List files in /tmp.                                                             
+Then list files in /var/private.                                                
+Then list files in /home.                                                       
+Then list files on C:\\Windows.                                                  
+
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:00[39m                                             
+`;
+
+exports[`parallel-tasks > phases 3`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mexplorer[22m[39m: List files in /tmp…                                                   
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:01 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:01[39m                                             
+`;
+
+exports[`parallel-tasks > phases 4`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mexplorer[22m[39m                                                                        
+List files in /tmp.                                                             
+Then list files in /var/private.                                                
+Then list files in /home.                                                       
+Then list files on C:\\Windows.                                                  
+
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:01 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:01[39m                                             
+`;
+
+exports[`parallel-tasks > phases 5`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4…                                                                  
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mexplorer[22m[39m: List files in /tmp…                                                   
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:01 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:03[39m                                             
+`;
+
+exports[`parallel-tasks > phases 6`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4                                                                   
+Output line 5                                                                   
+Output line 6                                                                   
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mexplorer[22m[39m                                                                        
+List files in /tmp.                                                             
+Then list files in /var/private.                                                
+Then list files in /home.                                                       
+Then list files on C:\\Windows.                                                  
+
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:01 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 2 turns ↑4 ↓124 R9.0k ⏱ 0:03[39m                                             
+`;
+
+exports[`parallel-tasks > renderCall 1`] = `
+[39m[1msubagent [22m[39m[38;2;138;190;183mgeneral-purpose, explorer[39m                                              
+`;
+
+exports[`single-failed > phases 1`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`single-failed > phases 2`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`single-failed > phases 3`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`single-failed > phases 4`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`single-failed > phases 5`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;204;102;102mError: Command failed[39m                                                           
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✗ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`single-failed > phases 6`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;128;128;128m(finished with no output)[39m                                                       
+[38;2;204;102;102mError: Command failed[39m                                                           
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✗ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`single-failed > renderCall 1`] = `
+[39m[1msubagent [22m[39m[38;2;138;190;183mgeneral-purpose[39m                                                        
+`;
+
+exports[`single-task > phases 1`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`single-task > phases 2`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`single-task > phases 3`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`single-task > phases 4`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`single-task > phases 5`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(3 previous tools)[39m                                                              
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4…                                                                  
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`single-task > phases 6`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 3"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 4"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 5"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 6"}[39m                                                     
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4                                                                   
+Output line 5                                                                   
+Output line 6                                                                   
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`single-task > renderCall 1`] = `
+[39m[1msubagent [22m[39m[38;2;138;190;183mgeneral-purpose[39m                                                        
+`;
+
+exports[`tool-results > phases 1`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`tool-results > phases 2`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:00 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:00[39m                                               
+`;
+
+exports[`tool-results > phases 3`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(1 previous tool)[39m                                                               
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"bad"}[39m                                                        
+[38;2;204;102;102m  ✗ command not found: bad[39m                                                      
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`tool-results > phases 4`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"bad"}[39m                                                        
+[38;2;204;102;102m  ✗ command not found: bad[39m                                                      
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ⏳ ⏱ 0:01 mid[39m                                      
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:01[39m                                               
+`;
+
+exports[`tool-results > phases 5`] = `
+[39m[1mgeneral-purpose[22m[39m: Count to 3 and output the numbers 1, 2, 3.                     
+[38;2;102;102;102m(1 previous tool)[39m                                                               
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"bad"}[39m                                                        
+[38;2;204;102;102m  ✗ command not found: bad[39m                                                      
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4…                                                                  
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`tool-results > phases 6`] = `
+[39m[1mgeneral-purpose[22m[39m                                                                 
+Count to 3 and output the numbers 1, 2, 3.                                      
+
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 1"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"echo 2"}[39m                                                     
+[38;2;128;128;128m→ [39m[38;2;138;190;183mbash[39m[38;2;102;102;102m {"command":"bad"}[39m                                                        
+[38;2;204;102;102m  ✗ command not found: bad[39m                                                      
+
+Output line 1                                                                   
+Output line 2                                                                   
+Output line 3                                                                   
+Output line 4                                                                   
+Output line 5                                                                   
+Output line 6                                                                   
+[38;2;102;102;102m1 turn ↑2 ↓62 R4.5k ctx:4.6k ✓ ⏱ 0:03 mid[39m                                       
+
+[39m[1mTotal[22m:[39m[38;2;128;128;128m 1 turn ↑2 ↓62 R4.5k ⏱ 0:03[39m                                               
+`;
+
+exports[`tool-results > renderCall 1`] = `
+[39m[1msubagent [22m[39m[38;2;138;190;183mgeneral-purpose[39m                                                        
+`;

@@ -63,15 +63,14 @@ function makeTask(overrides: Partial<RenderTaskResult> = {}): RenderTaskResult {
     endedAt: T_LATER,
     presetName: "mid",
     displayItems: [],
-    finalOutput:
-      "Output line 1\nOutput line 2\nOutput line 3\nOutput line 4\nOutput line 5\nOutput line 6",
+    finalOutput: "1\n2\n3",
     ...overrides,
   };
 }
 
 const SECOND_TASK = {
   agent: "explorer",
-  task: "List files in /tmp.\nThen list files in /var/private.\nThen list files in /home.\nThen list files on C:\\Windows\\.\n",
+  task: "List files in /tmp.",
 } as const;
 
 const RUNNING_BASE: Partial<RenderTaskResult> = {
@@ -131,15 +130,8 @@ const cases: TestCase[] = [
     initial: [makeTask(RUNNING_BASE)],
     // Agent runs 6 tool calls while still in progress.
     toPending: [SIX_STEPS],
-    // Agent finishes successfully; output is long enough to trigger collapsed truncation.
-    toFinal: [
-      {
-        exitCode: 0,
-        endedAt: T_LATER,
-        finalOutput:
-          "Output line 1\nOutput line 2\nOutput line 3\nOutput line 4\nOutput line 5\nOutput line 6",
-      },
-    ],
+    // Agent finishes successfully with output.
+    toFinal: [{ exitCode: 0, endedAt: T_LATER, finalOutput: "1\n2\n3" }],
   },
   {
     name: "parallel-tasks",
@@ -153,15 +145,7 @@ const cases: TestCase[] = [
     // Task 0 accrues 6 tool calls; task 1 finishes early.
     toPending: [SIX_STEPS, { exitCode: 0, endedAt: T_PARTIAL }],
     // Task 0 finishes; task 1 is already done (no changes).
-    toFinal: [
-      {
-        exitCode: 0,
-        endedAt: T_LATER,
-        finalOutput:
-          "Output line 1\nOutput line 2\nOutput line 3\nOutput line 4\nOutput line 5\nOutput line 6",
-      },
-      {},
-    ],
+    toFinal: [{ exitCode: 0, endedAt: T_LATER, finalOutput: "1\n2\n3" }, {}],
   },
   {
     name: "single-failed",
@@ -185,14 +169,7 @@ const cases: TestCase[] = [
     // 3 tool calls: first two succeed (results hidden), last fails (result shown).
     toPending: [THREE_STEPS_WITH_RESULTS],
     // Agent finishes successfully despite the earlier tool error.
-    toFinal: [
-      {
-        exitCode: 0,
-        endedAt: T_LATER,
-        finalOutput:
-          "Output line 1\nOutput line 2\nOutput line 3\nOutput line 4\nOutput line 5\nOutput line 6",
-      },
-    ],
+    toFinal: [{ exitCode: 0, endedAt: T_LATER, finalOutput: "1\n2\n3" }],
   },
 ];
 

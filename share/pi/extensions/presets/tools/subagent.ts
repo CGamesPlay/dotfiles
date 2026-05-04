@@ -21,9 +21,17 @@ import type { Message } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
   getMarkdownTheme,
+  Theme,
   withFileMutationQueue,
 } from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
+import {
+  Container,
+  Markdown,
+  type MarkdownTheme,
+  Spacer,
+  Text,
+  type Component,
+} from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import {
   discoverAgents,
@@ -31,10 +39,13 @@ import {
   type AgentWarning,
 } from "../lib/subagent-agents.js";
 import {
+  COLLAPSED,
+  EXPANDED,
+  filterDisplayItems,
   formatTaskFooter,
   formatTotalFooter,
-  renderCollapsed,
   type DisplayItem as RenderDisplayItem,
+  type RenderConfig,
   type RenderTaskResult,
 } from "../lib/subagent-render.js";
 
@@ -120,7 +131,8 @@ const SubagentParams = Type.Object({
 
 type DisplayItem =
   | { type: "text"; text: string }
-  | { type: "toolCall"; name: string; args: Record<string, any> };
+  | { type: "toolCall"; name: string; args: Record<string, any> }
+  | { type: "toolResult"; toolCallId: string; isError: boolean; text: string };
 
 function getDisplayItems(messages: Message[]): DisplayItem[] {
   const items: DisplayItem[] = [];
@@ -135,6 +147,17 @@ function getDisplayItems(messages: Message[]): DisplayItem[] {
             args: part.arguments,
           });
       }
+    } else if (msg.role === "toolResult") {
+      const text = msg.content
+        .filter((c): c is { type: "text"; text: string } => c.type === "text")
+        .map((c) => c.text)
+        .join("\n");
+      items.push({
+        type: "toolResult",
+        toolCallId: msg.toolCallId,
+        isError: msg.isError,
+        text,
+      });
     }
   }
   return items;
@@ -593,32 +616,7 @@ export function registerSubagentTool(pi: ExtensionAPI) {
     },
 
     renderCall(args, theme, _context) {
-      // Keep the call line minimal — the result render below shows the full
-      // per-task layout with status icons, so duplicating it here would just
-      // produce two stacked headers while the agents run.
-      const tasks = args.tasks || [];
-      if (tasks.length === 0) {
-        return new Text(
-          theme.fg("toolTitle", theme.bold("subagent ")) +
-            theme.fg("muted", "(no tasks)"),
-          0,
-          0,
-        );
-      }
-      if (tasks.length === 1) {
-        return new Text(
-          theme.fg("toolTitle", theme.bold("subagent ")) +
-            theme.fg("accent", tasks[0].agent),
-          0,
-          0,
-        );
-      }
-      return new Text(
-        theme.fg("toolTitle", theme.bold("subagent ")) +
-          theme.fg("accent", `parallel (${tasks.length} tasks)`),
-        0,
-        0,
-      );
+      return renderCallComponent(args, theme);
     },
 
     renderResult(result, opts, theme, context) {
@@ -649,7 +647,7 @@ export function registerSubagentTool(pi: ExtensionAPI) {
       }
 
       const mdTheme = getMarkdownTheme();
-      const expanded = opts.expanded;
+      const config = opts.expanded ? EXPANDED : COLLAPSED;
       const now = Date.now();
 
       // Convert messages to render-shape display items.
@@ -657,6 +655,13 @@ export function registerSubagentTool(pi: ExtensionAPI) {
         const items = getDisplayItems(r.messages);
         const displayItems: RenderDisplayItem[] = items.map((item) => {
           if (item.type === "text") return { type: "text", text: item.text };
+          if (item.type === "toolResult")
+            return {
+              type: "toolResult",
+              toolCallId: item.toolCallId,
+              isError: item.isError,
+              text: item.text,
+            };
           // Pre-format tool call arguments to a short uncolored preview so
           // the pure renderer doesn't depend on theme.
           const argsStr = JSON.stringify(item.args);
@@ -686,72 +691,178 @@ export function registerSubagentTool(pi: ExtensionAPI) {
         };
       });
 
-      if (!expanded) {
-        // Collapsed view — drive entirely from the pure renderer.
-        const lines = renderCollapsed(renderResults, now);
-        return new Text(lines.join("\n"), 0, 0);
-      }
-
-      // Expanded view — keep richer formatting (Markdown for final output,
-      // tool calls with theme colors). Falls back to the pure renderer for
-      // headers and footers so the two stay in sync.
-      const container = new Container();
-      const headerLines = renderCollapsed(renderResults, now);
-      // Use only the title line; per-section content is rebuilt below.
-      container.addChild(new Text(headerLines[0], 0, 0));
-
-      for (const r of renderResults) {
-        container.addChild(new Spacer(1));
-        const icon = r.exitCode === -1 ? "⏳" : r.exitCode === 0 ? "✓" : "✗";
-        container.addChild(
-          new Text(
-            `${theme.fg("muted", "─── ")}${theme.fg("accent", r.agent)} ${icon}`,
-            0,
-            0,
-          ),
-        );
-        container.addChild(
-          new Text(theme.fg("muted", "Task: ") + theme.fg("dim", r.task), 0, 0),
-        );
-        for (const item of r.displayItems) {
-          if (item.type === "toolCall") {
-            container.addChild(
-              new Text(
-                theme.fg("muted", "→ ") +
-                  theme.fg("accent", item.name) +
-                  theme.fg("dim", ` ${item.argsPreview}`),
-                0,
-                0,
-              ),
-            );
-          }
-        }
-        if (r.finalOutput) {
-          container.addChild(new Spacer(1));
-          container.addChild(new Markdown(r.finalOutput.trim(), 0, 0, mdTheme));
-        } else if (r.exitCode === -1) {
-          container.addChild(new Text(theme.fg("muted", "(running...)"), 0, 0));
-        } else {
-          container.addChild(new Text(theme.fg("muted", "(no output)"), 0, 0));
-        }
-        if (r.exitCode > 0 && r.errorMessage) {
-          container.addChild(
-            new Text(theme.fg("error", `Error: ${r.errorMessage}`), 0, 0),
-          );
-        }
-        // Reuse the pure footer line so live clock + preset/model match.
-        container.addChild(
-          new Text(theme.fg("dim", formatTaskFooter(r, now)), 0, 0),
-        );
-      }
-
-      const total = formatTotalFooter(renderResults, now);
-      if (total) {
-        container.addChild(new Spacer(1));
-        container.addChild(new Text(theme.fg("dim", total), 0, 0));
-      }
-
-      return container;
+      return buildResultComponent(renderResults, config, theme, mdTheme, now);
     },
   });
+}
+
+// ─── Extracted render helpers (exported for tests) ─────────────────────────
+
+function addTaskBodyComponents(
+  container: Container,
+  r: RenderTaskResult,
+  config: RenderConfig,
+  theme: Theme,
+  mdTheme: MarkdownTheme,
+  now: number,
+): void {
+  const filtered = filterDisplayItems(r.displayItems);
+  const shown =
+    config.displayItems !== null
+      ? filtered.slice(-config.displayItems)
+      : filtered;
+
+  const hiddenItems = filtered.slice(0, filtered.length - shown.length);
+  const hiddenCount = hiddenItems.filter(
+    (item) => item.type === "toolCall",
+  ).length;
+  if (hiddenCount > 0) {
+    container.addChild(
+      new Text(
+        theme.fg(
+          "dim",
+          `(${hiddenCount} previous tool${hiddenCount === 1 ? "" : "s"})`,
+        ),
+        0,
+        0,
+      ),
+    );
+  }
+
+  for (const item of shown) {
+    if (item.type === "toolCall") {
+      container.addChild(
+        new Text(
+          theme.fg("muted", "→ ") +
+            theme.fg("accent", item.name) +
+            theme.fg("dim", " " + item.argsPreview),
+          0,
+          0,
+        ),
+      );
+    } else if (item.type === "toolResult") {
+      container.addChild(new Text(theme.fg("error", "  ✗ " + item.text), 0, 0));
+    }
+  }
+
+  if (r.finalOutput && r.finalOutput.trim()) {
+    if (shown.length > 0) container.addChild(new Spacer(1));
+    const outputLines = r.finalOutput.trim().split("\n");
+    const shownOutput =
+      config.finalOutputLines !== null
+        ? outputLines.slice(0, config.finalOutputLines)
+        : outputLines;
+    const truncated = shownOutput.length < outputLines.length;
+    const outputParts = [...shownOutput];
+    if (truncated) outputParts[outputParts.length - 1] += "…";
+    container.addChild(new Markdown(outputParts.join("\n"), 0, 0, mdTheme));
+  } else if (r.exitCode !== -1) {
+    container.addChild(
+      new Text(theme.fg("muted", "(finished with no output)"), 0, 0),
+    );
+  }
+
+  if (r.exitCode > 0 && r.errorMessage) {
+    container.addChild(
+      new Text(theme.fg("error", "Error: " + r.errorMessage), 0, 0),
+    );
+  }
+
+  container.addChild(new Text(theme.fg("dim", formatTaskFooter(r, now)), 0, 0));
+}
+
+/**
+ * Build the result component for a subagent invocation.
+ * Uses theme colors for structural elements and Markdown for task/output text.
+ */
+export function buildResultComponent(
+  results: RenderTaskResult[],
+  config: RenderConfig,
+  theme: Theme,
+  mdTheme: MarkdownTheme,
+  now: number,
+): Component {
+  const container = new Container();
+  if (results.length === 0) {
+    container.addChild(
+      new Text(theme.fg("muted", "subagent (no tasks)"), 0, 0),
+    );
+    return container;
+  }
+
+  for (let i = 0; i < results.length; i++) {
+    if (i > 0) container.addChild(new Spacer(1));
+    const r = results[i];
+    const taskLines = r.task.split("\n");
+    if (config.taskLines !== null) {
+      const slicedTask = taskLines.slice(0, config.taskLines);
+      const taskEllipsis = taskLines.length > config.taskLines ? "…" : "";
+      if (taskEllipsis) {
+        slicedTask[slicedTask.length - 1] = slicedTask[
+          slicedTask.length - 1
+        ].replace(/\.+$/, "");
+      }
+      container.addChild(
+        new Text(
+          theme.fg("toolTitle", theme.bold(r.agent)) +
+            ": " +
+            slicedTask.join("\n") +
+            taskEllipsis,
+          0,
+          0,
+        ),
+      );
+    } else {
+      container.addChild(
+        new Text(theme.fg("toolTitle", theme.bold(r.agent)), 0, 0),
+      );
+      container.addChild(new Markdown(r.task, 0, 0, mdTheme));
+      container.addChild(new Spacer(1));
+    }
+    addTaskBodyComponents(container, r, config, theme, mdTheme, now);
+  }
+
+  const total = formatTotalFooter(results, now);
+  if (total) {
+    container.addChild(new Spacer(1));
+    const totalStats = total.slice("Total: ".length);
+    container.addChild(
+      new Text(
+        theme.fg("toolTitle", theme.bold("Total") + ":") +
+          theme.fg("muted", " " + totalStats),
+        0,
+        0,
+      ),
+    );
+  }
+
+  return container;
+}
+
+/**
+ * Render the tool call header (shown before any result arrives).
+ * Extracted from registerSubagentTool's renderCall for testability.
+ */
+export function renderCallComponent(
+  args: { tasks?: Array<{ agent: string; task: string; cwd?: string }> },
+  theme: Theme,
+): Component {
+  // Keep the call line minimal — the result render below shows the full
+  // per-task layout with status icons, so duplicating it here would just
+  // produce two stacked headers while the agents run.
+  const tasks = args.tasks || [];
+  if (tasks.length === 0) {
+    return new Text(
+      theme.fg("toolTitle", theme.bold("subagent ")) +
+        theme.fg("muted", "(no tasks)"),
+      0,
+      0,
+    );
+  }
+  const names = tasks.map((t) => t.agent).join(", ");
+  return new Text(
+    theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", names),
+    0,
+    0,
+  );
 }

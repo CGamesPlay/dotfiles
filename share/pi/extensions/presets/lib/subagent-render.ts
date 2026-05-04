@@ -1,9 +1,9 @@
 /**
  * Pure rendering for subagent tool output.
  *
- * Produces plain-text line arrays from synthetic inputs so that rendering
- * can be unit-tested without a TUI. The `subagent.ts` tool wraps these
- * lines in TUI components and applies theme colors.
+ * Produces a markdown string from synthetic inputs so that rendering can be
+ * unit-tested without a TUI. The `subagent.ts` tool wraps the result in a
+ * `Markdown` component for display.
  */
 
 import { formatElapsed } from "./elapsed.js";
@@ -20,7 +20,8 @@ export interface RenderUsage {
 
 export type DisplayItem =
   | { type: "text"; text: string }
-  | { type: "toolCall"; name: string; argsPreview: string };
+  | { type: "toolCall"; name: string; argsPreview: string }
+  | { type: "toolResult"; toolCallId?: string; isError: boolean; text: string };
 
 export interface RenderTaskResult {
   agent: string;
@@ -39,13 +40,33 @@ export interface RenderTaskResult {
   provider?: string;
   model?: string;
   thinkingLevel?: string;
-  /** Recent display items (text + tool calls) for the collapsed view. */
+  /** Tool calls, tool results, and assistant text for this task. */
   displayItems: DisplayItem[];
   /** Final output text, if the task has produced an assistant text reply. */
   finalOutput?: string;
 }
 
-const COLLAPSED_TOOL_TAIL = 5;
+/** Controls how much content to show in collapsed vs expanded views. */
+export interface RenderConfig {
+  /** Max lines of task description shown. null = all. */
+  taskLines: number | null;
+  /** Max display items shown (from the end after filtering). null = all. */
+  displayItems: number | null;
+  /** Max lines of final output shown. null = all. */
+  finalOutputLines: number | null;
+}
+
+export const COLLAPSED: RenderConfig = {
+  taskLines: 1,
+  displayItems: 3,
+  finalOutputLines: 4,
+};
+
+export const EXPANDED: RenderConfig = {
+  taskLines: null,
+  displayItems: null,
+  finalOutputLines: null,
+};
 
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
@@ -76,6 +97,7 @@ export function formatTaskFooter(r: RenderTaskResult, now: number): string {
     parts.push(`W${formatTokens(r.usage.cacheWrite)}`);
   parts.push(`ctx:${formatTokens(r.usage.contextTokens ?? 0)}`);
   if (r.usage.cost > 0) parts.push(`$${r.usage.cost.toFixed(4)}`);
+  parts.push(statusGlyph(r));
   parts.push(formatElapsed(elapsedSeconds));
   parts.push(formatModelDescriptor(r));
   return parts.join(" ");
@@ -145,125 +167,35 @@ export function formatTotalFooter(
   return `Total: ${parts.join(" ")}`;
 }
 
-function statusGlyph(r: RenderTaskResult): string {
+export function statusGlyph(r: RenderTaskResult): string {
   if (r.exitCode === -1) return "⏳";
   if (r.exitCode === 0) return "✓";
   return "✗";
 }
 
 /**
- * For the collapsed view we only show recent tool calls. Assistant text
- * messages are rendered separately as `finalOutput` — including them here
- * would duplicate the final answer (the last assistant text always equals
- * `finalOutput`).
+ * Filter display items per the display rules:
+ * - text items are excluded (finalOutput handles text)
+ * - successful tool results are always hidden
+ * - failed tool results are shown only for the most recent tool call
  */
-function recentToolCalls(
-  items: DisplayItem[],
-): Array<Extract<DisplayItem, { type: "toolCall" }>> {
-  const toolCalls = items.filter(
-    (item): item is Extract<DisplayItem, { type: "toolCall" }> =>
-      item.type === "toolCall",
-  );
-  if (toolCalls.length <= COLLAPSED_TOOL_TAIL) return toolCalls;
-  return toolCalls.slice(-COLLAPSED_TOOL_TAIL);
-}
-
-function renderToolCall(
-  item: Extract<DisplayItem, { type: "toolCall" }>,
-): string {
-  return `→ ${item.name} ${item.argsPreview}`.trimEnd();
-}
-
-/**
- * Lines for one task's section in the collapsed view.
- *
- *   ─── <agent> <icon>
- *   Task: ...
- *   <recent tool calls / text>
- *   <final output preview>
- *   <footer>
- */
-export function renderTaskSection(r: RenderTaskResult, now: number): string[] {
-  const lines: string[] = [];
-  lines.push(`─── ${r.agent} ${statusGlyph(r)}`);
-  lines.push(`Task: ${r.task}`);
-
-  const tools = recentToolCalls(r.displayItems);
-  for (const item of tools) lines.push(renderToolCall(item));
-
-  if (r.finalOutput && r.finalOutput.trim()) {
-    lines.push(r.finalOutput.trim());
-  } else if (tools.length === 0) {
-    lines.push("(no output)");
-  }
-
-  if (r.exitCode > 0 && r.errorMessage) {
-    lines.push(`Error: ${r.errorMessage}`);
-  }
-
-  lines.push(formatTaskFooter(r, now));
-  return lines;
-}
-
-/**
- * Top-level collapsed render for the whole subagent invocation.
- *
- * - Single task: header `subagent <agent>` (with hourglass while running)
- * - Multiple tasks: header `subagent parallel (N tasks)` plus per-task sections.
- *
- * Always emits a `Total:` line once at least one task has started.
- */
-export function renderCollapsed(
-  results: RenderTaskResult[],
-  now: number,
-): string[] {
-  const lines: string[] = [];
-  if (results.length === 0) {
-    lines.push("subagent (no tasks)");
-    return lines;
-  }
-
-  const anyRunning = results.some((r) => r.exitCode === -1);
-
-  if (results.length === 1) {
-    const r = results[0];
-    const headerIcon = anyRunning ? "⏳ " : "";
-    lines.push(`${headerIcon}subagent ${r.agent}`);
-    lines.push("");
-    lines.push(`Task: ${r.task}`);
-    const tools = recentToolCalls(r.displayItems);
-    for (const item of tools) lines.push(renderToolCall(item));
-    if (r.finalOutput && r.finalOutput.trim()) {
-      lines.push(r.finalOutput.trim());
-    } else if (tools.length === 0) {
-      lines.push("(no output)");
-    }
-    if (r.exitCode > 0 && r.errorMessage) {
-      lines.push(`Error: ${r.errorMessage}`);
-    }
-    lines.push(formatTaskFooter(r, now));
-
-    const total = formatTotalFooter(results, now);
-    if (total) {
-      lines.push("");
-      lines.push(total);
-    }
-    return lines;
-  }
-
-  const headerIcon = anyRunning ? "⏳" : "✓";
-  lines.push(`${headerIcon} subagent parallel (${results.length} tasks)`);
-  for (const r of results) {
-    lines.push("");
-    for (const sectionLine of renderTaskSection(r, now)) {
-      lines.push(sectionLine);
+export function filterDisplayItems(items: DisplayItem[]): DisplayItem[] {
+  // Find the index of the last toolCall to identify whose result to show.
+  let lastToolCallIdx = -1;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i].type === "toolCall") {
+      lastToolCallIdx = i;
+      break;
     }
   }
 
-  const total = formatTotalFooter(results, now);
-  if (total) {
-    lines.push("");
-    lines.push(total);
-  }
-  return lines;
+  return items.filter((item, idx) => {
+    if (item.type === "text") return false;
+    if (item.type === "toolResult") {
+      if (!item.isError) return false;
+      if (lastToolCallIdx === -1) return false;
+      return idx === lastToolCallIdx + 1;
+    }
+    return true; // toolCall: always kept (trimmed by displayItems limit)
+  });
 }
