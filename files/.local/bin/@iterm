@@ -42,23 +42,24 @@ paste() {
 
 # @cmd Control a progress bar
 # @flag --clear          Remove the progress bar
-# @flag --indeterminate  Set the progress bar to "indeterminate" state
 # @flag --warning        Set the progress bar to "warning" state
 # @flag --error          Set the progress bar to "error" state
 # @arg  value            Set progress bar percent
 progress() {
-	if [ ${argc_clear+1} ]; then
+	if [[ ${argc_clear+1} ]]; then
 		state="0"
-	elif [ ${argc_indeterminate+1} ] && [ ${argc_error+1} ]; then
-		state="2"
-	elif [ ${argc_indeterminate+1} ]; then
-		state="3"
-	elif [ ${argc_warning+1} ]; then
+	elif [[ ${argc_error+1} ]]; then
+		if [[ ${argc_value+1} ]]; then
+			state="2;$argc_value"
+		else
+			state="2"
+		fi
+	elif [[ ${argc_warning+1} ]]; then
 		state="4;${argc_value:?value required}"
-	elif [ ${argc_error+1} ]; then
-		state="2;${argc_value:?value required}"
-	else
+	elif [[ ${argc_value+1} ]]; then
 		state="1;${argc_value:?value required}"
+	else
+		state="3"
 	fi
 	tty_printf "\033]9;4;${state}\a"
 }
@@ -103,6 +104,18 @@ color-scheme() {
 		echo "dark"
 	else
 		echo "light"
+	fi
+}
+
+# @cmd Set the window title and tab chrome background color
+# @option --color <R> <G> <B>  Color to set
+set-chrome-background() {
+	if [[ ${argc_color+1} ]]; then
+		tty_printf "\033]6;1;bg;red;brightness;${argc_color[0]}\a"
+		tty_printf "\033]6;1;bg;green;brightness;${argc_color[1]}\a"
+		tty_printf "\033]6;1;bg;blue;brightness;${argc_color[2]}\a"
+	else
+		tty_printf "\033]6;1;bg;*;default\a"
 	fi
 }
 
