@@ -46,4 +46,5 @@ Where possible, some of the individual components of these dotfiles have automat
 
 - `share/pi` has `npm run check` and `npm run test`. Also look for tests gated behind the environment variable `RUN_LIVE_TESTS=1`
 - `files/.local/bin/nvim-remote-lsp` has `share/nvim-remote-lsp/run-tests`
+- `files/.config/jj/Argcfile.sh` has a `test` subcommand
 - `devserver/hetzner-bootable-volume` has an `integration-test` subcommand
