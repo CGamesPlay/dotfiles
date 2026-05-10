@@ -10,6 +10,8 @@ list=(
 	eza
 	fzf
 	jj
+	rg
+	shpool
 	zoxide
 )
 for i in "${list[@]}"; do
