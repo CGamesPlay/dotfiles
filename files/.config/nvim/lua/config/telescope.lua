@@ -27,6 +27,9 @@ keys:set("n", "<leader>sk", "<Cmd>Telescope keymaps<CR>", { desc = "[S]earch [K]
 keys:set("n", "<leader>s.", function()
   require("telescope.builtin").find_files({ cwd = vim.g.dotfiles_dir, hidden = true })
 end, { desc = "[S]earch [dot]files" })
+keys:set("n", "<leader>sn", function()
+  require("telescope.builtin").find_files({ cwd = os.getenv("NOTES_DIR") })
+end, { desc = "[S]earch [n]otes" })
 keys:set("n", "<leader>sG", function()
   if 1 == vim.fn.executable "rg" then
     require("telescope.builtin").live_grep({ cwd = vim.fn.getcwd(0), additional_args = { "--hidden", "--glob=!.git" } })

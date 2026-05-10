@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# @describe Interact with obsidian
+
+set -eu
+
+# @cmd List files in vault
+ls() {
+	obsidian vault=Notes files
+}
+
+# @cmd Move a file
+# @arg src[?`existing_file`] File to move
+# @arg dest[?`existing_dir`]  Path to move to
+mv() {
+	obsidian vault=Notes move file="${argc_src:?}" to="${argc_dest:?}"
+}
+
+existing_file() {
+	obsidian vault=Notes files
+}
+
+existing_dir() {
+	root=$(obsidian vault=Notes vault info=path)
+	(cd "$root" && find . -not -path '*/.*' | sed 's|^\./||; /^\.$/d')
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

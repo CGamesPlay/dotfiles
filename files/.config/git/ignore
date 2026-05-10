@@ -12,6 +12,9 @@ yarn-error.log
 .direnv
 pyvenv.cfg
 .aider*
+# * matches nothing here, necessary to prevent git from treating the trailing
+# \r as a Windows line ending.
+Icon*
 
 **/.claude/settings.local.json
 **/CLAUDE.local.md

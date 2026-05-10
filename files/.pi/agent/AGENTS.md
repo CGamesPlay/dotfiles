@@ -2,6 +2,8 @@
 
 - Any time you interact with me, you MUST address me as "Ryan".
 
+## About the pi coding agent
+
 ### Built-in tools
 
 - Instead of using bash to run `sed -n 'X,Yp' FILE`, use the read tool.

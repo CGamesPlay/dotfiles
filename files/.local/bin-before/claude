@@ -113,6 +113,7 @@ EOF
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"
 			--add-dirs-ro "$DFM_DIR"
+			--add-dirs "$NOTES_DIR"
 			--add-dirs-ro ~/.config/nvim
 			--add-dirs-ro ~/.local/share/nvim
 			--add-dirs-ro ~/Applications
@@ -123,7 +124,7 @@ EOF
 			--add-dirs ~/.claude
 			--add-dirs ~/.claude.json
 			--add-dirs "$DFM_DIR/files/.claude"
-			--env-pass "EDITOR,NVM_DIR,DFM_DIR,CLAUDE_CODE_OAUTH_TOKEN"
+			--env-pass "EDITOR,NVM_DIR,DFM_DIR,NOTES_DIR,CLAUDE_CODE_OAUTH_TOKEN"
 			-- "${args[@]}"
 		)
 	fi

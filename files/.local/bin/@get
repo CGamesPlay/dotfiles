@@ -310,6 +310,11 @@ install_shpool() {
 	chmod +x "$BINDIR/shpool"
 }
 
+# Peer-to-peer file synchronization
+install_syncthing() {
+	eget syncthing/syncthing --to="$BINDIR"
+}
+
 # Python package installer
 install_uv() {
 	curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$BINDIR" INSTALLER_NO_MODIFY_PATH=1 sh

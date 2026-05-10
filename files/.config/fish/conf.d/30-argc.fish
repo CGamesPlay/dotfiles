@@ -3,4 +3,4 @@ if ! command -q argc 2>/dev/null
 end
 
 # Generate completions for argc and my custom Argcfiles
-argc --argc-completions fish @argc @get @iterm @devcontainer claude pi | source
+argc --argc-completions fish @argc @get @iterm @devcontainer @notes claude pi | source

@@ -1,0 +1,1 @@
+syncthing install-completions | source

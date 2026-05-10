@@ -17,6 +17,7 @@
 # @option --model <MODEL>    Use a specific model
 # @option --thinking <LEVEL> Use a specific thinking level
 # @option --preset <PRESET>  Use a saved preset for model/thinking level
+# @option --append-system-prompt <FILE>  Append a file or text to the system prompt.
 # @option --safehouse-rw <DIR> Add a writable directory to safehouse
 # @option --safehouse-ro <DIR> Add a readable directory to safehouse
 # @arg  args~               Additional arguments, passed verbatim
@@ -28,7 +29,7 @@ PI_ENV_FILE=~/.pi/agent/env
 
 main() {
 	set +u
-	# shellcheck disable=1091
+	# shellcheck source=/dev/null
 	. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
 	nvm use --lts > /dev/null
 	set -u
@@ -71,6 +72,7 @@ main() {
 		${argc_model+--model "$argc_model"}
 		${argc_thinking+--thinking "$argc_thinking"}
 		${argc_preset+--preset "$argc_preset"}
+		${argc_append_system_prompt+--append-system-prompt "$argc_append_system_prompt"}
 	)
 
 	if [[ ${argc_no_session+1} ]]; then
@@ -92,11 +94,13 @@ main() {
 		safehouse_args=(
 			--enable="clipboard,macos-gui,xcode"
 			--append-profile "$DFM_DIR/share/agent-safehouse.sb"
+			--add-dirs-ro /Applications
 			--add-dirs-ro /Library/Preferences/com.apple.dt.Xcode.plist
 			--add-dirs-ro ~/.local/bin
 			--add-dirs-ro ~/.local/bin-after
 			--add-dirs-ro "$NVM_DIR"
 			--add-dirs-ro "$DFM_DIR"
+			--add-dirs "$NOTES_DIR"
 			--add-dirs-ro ~/.config/jj
 			--add-dirs-ro ~/.config/nvim
 			--add-dirs-ro ~/.config/direnv
@@ -109,7 +113,7 @@ main() {
 			--add-dirs ~/.local/share/claude
 			--add-dirs ~/.claude
 			--add-dirs ~/.claude.json
-			--env-pass "EDITOR,NVM_DIR,DFM_DIR"
+			--env-pass "EDITOR,NVM_DIR,DFM_DIR,NOTES_DIR"
 			${argc_safehouse_rw+"${argc_safehouse_rw[@]/#/--add-dirs=}"}
 			${argc_safehouse_ro+"${argc_safehouse_rw[@]/#/--add-dirs-ro=}"}
 		)
@@ -119,7 +123,7 @@ main() {
 		if jj_workspace_config=$(jj config path --workspace 2>/dev/null); then
 			safehouse_args+=(--add-dirs-ro "$(dirname "$jj_workspace_config")")
 		fi
-		if jj_workspace_root=$(jj workspace root --name default) &&
+		if jj_workspace_root=$(jj workspace root --name default 2>/dev/null) &&
 			[[ "$jj_workspace_root" != "$(jj workspace root)" ]]; then
 			safehouse_args+=(--add-dirs-ro "$jj_workspace_root")
 		fi

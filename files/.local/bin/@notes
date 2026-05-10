@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# @describe Scripts for managing the personal knowledge base.
+# @env NOTES_DIR! Directory for notes
+
+set -eu
+
+# @cmd Run pi in the notes directory
+pi() {
+	cd "$NOTES_DIR"
+	command pi --preset small
+}
+
+# @cmd Sync all available agent skills
+sync-skills() {
+	local settings_file="$HOME/.pi/agent/settings.json"
+	local existing='{}'
+	[[ -f "$settings_file" ]] && existing=$(cat "$settings_file")
+	# shellcheck disable=SC2088
+	jq --arg g '~/Notes/*/skills' \
+		'if ((.skills // []) | index($g)) != null then . else .skills = ((.skills // []) + [$g]) end' \
+		<<<"$existing" > "$settings_file"
+
+	mkdir -p ~/.agents/skills
+	mkdir -p ~/.claude/skills
+	while read -r skill_repo; do
+		while read -r skill_dir; do
+			skill_name=$(basename "$skill_dir")
+			ln -sf "$skill_dir" "$HOME/.agents/skills/$skill_name"
+			ln -sf "$skill_dir" "$HOME/.claude/skills/$skill_name"
+		done < <(find "$skill_repo" -mindepth 1 -maxdepth 1)
+	done < <(find "$NOTES_DIR" -mindepth 2 -maxdepth 2 -name 'skills')
+}
+
+# GUI address used by the daemon and the cli probe.
+SYNCTHING_GUI_ADDRESS="0.0.0.0:8384"
+SYNCTHING_GUI_PROBE_URL="http://127.0.0.1:8384/"
+
+# Runtime log file. $XDG_RUNTIME_DIR is the standard ephemeral per-user dir;
+# fall back to $TMPDIR / /tmp on systems that don't set it (e.g. macOS).
+syncthing_log_path() {
+	local dir="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
+	echo "$dir/syncthing.log"
+}
+
+# Returns 0 if the GUI is responding, 1 otherwise.
+syncthing_is_running() {
+	curl -fsS -o /dev/null --max-time 2 "$SYNCTHING_GUI_PROBE_URL" 2>/dev/null
+}
+
+# Block until the GUI responds.
+syncthing_wait_running() {
+	while ! syncthing_is_running; do sleep 1; done
+}
+
+# @cmd Sync syncthing shared folders to match $NOTES_DIR/*/.
+#
+# Adds folders present in $NOTES_DIR but missing from syncthing, and removes
+# syncthing folders whose paths are not a subdirectory of $NOTES_DIR.
+# Requires the syncthing daemon to be running.
+# @flag   -n --dry-run  Print changes without applying them.
+sync-shares() {
+	local st_ids=() st_paths=() desired_paths=()
+	local folder_id st_path canonical id found i j
+
+	while IFS= read -r folder_id; do
+		[ -z "$folder_id" ] && continue
+		st_path="$(command syncthing cli config folders "$folder_id" path get)"
+		st_ids+=("$folder_id")
+		st_paths+=("${st_path%/}")
+	done < <(command syncthing cli config folders list)
+
+	while IFS= read -r -d '' dir; do
+		canonical="$(realpath "$dir")"
+		desired_paths+=("$canonical")
+		found=0
+		for j in "${!st_paths[@]}"; do
+			[[ "${st_paths[$j]}" == "$canonical" ]] && found=1 && break
+		done
+		if [[ $found -eq 0 ]]; then
+			id="$(basename "$canonical")"
+			echo "add: $id -> $canonical"
+			[[ -z "${argc_dry_run+_}" ]] && command syncthing cli config folders add --id "$id" --path "$canonical"
+		fi
+	done < <(find "$NOTES_DIR" -mindepth 1 -maxdepth 1 -type d -not -name '.*' -print0)
+
+	for i in "${!st_ids[@]}"; do
+		found=0
+		for j in "${!desired_paths[@]}"; do
+			[[ "${st_paths[$i]}" == "${desired_paths[$j]}" ]] && found=1 && break
+		done
+		if [[ $found -eq 0 ]]; then
+			echo "remove: ${st_ids[$i]} -> ${st_paths[$i]}"
+			[[ -z "${argc_dry_run+_}" ]] && command syncthing cli config folders "${st_ids[$i]}" delete
+		fi
+	done
+}
+
+# @cmd Install syncthing and set the default folder path.
+# @option    --default-path=~/  Default path for newly-added folders.
+install() {
+	@get syncthing
+	# `cli config` talks over the REST API and requires a running daemon, so
+	# on a fresh install we generate the config and patch the default folder
+	# path directly in config.xml. The generated <defaults><folder ...> line
+	# has path="" verbatim, which makes the substitution unambiguous.
+	local state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/syncthing"
+	if [[ ! -d "$state_dir" ]]; then
+		command syncthing generate
+		# Escape sed replacement metacharacters (& \ |) in the user-supplied path.
+		# shellcheck disable=SC2154
+		local escaped=${argc_default_path//\\/\\\\}
+		escaped=${escaped//&/\\&}
+		escaped=${escaped//|/\\|}
+		sed -i "s|\\(<folder [^>]* \\)path=\"\"|\\1path=\"$escaped\"|" "$state_dir/config.xml"
+	fi
+}
+
+# @cmd Start the syncthing daemon, add a pending device, and show folders.
+#
+# Idempotent: if the daemon is already running we attach to it. Logs go to
+# $XDG_RUNTIME_DIR/syncthing.log (or $TMPDIR/syncthing.log).
+# @flag      --noninteractive  Just start the daemon, don't prompt or wait.
+start() {
+	local log_file
+	log_file="$(syncthing_log_path)"
+
+	if syncthing_is_running; then
+		echo "syncthing: already running"
+	else
+		echo "syncthing: starting daemon, logs at $log_file"
+		# setsid + nohup detaches from the controlling terminal so the daemon
+		# survives shell exit; redirect all fds so it doesn't hold the tty.
+		setsid nohup syncthing \
+			--no-browser \
+			--gui-address="$SYNCTHING_GUI_ADDRESS" \
+			</dev/null >"$log_file" 2>&1 &
+		disown || true
+		syncthing_wait_running
+	fi
+
+	if [[ ${argc_noninteractive+1} ]]; then
+		return
+	fi
+
+	local my_id
+	my_id="$(command syncthing cli show system | jq -r .myID)"
+	echo "syncthing: device ID $my_id"
+
+	# Skip the device prompt entirely when at least one remote device is
+	# already configured. `devices list` always includes the local device,
+	# so a count > 1 means we've already paired with someone.
+	local device_count
+	device_count="$(command syncthing cli config devices list | grep -c .)"
+	if [ "$device_count" -le 1 ]; then
+		printf "Device ID to add (blank to skip): "
+		local peer_id
+		read -r peer_id </dev/tty
+		if [ -n "$peer_id" ]; then
+			command syncthing cli config devices add \
+				--device-id "$peer_id" \
+				--introducer \
+				--auto-accept-folders
+		fi
+	fi
+
+	echo "syncthing: waiting for device connection..."
+	while :; do
+		if command syncthing cli show connections \
+			| jq -e '[.connections[] | select(.connected)] | length > 0' \
+			>/dev/null; then
+			break
+		fi
+		sleep 2
+	done
+	echo "syncthing: connected"
+
+	echo "syncthing: waiting for folders..."
+	local folders=""
+	while [ -z "$folders" ]; do
+		folders="$(command syncthing cli config folders list)"
+		[ -z "$folders" ] && sleep 2
+	done
+
+	local folder
+	while IFS= read -r folder; do
+		[ -z "$folder" ] && continue
+		local path
+		path="$(command syncthing cli config folders "$folder" path get)"
+		printf "  %s\t%s\n" "$folder" "$path"
+	done <<<"$folders"
+}
+
+if ! command -v argc >/dev/null; then
+	echo "This command requires argc. Install from https://github.com/sigoden/argc" >&2
+	exit 100
+fi
+eval "$(argc --argc-eval "$0" "$@")"

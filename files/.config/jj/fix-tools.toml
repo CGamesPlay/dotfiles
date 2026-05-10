@@ -8,11 +8,11 @@ patterns = ["glob:'**/*.rs'"]
 
 [fix.tools.prettier]
 command = ["npx", "prettier", "--stdin-filepath=$path"]
-patterns = ["glob:'**/*.{tsx,ts,jsx,js,css,html.json}'"]
+patterns = ["glob:'**/*.{tsx,ts,jsx,js,css,html,json}'"]
 
 [fix.tools.biome-check]
 command = ["$root/node_modules/@biomejs/biome/bin/biome", "check", "--write", "--stdin-file-path=$path"]
-patterns = ["glob:'**/*.{tsx,ts,jsx,js,css,html.json}'"]
+patterns = ["glob:'**/*.{tsx,ts,jsx,js,css,html,json}'"]
 
 [fix.tools.ruff-lint]
 command = ["uv", "run", "ruff", "check", "--fix", "--preview", "--quiet", "--stdin-filename=$path", "-"]
