@@ -115,7 +115,7 @@ main() {
 			--add-dirs ~/.claude.json
 			--env-pass "EDITOR,NVM_DIR,DFM_DIR,NOTES_DIR"
 			${argc_safehouse_rw+"${argc_safehouse_rw[@]/#/--add-dirs=}"}
-			${argc_safehouse_ro+"${argc_safehouse_rw[@]/#/--add-dirs-ro=}"}
+			${argc_safehouse_ro+"${argc_safehouse_ro[@]/#/--add-dirs-ro=}"}
 		)
 		if jj_repo_config=$(jj config path --repo 2>/dev/null); then
 			safehouse_args+=(--add-dirs-ro "$(dirname "$jj_repo_config")")
