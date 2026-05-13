@@ -1,0 +1,8 @@
+{
+	"id": "dotfiles",
+	"name": "Dotfiles Plugin",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.7",
+	"description": "Plugin from dotfiles repository.",
+	"isDesktopOnly": false
+}
