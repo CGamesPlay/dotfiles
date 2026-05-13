@@ -17,17 +17,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if git rev-parse --show-toplevel >/dev/null 2>&1; then jq -r '.tool_input.file_path' | xargs git add --intent-to-add; fi"
-          }
-        ]
-      }
     ]
   },
   "enabledPlugins": {
