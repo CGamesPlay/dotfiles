@@ -103,6 +103,12 @@ export default class DotfilesPlugin extends Plugin {
     });
 
     this.addCommand({
+      id: "create-note-in-same-folder",
+      name: "Create new note in same folder",
+      callback: () => { void this.createNoteInSameFolder(); },
+    });
+
+    this.addCommand({
       id: "toggle-archived",
       name: "Toggle archived status",
       callback: () => {
@@ -317,6 +323,25 @@ export default class DotfilesPlugin extends Plugin {
     fake.hidden = true;
     original.hidden = false;
     original.focus();
+  }
+
+  private async createNoteInSameFolder(): Promise<void> {
+    const activeFile = this.app.workspace.getActiveFile();
+    const folder = activeFile?.parent ?? this.app.vault.getRoot();
+    const folderPath = folder.isRoot() ? "" : folder.path;
+
+    let name = "Untitled";
+    let filePath = folderPath ? `${folderPath}/${name}.md` : `${name}.md`;
+    let counter = 1;
+    while (this.app.vault.getAbstractFileByPath(filePath)) {
+      name = `Untitled ${counter}`;
+      filePath = folderPath ? `${folderPath}/${name}.md` : `${name}.md`;
+      counter++;
+    }
+
+    const file = await this.app.vault.create(filePath, "");
+    const leaf = this.app.workspace.getLeaf(false);
+    await leaf.openFile(file, { state: { mode: "source" } });
   }
 
   private async expandNoteIntoFolder(): Promise<void> {
