@@ -21,11 +21,20 @@ import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
+import { deleteSession } from "@anthropic-ai/claude-agent-sdk";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import providerFactory, {
   __getBridgeStateForTesting,
   __getCreatedSdkSessionIdsForTesting,
+  __getLastDecisionInfoForTesting,
+  __setPiSessionFileForTesting,
   __shutdownAllForTesting,
+  __simulateShutdownForTesting,
 } from "../index.js";
+import { sidecarPathFor } from "../src/sidecar.js";
 
 const LIVE = process.env.RUN_LIVE_TESTS === "1";
 const MODEL_ID = process.env.BENCH_MODEL ?? "claude-opus-4-5";
@@ -69,7 +78,7 @@ function makeStubPi(): {
 
 async function setupProvider() {
   const stub = makeStubPi();
-  await providerFactory(stub.pi);
+  providerFactory(stub.pi);
   const provider = stub.provider();
   const model =
     provider.models.find((m: any) => m.id === MODEL_ID) ?? provider.models[0];
@@ -619,6 +628,124 @@ describe(
         post.usage.cacheWrite < CACHE_HIT_WRITE_LIMIT,
         `post-fork cacheWrite=${post.usage.cacheWrite} expected < ${CACHE_HIT_WRITE_LIMIT}`,
       );
+    });
+
+    it("warm-resume after simulated process restart reuses the same SDK session", async () => {
+      // Drives turn 1, simulates session_shutdown (persists sidecar, tears
+      // down runtime, leaves SDK JSONL intact), then drives turn 2 against
+      // a fresh runtime. Asserts the second runtime warm-resumed onto the
+      // original SDK session id rather than cold-seeding a new one. This is
+      // the structural check for the fidelity-preserving resume path: a
+      // cold-seed would synthesize a new SDK session and drop thinking-
+      // block fidelity from turn 1.
+      const { provider, model } = await setupProvider();
+      const sessionId = randomUUID();
+      const tmpDir = await mkdtemp(join(tmpdir(), "warm-resume-test-"));
+      const piFile = join(tmpDir, `pi-${sessionId}.jsonl`);
+      const sidecarPath = sidecarPathFor(piFile)!;
+      __setPiSessionFileForTesting(sessionId, piFile);
+
+      const ctx: Context = { messages: [], systemPrompt: "" };
+      const nonce = makeCacheBustNonce();
+
+      pushFirstUser(ctx, nonce, "Q1: 2+2=? Number only.");
+      const r1 = await drive(provider.streamSimple, model, ctx, sessionId);
+      ctx.messages.push(r1.assistantMessage);
+      const sdkBeforeShutdown =
+        __getBridgeStateForTesting(sessionId)!.sdkSessionId;
+
+      await __simulateShutdownForTesting(sessionId, piFile);
+      assert.equal(
+        __getBridgeStateForTesting(sessionId),
+        undefined,
+        "runtime should be torn down after simulated shutdown",
+      );
+
+      // Re-register the pi session file for the "new process".
+      __setPiSessionFileForTesting(sessionId, piFile);
+
+      pushUser(ctx, "Q2: 3+3=? Number only.", Date.now() + 1000);
+      const r2 = await drive(provider.streamSimple, model, ctx, sessionId);
+      ctx.messages.push(r2.assistantMessage);
+
+      const last = __getLastDecisionInfoForTesting(sessionId);
+      assert.equal(
+        last?.kind,
+        "warm-resume",
+        `expected warm-resume after simulated restart; got ${JSON.stringify(last)}`,
+      );
+      if (last?.kind === "warm-resume") {
+        assert.equal(
+          last.sdkSessionId,
+          sdkBeforeShutdown,
+          "warm-resume should target the same SDK session id that was active before shutdown",
+        );
+      }
+
+      assert.equal(
+        __getBridgeStateForTesting(sessionId)?.sdkSessionId,
+        sdkBeforeShutdown,
+        "the resumed runtime should expose the original SDK session id",
+      );
+
+      // Cleanup: delete the SDK session JSONL and the temp directory.
+      try {
+        await deleteSession(sdkBeforeShutdown);
+      } catch {
+        // best effort
+      }
+      void sidecarPath;
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it("cold-seeds when sidecar signatures don't match current pi history", async () => {
+      // Persist sidecar after turn 1, then mutate the in-memory history
+      // (replace the user message) to simulate pi editing prior content
+      // between shutdown and resume. The prefix check must catch this and
+      // route to cold-seed rather than warm-resume onto a now-incorrect
+      // SDK transcript.
+      const { provider, model } = await setupProvider();
+      const sessionId = randomUUID();
+      const tmpDir = await mkdtemp(join(tmpdir(), "warm-resume-mismatch-"));
+      const piFile = join(tmpDir, `pi-${sessionId}.jsonl`);
+      __setPiSessionFileForTesting(sessionId, piFile);
+
+      const ctx: Context = { messages: [], systemPrompt: "" };
+      const nonce = makeCacheBustNonce();
+
+      pushFirstUser(ctx, nonce, "Q1: 2+2=? Number only.");
+      const r1 = await drive(provider.streamSimple, model, ctx, sessionId);
+      ctx.messages.push(r1.assistantMessage);
+      const sdkBeforeShutdown =
+        __getBridgeStateForTesting(sessionId)!.sdkSessionId;
+
+      await __simulateShutdownForTesting(sessionId, piFile);
+
+      // Mutate history: change the user message's content so its signature
+      // no longer matches the persisted one.
+      (ctx.messages[0] as any).content = "DIFFERENT user content";
+
+      __setPiSessionFileForTesting(sessionId, piFile);
+      pushUser(ctx, "Q2: 3+3=? Number only.", Date.now() + 1000);
+      const r2 = await drive(provider.streamSimple, model, ctx, sessionId);
+      ctx.messages.push(r2.assistantMessage);
+
+      const last = __getLastDecisionInfoForTesting(sessionId);
+      assert.equal(last?.kind, "cold-seed");
+      if (last?.kind === "cold-seed") {
+        assert.equal(
+          last.reason,
+          "signature-mismatch",
+          `expected cold-seed reason=signature-mismatch; got ${last.reason}`,
+        );
+      }
+
+      try {
+        await deleteSession(sdkBeforeShutdown);
+      } catch {
+        // best effort
+      }
+      await rm(tmpDir, { recursive: true, force: true });
     });
   },
 );

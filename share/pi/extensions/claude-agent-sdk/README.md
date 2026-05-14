@@ -44,8 +44,19 @@ underlying turn was a parallel fan-out.
 Each `streamSimple` call diffs pi message signatures (timestamp + md5 of
 content) against what was sent last time:
 
-- **First call** — *cold-seed*: replay every pi message into the SDK input
-  queue with `shouldQuery: false` on all but the last. The static prefix
+- **First call after process start** — *warm-resume* if a sidecar from a
+  prior process is present, the persisted SDK session JSONL still exists,
+  and the sidecar's recorded signatures are a strict prefix of pi's
+  current history. Reuses the original SDK session via `resume:` and
+  replays only the tail (messages past the persisted prefix). If any of
+  those checks fail, falls back to *cold-seed* with a debug notification
+  identifying the reason (`no-sidecar`, `sdk-jsonl-missing`,
+  `signature-mismatch`).
+- **First call with no sidecar** — *cold-seed*: replay every pi message
+  into the SDK input queue with `shouldQuery: false` on all but the last.
+  If there are prior assistant messages we synthesize a `SessionStore`
+  carrying the full history so the model sees real context rather than
+  regenerating every assistant turn from scratch. The static prefix
   (system prompt, tool schemas, AGENTS.md append) is snapshotted here and
   reused byte-identical for the rest of the session so Anthropic's prompt
   cache hits.
@@ -68,14 +79,36 @@ directory, git status) that would shift the cache prefix between calls.
 Pi tool schemas are converted from JSON Schema (TypeBox-emitted) to a Zod
 raw shape so the SDK can consume them.
 
-### Lifetime and cleanup
+### Lifetime and cross-process resume
 
-The runtime lives for the life of the pi process. On `session_shutdown`,
-the input queue is closed, `query.close()` tears down the SDK iterator,
-parked tool deferreds are rejected, and a best-effort cleanup deletes any
-SDK session JSONL files we created. Restart busts the cache by design —
-Anthropic's prompt cache TTL is 5–60 minutes, so durable persistence
-buys nothing.
+The runtime lives for the life of the pi process. On `session_shutdown`
+we persist a small sidecar JSON file next to pi's session JSONL recording
+(a) the live SDK session id, (b) the signatures of every pi message the
+SDK transcript reflects through the last completed turn, and (c)
+optionally the pi-index → SDK-uuid map. Then the input queue is closed,
+`query.close()` tears down the SDK iterator, and parked tool deferreds
+are rejected. **The SDK session JSONL is intentionally left on disk** so
+the next process can warm-resume.
+
+The sidecar path is derived from pi's session file path:
+`<pi-session>.jsonl` → `<pi-session>.claude-agent-sdk.json`.
+
+The load-bearing correctness gate for warm-resume is the signature
+prefix check: every signature the sidecar recorded must equal pi's
+current signature at the same index. Any divergence — in-place edits
+anywhere in history, branch navigation that rewinds below the
+high-water-mark — fails the check and forces a cold-seed. Warm-resume
+never overlays a now-stale SDK transcript onto pi's actual history.
+
+Warm-resume preserves fidelity that cold-seed loses: native `thinking`
+blocks (whose signatures can't be synthesized), the SDK's real per-turn
+UUIDs (so post-resume `forkSession` can target real ancestors), and the
+model's view of tool calls as natively-executed rather than
+reconstructed. Prompt-cache hits within Anthropic's TTL are a
+side-effect, not the goal.
+
+Garbage collection of accumulated SDK JSONLs and sidecars is handled out
+of band rather than at shutdown.
 
 ## Tests
 

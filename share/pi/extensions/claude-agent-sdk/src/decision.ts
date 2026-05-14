@@ -12,6 +12,7 @@ import {
   toolResultToSdk,
   userMessageToSdk,
 } from "./pi-to-sdk.js";
+import { isPrefixOf, type SidecarV1 } from "./sidecar.js";
 import { findDivergenceIndex } from "./state-diff.js";
 import type { StaticPrefix } from "./types.js";
 
@@ -22,11 +23,31 @@ export type ToolResultEntry = {
 };
 
 /**
+ * Reasons a cold-seed was chosen instead of a warm-resume / linear /
+ * fork path. Surfaced via the notifier so debugging shows which check
+ * failed.
+ */
+export type ColdSeedReason =
+  | "no-runtime"
+  | "empty-tail"
+  | "no-tail-content"
+  | "unknown-fork-uuid"
+  | "no-sidecar"
+  | "sdk-jsonl-missing"
+  | "signature-mismatch";
+
+/**
  * What to do for a single streamSimple call, computed by diffing pi's
  * current message branch against what we last sent the SDK.
  */
 export type TurnDecision =
-  | { kind: "cold-seed" }
+  | { kind: "cold-seed"; reason: ColdSeedReason }
+  | {
+      kind: "warm-resume";
+      sdkSessionId: string;
+      tailStartPiIdx: number;
+      sdkUuidByPiIndex: Map<number, string>;
+    }
   | { kind: "fork"; forkAtPiIdx: number; forkAtUuid: string }
   | {
       kind: "resolve-tool";
@@ -47,7 +68,7 @@ export function decideTurnAction(
   newSigs: string[],
   messages: any[],
 ): TurnDecision {
-  if (!runtime) return { kind: "cold-seed" };
+  if (!runtime) return { kind: "cold-seed", reason: "no-runtime" };
 
   const oldSigs = runtime.lastSignatures;
   const divergence = findDivergenceIndex(oldSigs, newSigs);
@@ -58,7 +79,7 @@ export function decideTurnAction(
   if (isPureExtension && tail.length === 0) {
     // Pi called us with no new entry. Shouldn't happen in a well-behaved
     // loop; cold-seed to be safe.
-    return { kind: "cold-seed" };
+    return { kind: "cold-seed", reason: "empty-tail" };
   }
 
   if (isPureExtension) {
@@ -91,7 +112,7 @@ export function decideTurnAction(
     if (userMessages.length > 0) {
       return { kind: "linear-extension", userMessages };
     }
-    return { kind: "cold-seed" };
+    return { kind: "cold-seed", reason: "no-tail-content" };
   }
 
   // Divergence — find the deepest assistant turn in the common prefix.
@@ -102,9 +123,9 @@ export function decideTurnAction(
       break;
     }
   }
-  if (forkAtPiIdx < 0) return { kind: "cold-seed" };
+  if (forkAtPiIdx < 0) return { kind: "cold-seed", reason: "unknown-fork-uuid" };
   const forkAtUuid = runtime.sdkUuidByPiIndex.get(forkAtPiIdx);
-  if (!forkAtUuid) return { kind: "cold-seed" };
+  if (!forkAtUuid) return { kind: "cold-seed", reason: "unknown-fork-uuid" };
   return { kind: "fork", forkAtPiIdx, forkAtUuid };
 }
 
@@ -143,6 +164,35 @@ export type ApplyDecisionArgs = {
   options: SimpleStreamOptions | undefined;
   tools: Tool[];
 };
+
+/**
+ * Try to upgrade an initial cold-seed into a warm-resume using a sidecar
+ * persisted by the previous process. Pure function: the caller does the
+ * IO (load sidecar, check SDK JSONL exists) and passes results in.
+ *
+ * The prefix check on signatures is the load-bearing correctness gate:
+ * the persisted SDK transcript is guaranteed to match pi's history
+ * exactly through sidecar.signatures.length entries. Any divergence
+ * (edits anywhere in history, branch navigation) fails the check and
+ * forces a cold-seed.
+ */
+export function tryWarmResume(args: {
+  sidecar: SidecarV1 | undefined;
+  sdkJsonlExists: boolean;
+  newSigs: string[];
+}): TurnDecision {
+  if (!args.sidecar) return { kind: "cold-seed", reason: "no-sidecar" };
+  if (!args.sdkJsonlExists)
+    return { kind: "cold-seed", reason: "sdk-jsonl-missing" };
+  if (!isPrefixOf(args.sidecar.signatures, args.newSigs))
+    return { kind: "cold-seed", reason: "signature-mismatch" };
+  return {
+    kind: "warm-resume",
+    sdkSessionId: args.sidecar.sdkSessionId,
+    tailStartPiIdx: args.sidecar.signatures.length,
+    sdkUuidByPiIndex: new Map(args.sidecar.sdkUuidByPiIndex ?? []),
+  };
+}
 
 // applyDecision lives in runtime.ts because it needs access to runtime
 // internals (createRuntime, shutdownRuntime, the active runtimes map). It

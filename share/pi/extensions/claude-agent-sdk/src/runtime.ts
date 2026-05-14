@@ -10,6 +10,7 @@ import {
 import {
   deleteSession,
   forkSession,
+  getSessionInfo,
   getSessionMessages,
   type SessionStore,
   query,
@@ -19,11 +20,19 @@ import {
 
 import {
   buildForkTail,
+  type ColdSeedReason,
   decideTurnAction,
+  tryWarmResume,
   type TurnDecision,
 } from "./decision.js";
 import { buildPiMcpServer, type ToolCallSink } from "./pi-mcp-server.js";
 import { buildColdSeedMessages, buildSyntheticSession } from "./pi-to-sdk.js";
+import {
+  loadSidecar,
+  saveSidecar,
+  sidecarPathFor,
+  type SidecarV1,
+} from "./sidecar.js";
 import {
   resolveClaudeCodeExecutable,
   extractAgentsAppend,
@@ -39,6 +48,7 @@ import {
   handleSdkMessage,
   type TranslatorContext,
 } from "./stream-translator.js";
+import { randomUUID } from "node:crypto";
 import {
   mapThinkingTokens,
   PI_LEVEL_TO_EFFORT,
@@ -98,10 +108,51 @@ export type SessionRuntime = {
 
 const runtimes = new Map<string, SessionRuntime>();
 
-let coldSeedNotifier: ((sessionKey: string) => void) | undefined;
+/**
+ * Pi session file path per sessionKey, captured at `session_start`. Used
+ * to derive the sidecar path for warm-resume on the first streamSimple
+ * after process start.
+ */
+const piSessionFiles = new Map<string, string>();
 
-export function setColdSeedNotifier(fn: (sessionKey: string) => void): void {
-  coldSeedNotifier = fn;
+export function setPiSessionFile(sessionKey: string, file: string): void {
+  piSessionFiles.set(sessionKey, file);
+}
+
+export function clearPiSessionFile(sessionKey: string): void {
+  piSessionFiles.delete(sessionKey);
+}
+
+export function getPiSessionFile(sessionKey: string): string | undefined {
+  return piSessionFiles.get(sessionKey);
+}
+
+/** Last decision kind / reason actually applied, per sessionKey. Test introspection. */
+const lastDecisionInfo = new Map<
+  string,
+  | { kind: "warm-resume"; sdkSessionId: string }
+  | { kind: "cold-seed"; reason: ColdSeedReason }
+  | { kind: "linear-extension" }
+  | { kind: "resolve-tool" }
+  | { kind: "fork" }
+>();
+
+export function getLastDecisionInfo(sessionKey: string) {
+  return lastDecisionInfo.get(sessionKey);
+}
+
+export type SeedNotice =
+  | { sessionKey: string; kind: "warm-resume"; sdkSessionId: string }
+  | {
+      sessionKey: string;
+      kind: "cold-seed";
+      reason: ColdSeedReason;
+    };
+
+let seedNotifier: ((notice: SeedNotice) => void) | undefined;
+
+export function setSeedNotifier(fn: (notice: SeedNotice) => void): void {
+  seedNotifier = fn;
 }
 
 /**
@@ -153,6 +204,7 @@ function createRuntime(args: {
   seedMessages: SDKUserMessage[];
   reasoning: SimpleStreamOptions["reasoning"];
   thinkingBudgets: SimpleStreamOptions["thinkingBudgets"];
+  preSeededUuidMap?: Map<number, string>;
 }): SessionRuntime {
   const inputQueue = new AsyncMessageQueue<SDKUserMessage>();
   for (const msg of args.seedMessages) inputQueue.push(msg);
@@ -211,7 +263,11 @@ function createRuntime(args: {
       args.thinkingBudgets,
     );
     if (maxThinkingTokens != null) {
-      queryOptions.maxThinkingTokens = maxThinkingTokens;
+      queryOptions.thinking = {
+        type: "enabled",
+        budgetTokens: maxThinkingTokens,
+        display: "summarized",
+      } satisfies ThinkingConfig;
     }
   }
 
@@ -239,6 +295,9 @@ function createRuntime(args: {
   };
   if (args.resumeSessionId)
     runtime.createdSdkSessionIds.add(args.resumeSessionId);
+  if (args.preSeededUuidMap && args.preSeededUuidMap.size > 0) {
+    runtime.sdkUuidByPiIndex = new Map(args.preSeededUuidMap);
+  }
   runtimeRef.current = runtime;
 
   runtime.drainer = drainSdk(runtime);
@@ -266,7 +325,7 @@ export async function shutdownRuntime(
 
   runtime.inputQueue.close();
   try {
-    await runtime.sdkQuery.close();
+    runtime.sdkQuery.close();
   } catch {
     // close() may throw if the iterator already terminated
   }
@@ -441,16 +500,7 @@ async function runStreamCall(
   options: SimpleStreamOptions | undefined,
   stream: AssistantMessageEventStream,
 ): Promise<void> {
-  const sessionKey = options?.sessionId;
-  if (!sessionKey) {
-    const errOutput = makeOutput(model);
-    errOutput.stopReason = "error";
-    errOutput.errorMessage =
-      "claude-agent-sdk provider requires options.sessionId";
-    stream.push({ type: "error", reason: "error", error: errOutput });
-    stream.end();
-    return;
-  }
+  const sessionKey = options?.sessionId ?? randomUUID();
 
   const output = makeOutput(model);
   const turn: ActiveTurn = {
@@ -532,9 +582,22 @@ async function runStreamCall(
       decision = forkAtUuid
         ? { kind: "fork", forkAtPiIdx, forkAtUuid }
         : decideTurnAction(runtime, newSignatures, context.messages);
+    } else if (!runtime) {
+      decision = await decideInitialAction(sessionKey, newSignatures);
     } else {
       decision = decideTurnAction(runtime, newSignatures, context.messages);
     }
+    lastDecisionInfo.set(
+      sessionKey,
+      decision.kind === "cold-seed"
+        ? { kind: "cold-seed", reason: decision.reason }
+        : decision.kind === "warm-resume"
+          ? {
+              kind: "warm-resume",
+              sdkSessionId: decision.sdkSessionId,
+            }
+          : { kind: decision.kind },
+    );
 
     runtime = await applyDecision({
       runtime,
@@ -694,7 +757,11 @@ async function applyDecision(args: {
   let runtime = args.runtime;
 
   if (decision.kind === "cold-seed") {
-    coldSeedNotifier?.(sessionKey);
+    seedNotifier?.({
+      sessionKey,
+      kind: "cold-seed",
+      reason: decision.reason,
+    });
     if (runtime) await shutdownRuntime(runtime, false);
     const synthetic = await buildSyntheticSession(context);
     if (synthetic) {
@@ -710,10 +777,65 @@ async function applyDecision(args: {
     });
   }
 
+  if (decision.kind === "warm-resume") {
+    seedNotifier?.({
+      sessionKey,
+      kind: "warm-resume",
+      sdkSessionId: decision.sdkSessionId,
+    });
+    if (runtime) await shutdownRuntime(runtime, false);
+    const tail = buildForkTail(
+      context.messages,
+      decision.tailStartPiIdx - 1,
+    );
+    if (tail.length === 0) {
+      // No new pi messages past the high-water-mark. Cold-seed: a turn
+      // with an empty input queue would hang.
+      seedNotifier?.({
+        sessionKey,
+        kind: "cold-seed",
+        reason: "empty-tail",
+      });
+      lastDecisionInfo.set(sessionKey, {
+        kind: "cold-seed",
+        reason: "empty-tail",
+      });
+      const synthetic = await buildSyntheticSession(context);
+      if (synthetic) {
+        return createRuntime({
+          syntheticSession: {
+            store: synthetic.store,
+            id: synthetic.sessionId,
+          },
+          seedMessages: synthetic.tail,
+          ...runtimeCommon,
+        });
+      }
+      return createRuntime({
+        seedMessages: buildColdSeedMessages(context),
+        ...runtimeCommon,
+      });
+    }
+    return createRuntime({
+      resumeSessionId: decision.sdkSessionId,
+      seedMessages: tail,
+      preSeededUuidMap: decision.sdkUuidByPiIndex,
+      ...runtimeCommon,
+    });
+  }
+
   if (decision.kind === "fork") {
     const forked = await tryFork(runtime!, decision.forkAtUuid);
     if (!forked) {
-      coldSeedNotifier?.(sessionKey);
+      seedNotifier?.({
+        sessionKey,
+        kind: "cold-seed",
+        reason: "unknown-fork-uuid",
+      });
+      lastDecisionInfo.set(sessionKey, {
+        kind: "cold-seed",
+        reason: "unknown-fork-uuid",
+      });
       await shutdownRuntime(runtime!, false);
       const syntheticFork = await buildSyntheticSession(context);
       if (syntheticFork) {
@@ -763,6 +885,79 @@ async function applyDecision(args: {
     runtime.inputQueue.push(msg);
   }
   return runtime;
+}
+
+/**
+ * First-call decision after process start: try a warm-resume from a
+ * sidecar persisted by the previous process. Loads the sidecar and
+ * verifies the SDK JSONL still exists; tryWarmResume validates the
+ * prefix-of-signatures contract.
+ */
+async function decideInitialAction(
+  sessionKey: string,
+  newSigs: string[],
+): Promise<TurnDecision> {
+  const piFile = piSessionFiles.get(sessionKey);
+  const path = sidecarPathFor(piFile);
+  if (!path) return { kind: "cold-seed", reason: "no-sidecar" };
+  let sidecar: SidecarV1 | undefined;
+  try {
+    sidecar = await loadSidecar(path);
+  } catch (err) {
+    console.error("[claude-agent-sdk] loadSidecar failed:", err);
+    return { kind: "cold-seed", reason: "no-sidecar" };
+  }
+  if (!sidecar) return { kind: "cold-seed", reason: "no-sidecar" };
+  let sdkJsonlExists = false;
+  try {
+    const info = await getSessionInfo(sidecar.sdkSessionId);
+    sdkJsonlExists = info != null;
+  } catch (err) {
+    console.error("[claude-agent-sdk] getSessionInfo failed:", err);
+  }
+  return tryWarmResume({ sidecar, sdkJsonlExists, newSigs });
+}
+
+/**
+ * Build a sidecar payload from a runtime that's about to be torn down.
+ * Returns undefined if the runtime has no SDK session yet (e.g. cold-seed
+ * setup failed) or no completed turns to anchor the prefix check.
+ */
+export function buildSidecarFromRuntime(
+  runtime: SessionRuntime,
+): SidecarV1 | undefined {
+  if (!runtime.sdkSessionId) return undefined;
+  if (runtime.lastSignatures.length === 0) return undefined;
+  const uuidEntries: Array<[number, string]> = [
+    ...runtime.sdkUuidByPiIndex.entries(),
+  ];
+  const out: SidecarV1 = {
+    version: 1,
+    sdkSessionId: runtime.sdkSessionId,
+    signatures: runtime.lastSignatures.slice(),
+  };
+  if (uuidEntries.length > 0) out.sdkUuidByPiIndex = uuidEntries;
+  return out;
+}
+
+/**
+ * Persist sidecar for this runtime if there's enough state to make
+ * warm-resume viable. Called from the session_shutdown handler before
+ * shutdownRuntime so we read live runtime fields before teardown.
+ */
+export async function persistSidecarForShutdown(
+  runtime: SessionRuntime,
+  piSessionFile: string | undefined,
+): Promise<void> {
+  const path = sidecarPathFor(piSessionFile);
+  if (!path) return;
+  const sidecar = buildSidecarFromRuntime(runtime);
+  if (!sidecar) return;
+  try {
+    await saveSidecar(path, sidecar);
+  } catch (err) {
+    console.error("[claude-agent-sdk] saveSidecar failed:", err);
+  }
 }
 
 async function tryFork(
