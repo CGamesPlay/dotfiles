@@ -10,7 +10,7 @@
  *      ⋮ 11 │added line          (green)
  */
 
-import type { Theme } from "@mariozechner/pi-coding-agent";
+import type { Theme } from "@earendil-works/pi-coding-agent";
 import * as Diff from "diff";
 
 export const COLLAPSED_MAX_LINES = 10;

@@ -4,8 +4,8 @@ import {
   getMarkdownTheme,
   initTheme,
   type Theme,
-} from "@mariozechner/pi-coding-agent";
-import { type MarkdownTheme } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { type MarkdownTheme } from "@earendil-works/pi-tui";
 import {
   COLLAPSED,
   EXPANDED,
@@ -34,7 +34,7 @@ before(async () => {
   // regardless of whether stdout is a TTY in this test environment.
   chalk.level = 3;
   const p = new URL(
-    "../../../node_modules/@mariozechner/pi-coding-agent/dist/modes/interactive/theme/theme.js",
+    "../../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
     import.meta.url,
   );
   ({ theme } = (await import(p.href)) as { theme: Theme });

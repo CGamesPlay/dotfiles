@@ -9,7 +9,7 @@
 import type {
   ExtensionAPI,
   ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import path from "node:path";
 import { createCheckpoint } from "../lib/checkpoint-core.js";
 import { autoNameSessionFromPlan, getPlanFile } from "../tools/planning.js";

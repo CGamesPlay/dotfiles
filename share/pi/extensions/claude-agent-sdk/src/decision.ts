@@ -3,7 +3,7 @@ import type {
   Model,
   SimpleStreamOptions,
   Tool,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 import {

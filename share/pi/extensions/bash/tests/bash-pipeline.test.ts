@@ -312,7 +312,7 @@ describe("injectTee", () => {
   // Free source: cat with filename
   it("cat file | tail → not modified", () => {
     assertNotModified(
-      "cat /Users/rpatterson/Projects/dotfiles-dev/share/pi/node_modules/@mariozechner/pi-coding-agent/dist/modes/interactive/components/footer.js | tail -80",
+      "cat /Users/rpatterson/Projects/dotfiles-dev/share/pi/node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/footer.js | tail -80",
     );
   });
 

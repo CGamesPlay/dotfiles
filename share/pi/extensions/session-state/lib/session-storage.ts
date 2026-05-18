@@ -24,8 +24,8 @@ import type {
   ExtensionAPI,
   ExtensionContext,
   SessionEntry,
-} from "@mariozechner/pi-coding-agent";
-import type { ToolCall } from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-coding-agent";
+import type { ToolCall } from "@earendil-works/pi-ai";
 import type { AppState } from "../state.js";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────

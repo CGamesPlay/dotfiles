@@ -13,14 +13,14 @@ import path from "node:path";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { computeSessionStorageState } from "../lib/session-storage.js";
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type {
   SessionEntry,
   SessionMessageEntry,
   CustomEntry,
   CompactionEntry,
   BranchSummaryEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import {
   createTestSession,
   calls,

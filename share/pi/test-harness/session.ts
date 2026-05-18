@@ -8,9 +8,9 @@ import {
   SettingsManager,
   type AgentSessionEvent,
   type AgentSession,
-} from "@mariozechner/pi-coding-agent";
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { getModel } from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-coding-agent";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { getModel } from "@earendil-works/pi-ai";
 import {
   createTurnStreamFn,
   formatRemainingActions,

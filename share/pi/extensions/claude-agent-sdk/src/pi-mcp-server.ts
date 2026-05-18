@@ -1,5 +1,5 @@
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
-import type { Tool } from "@mariozechner/pi-ai";
+import type { Tool } from "@earendil-works/pi-ai";
 import { jsonSchemaObjectToZodShape } from "./json-schema-to-zod.js";
 import { MCP_SERVER_NAME } from "./tool-mapping.js";
 import type { PendingToolCall } from "./types.js";

@@ -1,7 +1,7 @@
 import type {
   AssistantMessage,
   AssistantMessageEventStream,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import type { SettingSource } from "@anthropic-ai/claude-agent-sdk";
 
 /**

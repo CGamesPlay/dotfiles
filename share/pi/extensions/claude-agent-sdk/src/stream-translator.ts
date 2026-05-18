@@ -2,7 +2,7 @@ import {
   calculateCost,
   type AssistantMessage,
   type Model,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
 import { mapStopReason } from "./pi-to-sdk.js";

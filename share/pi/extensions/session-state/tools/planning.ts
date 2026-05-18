@@ -9,10 +9,10 @@ import type {
   ExtensionAPI,
   ExtensionUIContext,
   KeybindingsManager,
-} from "@mariozechner/pi-coding-agent";
-import { getMarkdownTheme, type Theme } from "@mariozechner/pi-coding-agent";
-import { Container, Markdown, Text } from "@mariozechner/pi-tui";
-import type { TUI } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { getMarkdownTheme, type Theme } from "@earendil-works/pi-coding-agent";
+import { Container, Markdown, Text } from "@earendil-works/pi-tui";
+import type { TUI } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawnSync } from "node:child_process";
 import path from "node:path";

@@ -6,7 +6,7 @@ import {
   type Model,
   type SimpleStreamOptions,
   type Tool,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import {
   deleteSession,
   forkSession,

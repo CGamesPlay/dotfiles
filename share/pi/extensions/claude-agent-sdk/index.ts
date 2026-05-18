@@ -1,5 +1,5 @@
-import { getModels } from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { getModels } from "@earendil-works/pi-ai";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import {
   __shutdownAllRuntimesForTesting,

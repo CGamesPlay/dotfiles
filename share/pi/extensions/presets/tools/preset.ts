@@ -11,7 +11,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
   ExtensionCommandContext,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import type { AppState } from "../state.js";
 import type { Preset } from "../lib/presets.js";
 import {

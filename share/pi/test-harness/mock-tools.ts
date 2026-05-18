@@ -1,5 +1,5 @@
-import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { ExtensionRunner } from "@mariozechner/pi-coding-agent";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { ExtensionRunner } from "@earendil-works/pi-coding-agent";
 import type { MockToolHandler, ToolResult, ToolResultRecord } from "./types.js";
 import type { TurnState } from "./playbook.js";
 

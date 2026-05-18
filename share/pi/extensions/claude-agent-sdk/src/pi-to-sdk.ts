@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AssistantMessage, Context } from "@mariozechner/pi-ai";
+import type { AssistantMessage, Context } from "@earendil-works/pi-ai";
 import {
   type SDKUserMessage,
   type SessionKey,

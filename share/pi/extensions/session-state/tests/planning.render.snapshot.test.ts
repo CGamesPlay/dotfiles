@@ -12,12 +12,12 @@ import {
   getMarkdownTheme,
   initTheme,
   type Theme,
-} from "@mariozechner/pi-coding-agent";
-import type { MarkdownTheme } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import type { MarkdownTheme } from "@earendil-works/pi-tui";
 import { createAppState, type AppState } from "../state.js";
 import { registerPlanningTools } from "../tools/planning.js";
-import type { ToolDefinition } from "@mariozechner/pi-coding-agent";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 
 // Fixed storage path keeps plan file paths deterministic across runs.
 const STORAGE = "/tmp/planning-snapshot-test";
@@ -35,7 +35,7 @@ let _mdTheme!: MarkdownTheme;
 before(async () => {
   chalk.level = 3;
   const p = new URL(
-    "../../../node_modules/@mariozechner/pi-coding-agent/dist/modes/interactive/theme/theme.js",
+    "../../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
     import.meta.url,
   );
   ({ theme } = (await import(p.href)) as { theme: Theme });

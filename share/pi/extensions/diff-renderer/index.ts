@@ -8,12 +8,12 @@
 import type {
   EditToolDetails,
   ExtensionAPI,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import {
   createEditToolDefinition,
   createWriteToolDefinition,
-} from "@mariozechner/pi-coding-agent";
-import { Text } from "@mariozechner/pi-tui";
+} from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { readFileSync } from "fs";
 
 import { resolve } from "path";

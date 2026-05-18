@@ -11,7 +11,7 @@ import type {
   ExtensionAPI,
   ExtensionCommandContext,
   ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { queryOsc11, notify, DELAY_MS } from "./lib/terminal.js";

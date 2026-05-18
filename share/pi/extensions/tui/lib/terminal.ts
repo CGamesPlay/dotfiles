@@ -4,7 +4,7 @@
  * OSC 11 color parsing and theme detection, plus iTerm2 notification escape sequences.
  */
 
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 

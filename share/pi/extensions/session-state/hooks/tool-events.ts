@@ -4,7 +4,7 @@
  * Handles tool_call and tool_result events for session storage tracking.
  */
 
-import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { statSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { isSessionStoragePath } from "../lib/session-storage.js";

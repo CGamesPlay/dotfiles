@@ -38,15 +38,15 @@ import {
 import type {
   ToolDefinition,
   ToolRenderResultOptions,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 
-import type { Component } from "@mariozechner/pi-tui";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-import { Text } from "@mariozechner/pi-tui";
+import type { Component } from "@earendil-works/pi-tui";
+import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import { Text } from "@earendil-works/pi-tui";
 
 // ─── Theme ─────────────────────────────────────────────────────────────────────
 
-import { Theme } from "@mariozechner/pi-coding-agent";
+import { Theme } from "@earendil-works/pi-coding-agent";
 
 const fgColors: Record<string, string> = {
   accent: "#8abeb7",

@@ -7,11 +7,11 @@
  * actually dropped output.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   isToolCallEventType,
   isBashToolResult,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { statSync } from "node:fs";
 import { injectTee, formatSize } from "./lib/bash-pipeline.js";
 

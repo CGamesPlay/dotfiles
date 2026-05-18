@@ -1,5 +1,5 @@
 import type { EffortLevel } from "@anthropic-ai/claude-agent-sdk";
-import type { SimpleStreamOptions } from "@mariozechner/pi-ai";
+import type { SimpleStreamOptions } from "@earendil-works/pi-ai";
 
 type ThinkingLevel = NonNullable<SimpleStreamOptions["reasoning"]>;
 type NonXhighThinkingLevel = Exclude<ThinkingLevel, "xhigh">;

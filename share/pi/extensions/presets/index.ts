@@ -4,7 +4,7 @@
  * Wires the preset and subagent features.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createAppState } from "./state.js";
 import { registerPresetFeatures } from "./tools/preset.js";
 import {
