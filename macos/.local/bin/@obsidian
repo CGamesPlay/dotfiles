@@ -8,6 +8,26 @@ ls() {
 	obsidian vault=Notes files
 }
 
+# @cmd Update the modified property to the current UTC timestamp
+# @arg file![?`existing_file`]  File to touch
+touch() {
+	local timestamp
+	timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+	local root
+	root=$(obsidian vault=Notes vault info=path)
+	local path="$root/${argc_file:?}"
+	if [[ ! -f "$path" ]]; then
+		echo "File not found: ${argc_file}" >&2
+		exit 1
+	fi
+	if grep -q '^modified:' "$path"; then
+		sed -i '' "s|^modified:.*|modified: $timestamp|" "$path"
+	else
+		sed -i '' "/^---$/a\\
+modified: $timestamp" "$path"
+	fi
+}
+
 # @cmd Move a file
 # @arg src[?`existing_file`] File to move
 # @arg dest[?`existing_dir`]  Path to move to

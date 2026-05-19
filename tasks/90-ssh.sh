@@ -30,6 +30,7 @@ if ! [ -e ~/.ssh/config ]; then
 
 # Put machine-local SSH configuration above this line. Any settings that
 # should be tracked by DFM should be placed in this file.
-Include "config.shared"
+Match all
+    Include "config.shared"
 EOF
 fi

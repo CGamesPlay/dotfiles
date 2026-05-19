@@ -47,7 +47,7 @@ pull() {
 	dfm link
 
 	if [[ "$before_commit" != "$after_commit" ]]; then
-		jj l -r "$before_commit..@" --reversed
+		jj --no-pager l -r "$before_commit..@" --reversed
 	else
 		echo "No new changes"
 	fi
