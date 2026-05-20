@@ -96,7 +96,7 @@ sync-shares() {
 }
 
 # @cmd Install syncthing and set the default folder path.
-# @option    --default-path=~/  Default path for newly-added folders.
+# @option    --default-path $NOTES_DIR  Default path for newly-added folders.
 install() {
 	@get syncthing
 	# `cli config` talks over the REST API and requires a running daemon, so
