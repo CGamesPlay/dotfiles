@@ -20,6 +20,10 @@ import {
 } from "./session.js";
 import { detectExternalModifications } from "../lib/session-storage.js";
 import { planModePrompt } from "../lib/prompts.js";
+import {
+  recomputeDiffStatus,
+  refreshDiffStatusWidget,
+} from "../lib/diff-status.js";
 import { syncTodoStateFromStorage, refreshTodoWidget } from "../tools/todo.js";
 import type { AppState } from "../state.js";
 import { readFileSync } from "node:fs";
@@ -38,7 +42,7 @@ const extensionPrompt = readFileSync(
 export async function onAgentEnd(
   state: AppState,
   pi: ExtensionAPI,
-  event: any,
+  _event: any,
   ctx: ExtensionContext,
 ) {
   autoNameSessionFromPlan(state, pi, ctx);
@@ -87,6 +91,13 @@ export async function onTurnEnd(
   // Sync todo state from storage (agent may have written TODO.md)
   syncTodoStateFromStorage(state);
   refreshTodoWidget(state, ctx);
+
+  // Recompute the changes-vs-baseline status widget.
+  if (state.checkpoint.gitAvailable) {
+    const root = await getCachedRepoRoot(ctx.cwd);
+    await recomputeDiffStatus(state, root);
+    refreshDiffStatusWidget(state, ctx);
+  }
 }
 
 export async function onTurnStart(
@@ -119,6 +130,12 @@ export async function onTurnStart(
         state.checkpoint.currentSessionId,
       );
       addToCache(state, cp);
+
+      // If session-load found no prior checkpoint, this one becomes the
+      // baseline for the diff-status widget.
+      if (state.checkpoint.baselineTreeSha === null) {
+        state.checkpoint.baselineTreeSha = cp.worktreeTreeSha;
+      }
     } catch {
       state.checkpoint.checkpointingFailed = true;
     }

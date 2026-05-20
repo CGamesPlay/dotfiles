@@ -599,6 +599,19 @@ export async function getDiffStat(
   }
 }
 
+/** Run `git diff --shortstat` between two tree SHAs. Returns the output or null on failure. */
+export async function getDiffShortStat(
+  root: string,
+  fromTree: string,
+  toTree: string,
+): Promise<string | null> {
+  try {
+    return await git(`diff --shortstat ${fromTree} ${toTree}`, root);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Compute the git tree SHA that represents the current working tree state
  * (tracked files + untracked files, same as what createCheckpoint captures).

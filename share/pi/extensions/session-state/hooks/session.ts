@@ -28,6 +28,11 @@ import {
   clearSessionDirContents,
   removeSessionDirIfEmpty,
 } from "../lib/session-storage.js";
+import {
+  loadBaselineTreeSha,
+  recomputeDiffStatus,
+  refreshDiffStatusWidget,
+} from "../lib/diff-status.js";
 import type { AppState } from "../state.js";
 
 // ─── Repo Root Cache ───────────────────────────────────────────────────────────
@@ -368,6 +373,15 @@ async function handleRestorePrompt(
   }
 
   await saveAndRestore(state, ctx.cwd, checkpoint, ctx.ui.notify.bind(ctx.ui));
+
+  // Working tree changed; refresh the diff-status widget against the
+  // (unchanged) baseline.
+  if (state.checkpoint.gitAvailable) {
+    const root = await getCachedRepoRoot(ctx.cwd);
+    await recomputeDiffStatus(state, root);
+    refreshDiffStatusWidget(state, ctx);
+  }
+
   return undefined;
 }
 
@@ -383,6 +397,32 @@ async function initSessionBasics(
   if (state.checkpoint.gitAvailable) {
     updateSessionInfo(state, ctx.sessionManager);
   }
+}
+
+async function initBaselineForSession(
+  state: AppState,
+  ctx: ExtensionContext,
+): Promise<void> {
+  state.checkpoint.baselineTreeSha = null;
+  state.checkpoint.diffStatLine = null;
+
+  if (!state.checkpoint.gitAvailable) {
+    refreshDiffStatusWidget(state, ctx);
+    return;
+  }
+
+  if (!state.checkpoint.currentSessionId) {
+    refreshDiffStatusWidget(state, ctx);
+    return;
+  }
+
+  const root = await getCachedRepoRoot(ctx.cwd);
+  state.checkpoint.baselineTreeSha = await loadBaselineTreeSha(
+    root,
+    state.checkpoint.currentSessionId,
+  );
+  await recomputeDiffStatus(state, root);
+  refreshDiffStatusWidget(state, ctx);
 }
 
 async function syncSessionState(
@@ -455,6 +495,9 @@ export async function onSessionStart(
       refreshTodoWidget(state, ctx);
       break;
   }
+
+  // Pin the diff-status baseline for this loaded session, regardless of reason.
+  await initBaselineForSession(state, ctx);
 }
 
 // Deprecated: kept for backward compatibility, use onSessionStart with reason check

@@ -14,6 +14,15 @@ export interface AppState {
     currentSessionFile: string | undefined;
     checkpointCache: import("./lib/checkpoint-core.js").CheckpointData[] | null;
     pendingCheckpoint: Promise<void> | null;
+    /**
+     * Worktree tree SHA captured at session-load time, used as the baseline
+     * for the `changes:` status widget. `null` until pinned by either
+     * (a) the most recent existing checkpoint for this session at session
+     * start, or (b) the first turn-start checkpoint if none existed yet.
+     */
+    baselineTreeSha: string | null;
+    /** Last `git diff --shortstat` output between baseline and current tree. */
+    diffStatLine: string | null;
   };
 
   // Plan workflow
@@ -71,6 +80,8 @@ export function createAppState(): AppState {
       currentSessionFile: undefined,
       checkpointCache: null,
       pendingCheckpoint: null,
+      baselineTreeSha: null,
+      diffStatLine: null,
     },
     plan: {
       pendingPlanModeMessage: false,
