@@ -476,7 +476,20 @@ async function drainSdk(runtime: SessionRuntime): Promise<void> {
       runtime.activeTurn.output.errorMessage =
         err instanceof Error ? err.message : String(err);
       finalizeTurn(runtime, "error");
+    } else {
+      // No active turn to surface the error onto: pi will eventually
+      // call streamSimple again and find the SDK iterator dead.
+      console.error("[claude-agent-sdk] drainSdk error with no active turn:", err);
     }
+  }
+  if (!runtime.isShutdown) {
+    // SDK iterator returned `done` while the runtime is still live.
+    // Future streamSimple calls on this runtime will hang at
+    // turn.done.promise because no more messages will ever arrive.
+    console.error(
+      `[claude-agent-sdk] drainSdk exited unexpectedly: sessionKey=${runtime.sessionKey} ` +
+        `pendingTools=${runtime.pendingToolCalls.size} queuedTools=${runtime.toolCallQueue.length}`,
+    );
   }
 }
 
@@ -516,6 +529,7 @@ async function runStreamCall(
       const shutdownErr = new Error("session interrupted");
       for (const pending of rt.pendingToolCalls.values())
         pending.output.reject(shutdownErr);
+      for (const queued of rt.toolCallQueue) queued.output.reject(shutdownErr);
       rt.pendingToolCalls.clear();
       rt.toolCallQueue.length = 0;
       rt.wasInterrupted = true;
@@ -548,8 +562,11 @@ async function runStreamCall(
   callBarriers.set(sessionKey, thisCallSettled);
   try {
     await previousBarrier;
-  } catch {
-    // barrier rejection is informational only; proceed with current state
+  } catch (err) {
+    console.error(
+      `[claude-agent-sdk] previous-call barrier rejected for sessionKey=${sessionKey}:`,
+      err,
+    );
   }
 
   try {
@@ -866,7 +883,20 @@ async function applyDecision(args: {
     runtime = runtime!;
     for (const tr of decision.toolResults) {
       const pending = runtime.pendingToolCalls.get(tr.toolCallId);
-      if (!pending) continue;
+      if (!pending) {
+        // Pi sent a toolResult whose toolCallId doesn't match any
+        // parked MCP handler. The SDK subprocess is wedged awaiting
+        // tool_result for the id it actually emitted, so silently
+        // skipping would hang turn.done.promise forever. Tear the
+        // runtime down and fail the turn loudly — pi sees a
+        // recoverable error and the next call cold-seeds fresh.
+        const msg =
+          `claude-agent-sdk: toolResult for unknown toolCallId=${tr.toolCallId}. ` +
+          `pending=[${[...runtime.pendingToolCalls.keys()].join(",")}] ` +
+          `queued=[${runtime.toolCallQueue.map((c) => c.toolUseId).join(",")}]`;
+        await shutdownRuntime(runtime, false);
+        throw new Error(msg);
+      }
       runtime.pendingToolCalls.delete(tr.toolCallId);
       pending.output.resolve({ text: tr.text, isError: tr.isError });
     }
