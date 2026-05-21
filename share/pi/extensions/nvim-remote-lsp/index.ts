@@ -20,6 +20,7 @@ import { extractBashReadPath } from "./bash-read.js";
 import { nrl } from "./nrl.js";
 import {
   discoverSocket,
+  isSocketAlive,
   killSession,
   spawnSelfManaged,
   type NvimSession,
@@ -93,8 +94,20 @@ export default function (pi: ExtensionAPI) {
   async function rediscover(
     cwd: string,
   ): Promise<{ session: NvimSession; log: string[] }> {
+    const log: string[] = [];
+    // If NVIM is set (e.g. inherited from a parent pi session), use it
+    // unconditionally — skip the cwd check so subagents always share the
+    // parent's nvim regardless of working directory.
+    if (process.env.NVIM) {
+      log.push(`checking inherited NVIM socket: ${process.env.NVIM}`);
+      if (isSocketAlive(process.env.NVIM)) {
+        log.push(`  accepted (alive)`);
+        return { session: { socket: process.env.NVIM, mode: "shared" }, log };
+      }
+      log.push(`  rejected (not responding)`);
+    }
     const patterns = readSocketPatterns();
-    const log: string[] = [`socket patterns: ${JSON.stringify(patterns)}`];
+    log.push(`socket patterns: ${JSON.stringify(patterns)}`);
     const { socket, log: discoverLog } = await discoverSocket(cwd, patterns);
     log.push(...discoverLog);
 

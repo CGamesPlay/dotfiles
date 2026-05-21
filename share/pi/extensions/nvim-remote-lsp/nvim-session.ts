@@ -29,6 +29,18 @@ export function expandEnv(
   );
 }
 
+export function isSocketAlive(
+  socket: string,
+  timeoutMs = 1000,
+): boolean {
+  const r = spawnSync(
+    "nvim",
+    ["--headless", "--server", socket, "--remote-expr", "1"],
+    { encoding: "utf8", timeout: timeoutMs },
+  );
+  return !r.error && r.status === 0;
+}
+
 function getCwdViaSocket(
   socket: string,
   timeoutMs = 1000,
