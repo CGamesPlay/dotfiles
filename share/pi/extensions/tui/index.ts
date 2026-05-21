@@ -184,7 +184,11 @@ export default function (pi: ExtensionAPI) {
       clearInterval(state.timer.interval);
       state.timer.interval = null;
     }
-    ctx.ui.setStatus(STATUS_KEY, STATUS_IDLE);
+    if (state.timer.startTime !== undefined) {
+      const elapsed = Math.floor((Date.now() - state.timer.startTime) / 1000);
+      ctx.ui.setStatus(STATUS_KEY, formatElapsed(elapsed));
+      state.timer.startTime = undefined;
+    }
     setTabTitle(ctx, "idle");
 
     if (!ctx.hasUI) return;
