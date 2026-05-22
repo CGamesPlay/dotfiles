@@ -232,6 +232,11 @@ install_kbld() {
 	eget carvel-dev/kbld --to="$BINDIR"
 }
 
+# Top-like tool for k8s cluster metrics
+install_ktop() {
+	eget -a '^kubectl' vladimirvivien/ktop --to="$BINDIR"
+}
+
 # Friendly interface to git
 install_lazygit() {
 	eget jesseduffield/lazygit --to="$BINDIR"

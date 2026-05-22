@@ -24,7 +24,7 @@ main() {
 		if [[ ${argc_files+1} ]]; then
 			cmd="<C-\\><C-N>:drop $(printf '%q ' "$PWD/${argc_files[@]}") | NeovideFocus<CR>"
 		else
-			cmd="<C-\\><C-N>:NeovideFocus<CR>"
+			cmd="<C-\\><C-N>:drop $(printf '%q ' "$PWD") | NeovideFocus<CR>"
 		fi
 		exec nvim --headless --server "$argc_socket" --remote-send "$cmd"
 	fi
@@ -91,11 +91,13 @@ launch_local() {
 launch_remote() {
 	# Running in a remote environment, open using iTerm2 custom escape sequence.
 	echo "Launching Neovide through iTerm custom escape" >&2
-	value="id=neovide:"
 	if [[ "${argc_files:+1}" ]]; then
-		# Neovide would try to make all the paths absolute and can't since they
-		# aren't on the same machine.
-		echo "Opening specific files is not supported" >&2
+		if [[ ${#argc_files[@]} -gt 1 ]]; then
+			echo "Warning: only first file will be opened in remote mode" >&2
+		fi
+		value="id=neovide:filename=$PWD/${argc_files[0]}"
+	else
+		value="id=neovide:"
 	fi
 
 	printf "\033]1337;RemoteHost=%s@%s\a\033]1337;CurrentDir=%s\a" "$USER" "$(hostname -f)" "$PWD"
