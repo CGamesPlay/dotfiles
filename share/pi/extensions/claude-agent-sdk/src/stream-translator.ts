@@ -54,14 +54,21 @@ export function handleSdkMessage(
     case "result": {
       const turn = ctx.activeTurn;
       if (!turn || turn.finalized) return;
-      // The CLI emits intermediate `result` events for internal
-      // sub-tasks (notably session-title generation on cold-start) that
-      // complete with num_turns=0 before the real user query even
-      // begins. Finalizing on those would ship an empty assistant
-      // before the real response streams in. Skip them — the real
-      // result that closes the user query will have num_turns>=1.
+      // The CLI emits intermediate `result` events that don't
+      // correspond to a real turn completion:
+      //   - Cold-start session-title generation completes with
+      //     num_turns=0 before the real user query begins.
+      //   - Resuming a synthetic session emits a result with
+      //     stop_reason=null and num_turns set to the loaded history
+      //     length, acknowledging the load before the new query runs.
+      // Finalizing on either would ship an empty assistant message
+      // and drop every subsequent stream event (the turn is gone, so
+      // handleStreamEvent silently ignores them). A real turn-closing
+      // result always carries a non-null stop_reason.
       const numTurns = (message as any).num_turns;
+      const stopReasonRaw = (message as any).stop_reason;
       if (typeof numTurns === "number" && numTurns === 0) return;
+      if (stopReasonRaw == null) return;
       // Intentionally ignore the result message's `usage` field. It
       // aggregates across every API call made by the current `query()`
       // since it started — which spans multiple pi-side turns when a

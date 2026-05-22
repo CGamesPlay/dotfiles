@@ -12,6 +12,7 @@ import {
   shutdownRuntime,
   streamClaudeAgentSdk,
 } from "./src/runtime.js";
+import { describeLoggerHealth, getLoggerHealth, log } from "./src/log.js";
 
 const PROVIDER_ID = "claude-agent-sdk";
 
@@ -96,6 +97,16 @@ export const __shutdownAllForTesting = __shutdownAllRuntimesForTesting;
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
+    const health = getLoggerHealth();
+    const healthMsg = describeLoggerHealth();
+    log("session_start", {
+      loggerPath: health.path,
+      attempts: health.attempts.length,
+    });
+    ctx.ui.notify(
+      `[claude-agent-sdk] ${healthMsg}`,
+      health.path ? "info" : "warning",
+    );
     setSeedNotifier((notice) => {
       const detail =
         notice.kind === "warm-resume"
@@ -119,6 +130,7 @@ export default function (pi: ExtensionAPI) {
       const messageEntries = entries.filter((e) => e.type === "message");
       const lastDecision = getLastDecisionInfo(sessionId);
 
+      const health = getLoggerHealth();
       const lines: string[] = [
         `pi session name: ${sm.getSessionName() ?? "(none)"}`,
         `pi session id: ${sessionId}`,
@@ -126,6 +138,13 @@ export default function (pi: ExtensionAPI) {
         `pi leaf entry id: ${sm.getLeafId() ?? "(none)"}`,
         `pi entries: ${entries.length} total, ${messageEntries.length} messages`,
         `sdk session id: ${runtime?.sdkSessionId ?? "(no runtime)"}`,
+        `log file: ${health.path ?? "(disabled)"}`,
+        `log writes: ${health.writes} (${health.writeFailures} failures${health.lastWriteError ? `, last: ${health.lastWriteError}` : ""})`,
+        ...(health.path
+          ? []
+          : health.attempts.map(
+              (a) => `  log candidate ${a.dir}: ${a.error ?? "ok-but-unused"}`,
+            )),
         `last decision: ${
           lastDecision
             ? lastDecision.kind === "cold-seed"

@@ -495,6 +495,26 @@ describe("handleSdkMessage — top-level dispatch", () => {
     assert.deepEqual(finalizeCalls, ["stop"]);
   });
 
+  it("ignores `result` events with stop_reason=null (synthetic-session resume ack)", () => {
+    // Resuming a synthetic session emits a `result` with stop_reason=null
+    // and num_turns set to the loaded history length, acknowledging the
+    // load before the new query runs. Finalizing on it dies the turn
+    // before the real assistant response streams in, and every
+    // subsequent stream_event lands with activeTurn=undefined and gets
+    // silently dropped — pi never sees the response.
+    const { ctx, turn, finalizeCalls } = makeContext();
+    handleSdkMessage(ctx, {
+      type: "result",
+      subtype: "success",
+      stop_reason: null,
+      num_turns: 37,
+      duration_ms: 12,
+      is_error: false,
+    } as any);
+    assert.equal(finalizeCalls.length, 0);
+    assert.equal(turn.finalized, false);
+  });
+
   it("ignores message types it does not recognize", () => {
     const { ctx, finalizeCalls, stream } = makeContext();
     handleSdkMessage(ctx, { type: "future_message_type", payload: 1 } as any);

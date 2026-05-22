@@ -57,6 +57,7 @@ import {
 import { maybeRewriteSkillAliasArgs, piToolNameToSdk } from "./tool-mapping.js";
 import type { ActiveTurn, PendingToolCall, StaticPrefix } from "./types.js";
 import { AsyncMessageQueue, defer } from "./util.js";
+import { log } from "./log.js";
 
 /**
  * One persistent runtime per pi session. Hosts a single `query()` that's
@@ -90,6 +91,21 @@ export type SessionRuntime = {
    * Drained one-at-a-time as pi returns toolResults.
    */
   toolCallQueue: PendingToolCall[];
+
+  /**
+   * Reason the most recently finalized turn ended. Used by
+   * `onMcpToolCall` to distinguish the legitimate multi-tool-per-SDK-turn
+   * case (`"toolUse"`) from a leak: when a tool_use fires its MCP handler
+   * after the turn was finalized by abort / error / stop / length, queuing
+   * the call would surface it on an unrelated future streamSimple call.
+   */
+  lastFinalizeReason:
+    | "stop"
+    | "length"
+    | "toolUse"
+    | "error"
+    | "aborted"
+    | undefined;
 
   lastSignatures: string[];
   sdkUuidByPiIndex: Map<number, string>;
@@ -288,6 +304,7 @@ function createRuntime(args: {
     turnBlockMap: new Map(),
     pendingToolCalls: new Map(),
     toolCallQueue: [],
+    lastFinalizeReason: undefined,
     lastSignatures: [],
     sdkUuidByPiIndex: new Map(),
     createdSdkSessionIds: new Set(),
@@ -300,6 +317,13 @@ function createRuntime(args: {
   }
   runtimeRef.current = runtime;
 
+  log("createRuntime", {
+    sessionKey: args.sessionKey,
+    resumeSessionId: args.resumeSessionId,
+    syntheticSessionId: args.syntheticSession?.id,
+    seedCount: args.seedMessages.length,
+    preSeededUuids: args.preSeededUuidMap?.size ?? 0,
+  });
   runtime.drainer = drainSdk(runtime);
   runtimes.set(args.sessionKey, runtime);
   return runtime;
@@ -370,17 +394,76 @@ function onMcpToolCall(runtime: SessionRuntime, call: PendingToolCall): void {
     !runtime.activeTurn.finalized
   ) {
     surfaceToolCall(runtime, call);
-  } else {
-    runtime.toolCallQueue.push(call);
+    return;
   }
+  queueOrRejectToolCall(runtime, call);
+}
+
+/**
+ * Decide whether a tool call that can't be surfaced right now should be
+ * queued for the next streamSimple call or rejected outright.
+ *
+ * Queueing is correct in exactly two cases:
+ *   1. An earlier tool from this same SDK turn is still in flight to pi
+ *      (`pendingToolCalls.size > 0`). Pi will resolve that one, then on the
+ *      follow-up call we drain this queued call as a synthetic toolUse turn.
+ *   2. The previous turn was finalized as `"toolUse"` (surfaceToolCall
+ *      finalized it after surfacing the first tool of a multi-tool SDK
+ *      turn). The next streamSimple call drains the queue.
+ *
+ * Any other state (no runtime turn yet, or turn finalized as
+ * abort/error/stop/length) means surfacing this call later would leak it
+ * into an unrelated context. Reject the deferred so the SDK sees a tool
+ * error and the runtime fails the turn cleanly instead of hanging pi on a
+ * cross-call leak.
+ */
+function queueOrRejectToolCall(
+  runtime: SessionRuntime,
+  call: PendingToolCall,
+): void {
+  if (runtime.pendingToolCalls.size > 0) {
+    runtime.toolCallQueue.push(call);
+    return;
+  }
+  if (runtime.lastFinalizeReason === "toolUse") {
+    runtime.toolCallQueue.push(call);
+    return;
+  }
+  log("queueOrRejectToolCall: reject", {
+    sessionKey: runtime.sessionKey,
+    toolUseId: call.toolUseId,
+    piToolName: call.piToolName,
+    lastFinalizeReason: runtime.lastFinalizeReason ?? "none",
+    activeTurn: runtime.activeTurn
+      ? runtime.activeTurn.finalized
+        ? "finalized"
+        : "open"
+      : "none",
+  });
+  call.output.reject(
+    new Error(
+      `claude-agent-sdk: tool call ${call.toolUseId} dropped — turn finalized as ${runtime.lastFinalizeReason ?? "none"}`,
+    ),
+  );
 }
 
 function surfaceToolCall(runtime: SessionRuntime, call: PendingToolCall): void {
   const turn = runtime.activeTurn;
   if (!turn || turn.finalized) {
-    runtime.toolCallQueue.push(call);
+    log("surfaceToolCall: no eligible turn, falling back", {
+      sessionKey: runtime.sessionKey,
+      toolUseId: call.toolUseId,
+      activeTurn: turn ? "finalized" : "none",
+      lastFinalizeReason: runtime.lastFinalizeReason ?? "none",
+    });
+    queueOrRejectToolCall(runtime, call);
     return;
   }
+  log("surfaceToolCall", {
+    sessionKey: runtime.sessionKey,
+    toolUseId: call.toolUseId,
+    piToolName: call.piToolName,
+  });
   runtime.pendingToolCalls.set(call.toolUseId, call);
 
   const block = {
@@ -412,8 +495,17 @@ function finalizeTurn(
   reason: "stop" | "length" | "toolUse" | "error" | "aborted",
 ): void {
   const turn = runtime.activeTurn;
-  if (!turn || turn.finalized) return;
+  if (!turn || turn.finalized) {
+    log("finalizeTurn: no-op", {
+      sessionKey: runtime.sessionKey,
+      reason,
+      activeTurn: turn ? "finalized" : "none",
+    });
+    return;
+  }
+  log("finalizeTurn", { sessionKey: runtime.sessionKey, reason });
   turn.finalized = true;
+  runtime.lastFinalizeReason = reason;
   if (reason === "error" || reason === "aborted") {
     turn.stream.push({ type: "error", reason, error: turn.output });
   } else {
@@ -466,30 +558,63 @@ function asTranslatorContext(runtime: SessionRuntime): TranslatorContext {
 
 async function drainSdk(runtime: SessionRuntime): Promise<void> {
   const ctx = asTranslatorContext(runtime);
+  log("drainSdk: start", { sessionKey: runtime.sessionKey });
   try {
     for await (const message of runtime.sdkQuery) {
-      if (runtime.isShutdown) break;
+      if (runtime.isShutdown) {
+        log("drainSdk: break on shutdown", { sessionKey: runtime.sessionKey });
+        break;
+      }
+      const anyMsg = message as any;
+      log("drainSdk: message", {
+        sessionKey: runtime.sessionKey,
+        type: (message as any).type,
+        subtype:
+          (message as any).type === "stream_event"
+            ? anyMsg.event?.type
+            : (message as any).type === "result"
+              ? `stop=${anyMsg.stop_reason},num_turns=${anyMsg.num_turns}`
+              : undefined,
+        activeTurn: runtime.activeTurn
+          ? runtime.activeTurn.finalized
+            ? "finalized"
+            : "open"
+          : "none",
+      });
       handleSdkMessage(ctx, message);
     }
   } catch (err) {
+    log("drainSdk: caught error", {
+      sessionKey: runtime.sessionKey,
+      err,
+      activeTurn: runtime.activeTurn
+        ? runtime.activeTurn.finalized
+          ? "finalized"
+          : "open"
+        : "none",
+    });
     if (runtime.activeTurn && !runtime.activeTurn.finalized) {
       runtime.activeTurn.output.errorMessage =
         err instanceof Error ? err.message : String(err);
       finalizeTurn(runtime, "error");
-    } else {
-      // No active turn to surface the error onto: pi will eventually
-      // call streamSimple again and find the SDK iterator dead.
-      console.error("[claude-agent-sdk] drainSdk error with no active turn:", err);
     }
   }
   if (!runtime.isShutdown) {
     // SDK iterator returned `done` while the runtime is still live.
     // Future streamSimple calls on this runtime will hang at
     // turn.done.promise because no more messages will ever arrive.
-    console.error(
-      `[claude-agent-sdk] drainSdk exited unexpectedly: sessionKey=${runtime.sessionKey} ` +
-        `pendingTools=${runtime.pendingToolCalls.size} queuedTools=${runtime.toolCallQueue.length}`,
-    );
+    log("drainSdk: exited unexpectedly", {
+      sessionKey: runtime.sessionKey,
+      pendingTools: runtime.pendingToolCalls.size,
+      queuedTools: runtime.toolCallQueue.length,
+      activeTurn: runtime.activeTurn
+        ? runtime.activeTurn.finalized
+          ? "finalized"
+          : "open"
+        : "none",
+    });
+  } else {
+    log("drainSdk: exit (shutdown)", { sessionKey: runtime.sessionKey });
   }
 }
 
@@ -514,6 +639,12 @@ async function runStreamCall(
   stream: AssistantMessageEventStream,
 ): Promise<void> {
   const sessionKey = options?.sessionId ?? randomUUID();
+  log("runStreamCall: entry", {
+    sessionKey,
+    messageCount: context.messages.length,
+    signalAborted: options?.signal?.aborted === true,
+    hasRuntime: runtimes.has(sessionKey),
+  });
 
   const output = makeOutput(model);
   const turn: ActiveTurn = {
@@ -524,6 +655,11 @@ async function runStreamCall(
   };
 
   const onAbort = () => {
+    log("runStreamCall: onAbort", {
+      sessionKey,
+      turnFinalized: turn.finalized,
+      hasRuntime: runtimes.has(sessionKey),
+    });
     const rt = runtimes.get(sessionKey);
     if (rt) {
       const shutdownErr = new Error("session interrupted");
@@ -539,14 +675,19 @@ async function runStreamCall(
       output.stopReason = "aborted";
       output.errorMessage = "Operation aborted";
       turn.finalized = true;
+      if (rt) rt.lastFinalizeReason = "aborted";
       stream.push({ type: "error", reason: "aborted", error: output });
       stream.end();
       turn.done.resolve();
     }
   };
   if (options?.signal) {
-    if (options.signal.aborted) onAbort();
-    else options.signal.addEventListener("abort", onAbort, { once: true });
+    if (options.signal.aborted) {
+      log("runStreamCall: signal already aborted at entry", { sessionKey });
+      onAbort();
+    } else {
+      options.signal.addEventListener("abort", onAbort, { once: true });
+    }
   }
 
   // Serialize calls per session: wait for the previous call's bookkeeping
@@ -563,10 +704,7 @@ async function runStreamCall(
   try {
     await previousBarrier;
   } catch (err) {
-    console.error(
-      `[claude-agent-sdk] previous-call barrier rejected for sessionKey=${sessionKey}:`,
-      err,
-    );
+    log("previous-call barrier rejected", { sessionKey, err });
   }
 
   try {
@@ -616,6 +754,12 @@ async function runStreamCall(
           : { kind: decision.kind },
     );
 
+    log("runStreamCall: decision", {
+      sessionKey,
+      kind: decision.kind,
+      reason: (decision as any).reason,
+      turnFinalized: turn.finalized,
+    });
     runtime = await applyDecision({
       runtime,
       decision,
@@ -629,6 +773,12 @@ async function runStreamCall(
     // Attach our turn so further drainer events (and any queued tool
     // call drainage) target it.
     runtime.activeTurn = turn;
+    log("runStreamCall: activeTurn assigned", {
+      sessionKey,
+      turnFinalized: turn.finalized,
+      pendingTools: runtime.pendingToolCalls.size,
+      queuedTools: runtime.toolCallQueue.length,
+    });
 
     // If a queued tool call exists from a multi-tool-call SDK turn and pi
     // just resolved enough to clear in-flight calls, surface the next
@@ -660,6 +810,8 @@ async function runStreamCall(
       output.stopReason = "error";
       output.errorMessage = err instanceof Error ? err.message : String(err);
       turn.finalized = true;
+      const rt = runtimes.get(sessionKey);
+      if (rt) rt.lastFinalizeReason = "error";
       stream.push({ type: "error", reason: "error", error: output });
       stream.end();
       turn.done.resolve();
@@ -691,7 +843,7 @@ async function refreshSdkUuidMap(
       sdkMsgs as any,
     );
   } catch (err) {
-    console.error("[claude-agent-sdk] getSessionMessages failed:", err);
+    log("getSessionMessages failed", { sessionKey: runtime.sessionKey, err });
     // keep the existing map; fork capability degrades but linear works.
   }
 }
@@ -934,7 +1086,7 @@ async function decideInitialAction(
   try {
     sidecar = await loadSidecar(path);
   } catch (err) {
-    console.error("[claude-agent-sdk] loadSidecar failed:", err);
+    log("loadSidecar failed", { sessionKey, err });
     return { kind: "cold-seed", reason: "no-sidecar" };
   }
   if (!sidecar) return { kind: "cold-seed", reason: "no-sidecar" };
@@ -943,7 +1095,7 @@ async function decideInitialAction(
     const info = await getSessionInfo(sidecar.sdkSessionId);
     sdkJsonlExists = info != null;
   } catch (err) {
-    console.error("[claude-agent-sdk] getSessionInfo failed:", err);
+    log("getSessionInfo failed", { sessionKey, err });
   }
   return tryWarmResume({ sidecar, sdkJsonlExists, newSigs });
 }
@@ -986,7 +1138,7 @@ export async function persistSidecarForShutdown(
   try {
     await saveSidecar(path, sidecar);
   } catch (err) {
-    console.error("[claude-agent-sdk] saveSidecar failed:", err);
+    log("saveSidecar failed", { err });
   }
 }
 
@@ -1001,7 +1153,7 @@ async function tryFork(
     });
     return { sdkSessionId: fork.sessionId };
   } catch (err) {
-    console.error("[claude-agent-sdk] fork failed:", err);
+    log("forkSession failed", { sessionKey: runtime.sessionKey, err });
     return undefined;
   }
 }
