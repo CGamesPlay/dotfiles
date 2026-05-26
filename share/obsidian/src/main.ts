@@ -1,5 +1,7 @@
 import { getFrontMatterInfo, Keymap, MarkdownView, Notice, Plugin, TAbstractFile, TFile, TFolder } from "obsidian";
 import type {
+  FileExplorerView,
+  FileTreeItem,
   PropertyRenderContext,
   PropertyWidget,
   PropertyWidgetComponentBase,
@@ -11,7 +13,9 @@ const SIDEBAR_FILE = "Common/Metawiki/Sidebar.md";
 const CREATED_FIELD = "created";
 const MODIFIED_FIELD = "modified";
 const STATUS_FIELD = "status";
+const ACTIVE_VALUE = "active";
 const ARCHIVED_VALUE = "archived";
+const ARCHIVED_CLASS = "dotfiles-archived";
 const THROTTLE_MS = 60 * 1000;
 const WIDGET_TYPE = "utc-timestamp";
 const TITLE_FIELD = "title";
@@ -65,13 +69,22 @@ export default class DotfilesPlugin extends Plugin {
   private renamingPaths = new Set<string>();
   private folderObserver: MutationObserver | null = null;
   private initializedFolderEls = new WeakSet<HTMLElement>();
+  private patchedFileExplorerProto: object | null = null;
 
   async onload() {
     this.registerEditorExtension(userChangeListenerExtension(this));
 
-    this.app.workspace.onLayoutReady(() => this.initFolderClickHandlers());
+    this.app.workspace.onLayoutReady(() => {
+      this.initFolderClickHandlers();
+      this.patchFileExplorerSort();
+      this.syncAllArchivedClasses();
+    });
     this.registerEvent(
-      this.app.workspace.on("layout-change", () => this.initFolderClickHandlers()),
+      this.app.workspace.on("layout-change", () => {
+        this.initFolderClickHandlers();
+        this.patchFileExplorerSort();
+        this.syncAllArchivedClasses();
+      }),
     );
 
     this.registerEvent(
@@ -145,6 +158,10 @@ export default class DotfilesPlugin extends Plugin {
     this.registerEvent(
       this.app.metadataCache.on("changed", (file) => {
         this.refreshInlineTitleForFile(file.path);
+        this.syncArchivedClass(file.path);
+        for (const leaf of this.app.workspace.getLeavesOfType("file-explorer")) {
+          (leaf.view as FileExplorerView).requestSort?.();
+        }
       }),
     );
 
@@ -208,6 +225,87 @@ export default class DotfilesPlugin extends Plugin {
     this.folderObserver.observe(document.body, { childList: true, subtree: true });
   }
 
+  private patchFileExplorerSort(): void {
+    if (this.patchedFileExplorerProto) return;
+    const leaf = this.app.workspace.getLeavesOfType("file-explorer")[0];
+    if (!leaf) return;
+    const view = leaf.view as FileExplorerView;
+    const proto = Object.getPrototypeOf(view) as {
+      getSortedFolderItems?: (folder: TFolder) => FileTreeItem[];
+    };
+    const original = proto.getSortedFolderItems;
+    if (!original) return;
+    const plugin = this;
+    proto.getSortedFolderItems = function (folder: TFolder) {
+      const items = original.call(this, folder);
+      return plugin.reorderItems(folder, items);
+    };
+    this.patchedFileExplorerProto = proto;
+    this.register(() => {
+      proto.getSortedFolderItems = original;
+      this.patchedFileExplorerProto = null;
+    });
+    for (const l of this.app.workspace.getLeavesOfType("file-explorer")) {
+      (l.view as FileExplorerView).requestSort?.();
+    }
+  }
+
+  private reorderItems(
+    folder: TFolder,
+    items: FileTreeItem[],
+  ): FileTreeItem[] {
+    const index: FileTreeItem[] = [];
+    const active: FileTreeItem[] = [];
+    const normal: FileTreeItem[] = [];
+    const archived: FileTreeItem[] = [];
+
+    for (const item of items) {
+      const file = item.file;
+      if (
+        file instanceof TFile &&
+        file.extension === "md" &&
+        file.basename === folder.name &&
+        !folder.isRoot()
+      ) {
+        index.push(item);
+        continue;
+      }
+      const status = this.getStatus(file);
+      if (status === ACTIVE_VALUE) active.push(item);
+      else if (status === ARCHIVED_VALUE) archived.push(item);
+      else normal.push(item);
+    }
+
+    return [...index, ...active, ...normal, ...archived];
+  }
+
+  private getStatus(file: TAbstractFile): string | null {
+    if (!(file instanceof TFile) || file.extension !== "md") return null;
+    const fm = this.app.metadataCache.getCache(file.path)?.frontmatter;
+    const v: unknown = fm?.[STATUS_FIELD];
+    return typeof v === "string" ? v : null;
+  }
+
+  private syncArchivedClass(path: string): void {
+    for (const leaf of this.app.workspace.getLeavesOfType("file-explorer")) {
+      const view = leaf.view as FileExplorerView;
+      const item = view.fileItems?.[path];
+      if (!item) continue;
+      const isArchived = this.getStatus(item.file) === ARCHIVED_VALUE;
+      item.selfEl.classList.toggle(ARCHIVED_CLASS, isArchived);
+    }
+  }
+
+  private syncAllArchivedClasses(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType("file-explorer")) {
+      const view = leaf.view as FileExplorerView;
+      if (!view.fileItems) continue;
+      for (const path of Object.keys(view.fileItems)) {
+        this.syncArchivedClass(path);
+      }
+    }
+  }
+
   private setupFolderTitleEl(el: HTMLElement): void {
     if (this.initializedFolderEls.has(el)) return;
     this.initializedFolderEls.add(el);
@@ -237,6 +335,14 @@ export default class DotfilesPlugin extends Plugin {
   onunload() {
     this.folderObserver?.disconnect();
     this.folderObserver = null;
+
+    for (const leaf of this.app.workspace.getLeavesOfType("file-explorer")) {
+      const view = leaf.view as FileExplorerView;
+      if (!view.fileItems) continue;
+      for (const item of Object.values(view.fileItems)) {
+        item.selfEl.classList.remove(ARCHIVED_CLASS);
+      }
+    }
 
     this.app.workspace.getLeavesOfType("markdown").forEach((leaf) => {
       const view = leaf.view as MarkdownView;
