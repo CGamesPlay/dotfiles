@@ -95,7 +95,9 @@ launch_remote() {
 		if [[ ${#argc_files[@]} -gt 1 ]]; then
 			echo "Warning: only first file will be opened in remote mode" >&2
 		fi
-		value="id=neovide:filename=$PWD/${argc_files[0]}"
+		local file="${argc_files[0]}"
+		[[ "$file" != /* ]] && file="$PWD/$file"
+		value="id=neovide:filename=$file"
 	else
 		value="id=neovide:"
 	fi

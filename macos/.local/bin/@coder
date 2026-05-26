@@ -105,6 +105,19 @@ _resolve_workspace() {
 	echo "${agent}.${ws_name}.${owner}"
 }
 
+_get_workspace_root() {
+	local full_ws="${1:?}"  # agent.workspace.owner format
+	local ws_name owner
+	ws_name="${full_ws#*.}"   # drop agent prefix
+	owner="${ws_name#*.}"     # owner portion
+	ws_name="${ws_name%%.*}"  # workspace portion
+
+	_coder_list_json | jq -r \
+		--arg ws "$ws_name" --arg own "$owner" \
+		'.[] | select(.name == $ws and .owner_name == $own) | .latest_build.resources[]?.metadata[]? | select(.key == "root") | .value' \
+		| head -1
+}
+
 _choose_workspace() {
 	_workspaces | \
 		fzf --height "50%" --layout reverse \
@@ -139,7 +152,15 @@ ssh() {
 		echo "$ @coder ssh $argc_workspace"
 	fi
 	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
-	exec command ssh "${argc_workspace}.coder" ${argc_rest+"${argc_rest[@]}"}
+	local host="${argc_workspace}.coder"
+	if [[ ! "${argc_rest+1}" ]]; then
+		local root
+		root=$(_get_workspace_root "$argc_workspace")
+		if [[ -n "$root" ]]; then
+			exec command ssh -t "$host" "cd $(printf '%q' "$root") && exec \$SHELL"
+		fi
+	fi
+	exec command ssh "$host" ${argc_rest+"${argc_rest[@]}"}
 }
 
 # @cmd SSH into a Coder workspace with a shpool session
@@ -165,6 +186,13 @@ shpool() {
 	local cmd_args=()
 	if [[ "${argc_cmd+1}" ]]; then
 		cmd_args+=(--cmd "$(printf "sh -c %q" "$argc_cmd")")
+	fi
+	if [[ ! "${argc_dir+1}" ]]; then
+		local root
+		root=$(_get_workspace_root "$argc_workspace")
+		if [[ -n "$root" ]]; then
+			argc_dir="$root"
+		fi
 	fi
 	if [[ "${argc_dir+1}" ]]; then
 		cmd_args+=(--dir "${argc_dir:?}")
