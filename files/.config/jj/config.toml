@@ -10,9 +10,11 @@ email = "cgamesplay@cgamesplay.com"
 # Default command. Shows commits that aren't in the main branch yet.
 default-command = ["util", "exec", "--", "sh", "-c", 'jj default-log "$@" && jj default-status --ignore-working-copy "$@"', ""]
 log-synthetic-elided-nodes = true
-pager = ["less", "-FR"]
-# We don't use delta as the main pager, because it can't handle jj's graph
-# display. We do use it for cases without a graph, configured below.
+pager = ["delta", "--pager=less -FR"]
+# We have to run delta separately to actually generate the diffs, to handle
+# jj's graph display.
+# NOTE: jj exits on ^C even when the pager is active; this is not related to
+# using delta.
 diff-formatter = "delta"
 diff-editor = "hunk"
 
@@ -51,7 +53,7 @@ program = "sh"
 # should support natively (but doesn't).
 diff-args = ["-c", """
 if [ "${COLORFGBG:-0;15}" = "0;15" ]; then
-  export DELTA_FEATURES=+light
+  export DELTA_FEATURES="${DELTA_FEATURES+$DELTA_FEATURES }+light"
 fi
 exec delta "$@"
 """, "", "$left", "$right"]
@@ -67,12 +69,11 @@ merge-args = [
 ]
 merge-tool-edits-conflict-markers = true
 
-# For these commands, we use delta as the pager directly
+# Commands that typically show diffs will use delta as a pager
 [[--scope]]
 --when.commands = ["diff", "show"]
 [--scope.ui]
 pager = "delta"
-diff-formatter = ":git"
 
 # The default status output is a disorienting rainbow of colors
 [[--scope]]
