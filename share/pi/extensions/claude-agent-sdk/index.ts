@@ -96,6 +96,30 @@ export async function __simulateShutdownForTesting(
 export const __shutdownAllForTesting = __shutdownAllRuntimesForTesting;
 
 export default function (pi: ExtensionAPI) {
+  const lifecycleEvents = [
+    "turn_start",
+    "turn_end",
+    "message_end",
+    "tool_call",
+    "tool_execution_start",
+    "tool_execution_end",
+    "tool_result",
+  ] as const;
+  for (const evt of lifecycleEvents) {
+    pi.on(evt as any, (event: any) => {
+      log(`piLifecycle: ${evt}`, {
+        toolName: event?.toolName,
+        toolCallId: event?.toolCallId,
+        role: event?.message?.role,
+        stopReason: event?.message?.stopReason,
+        contentTypes: Array.isArray(event?.message?.content)
+          ? event.message.content.map((c: any) => c?.type).join(",")
+          : undefined,
+        isError: event?.isError,
+      });
+    });
+  }
+
   pi.on("session_start", (_event, ctx) => {
     const health = getLoggerHealth();
     const healthMsg = describeLoggerHealth();

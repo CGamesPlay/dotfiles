@@ -629,6 +629,42 @@ export function streamClaudeAgentSdk(
 ): AssistantMessageEventStream {
   const stream = createAssistantMessageEventStream();
   void runStreamCall(model, context, options, stream);
+  return instrumentStreamForDebug(stream, options?.sessionId);
+}
+
+function instrumentStreamForDebug(
+  stream: AssistantMessageEventStream,
+  sessionKey: string | undefined,
+): AssistantMessageEventStream {
+  const protoIter = (
+    stream as unknown as { [Symbol.asyncIterator]: () => AsyncIterator<any> }
+  )[Symbol.asyncIterator].bind(stream);
+  let pulled = 0;
+  (stream as any)[Symbol.asyncIterator] = async function* () {
+    const it = protoIter();
+    try {
+      while (true) {
+        const r = await it.next();
+        if (r.done) {
+          log("piConsumer: iterator done", { sessionKey, pulled });
+          return;
+        }
+        pulled++;
+        const ev: any = r.value;
+        log("piConsumer: pulled", {
+          sessionKey,
+          n: pulled,
+          type: ev?.type,
+          contentIndex: ev?.contentIndex,
+          reason: ev?.reason,
+          toolName: ev?.toolCall?.name,
+        });
+        yield r.value;
+      }
+    } finally {
+      log("piConsumer: iterator finally", { sessionKey, pulled });
+    }
+  };
   return stream;
 }
 
