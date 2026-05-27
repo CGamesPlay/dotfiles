@@ -89,8 +89,11 @@ push() {
 		jj --quiet sign -r master
 	fi
 
-	git push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
-	git fetch origin
+	jj git export
+	GITDIR=$(jj git root)
+	git --git-dir "$GITDIR" push git@gitlab.com:CGamesPlay/dotfiles.git master --force-with-lease=master:origin/master
+	git --git-dir "$GITDIR" fetch origin
+	jj git import
 }
 
 # @cmd Find files that maybe should be added to DFM.
