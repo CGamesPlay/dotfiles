@@ -371,11 +371,12 @@ install_zoxide() {
 
 main() {
 	cd "$TMPDIR"
-	BINDIR="${argc_target:?}/bin"
-	MANDIR="${argc_target:?}/share/man"
+	argc_target="${argc_target/#\~\//$HOME\/}"
+	BINDIR="$argc_target/bin"
+	MANDIR="$argc_target/share/man"
 	mkdir -p "$BINDIR" "$MANDIR/man1" "$MANDIR/man5"
 
-	for binary in "${argc_packages[@]}"; do
+	for binary in ${argc_packages+"${argc_packages[@]}"}; do
 		if ! declare -F "install_$binary" >/dev/null; then
 			echo "ERROR: Unknown binary: $binary" >&2
 			return 1
