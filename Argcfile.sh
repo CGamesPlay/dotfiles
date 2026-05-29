@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-# @describe Helper scripts for managing the dotfiles.
+# @describe Helper scripts for managing dotfiles.
 set -eu
+
+# @cmd Open an editor in the dotfiles directory
+edit() {
+	neovide
+}
+
+# @cmd Show jj status
+status() {
+	jj
+}
 
 # @cmd Pull the latest verison and sync
 # @flag      --bootstrap Run the bootstrap script.

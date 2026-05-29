@@ -5,23 +5,7 @@ set -eu
 
 dotfiles_root() {
 	path=${BASH_SOURCE[0]}
-	realpath -m "$path"/../../../..
-}
-
-# @cmd Commands related to dotfiles.
-dotfiles() { :; }
-
-# @cmd Open an editor in the dotfiles directory
-dotfiles::edit() {
-	cd "$(dotfiles_root)"
-	neovide
-}
-
-# @cmd Pull the latest version and sync.
-# @flag      --bootstrap Run the bootstrap script.
-dotfiles::pull() {
-	cd "$(dotfiles_root)"
-	argc pull ${argc_bootstrap+--bootstrap}
+	realpath -m "$path"/../../../../"${1:-}"
 }
 
 # @cmd Create a temporary docker container.
@@ -40,145 +24,6 @@ docker-sandbox() {
 	docker exec -it "$container_id" fish || status=$?
 	docker rm -f "$container_id"
 	exit "$status"
-}
-
-# @cmd Instantiate templates.
-create() { :; }
-
-# @cmd Copy the devcontainer workspace root template to the named directory.
-# @arg       target!        Location of the new workspace.
-create::devcontainer() {
-	template_dir="$(dotfiles_root)/share/devcontainer"
-	cp -Rnv "$template_dir/" "${argc_target:?}" | sed 's/.* -> //'
-}
-
-# @cmd Create a sample Argcfile.
-# @arg       target=Argcfile.sh            Target filename.
-create::argcfile() {
-	template_file="$(dotfiles_root)/share/Argcfile-template.sh"
-	cp -iv "$template_file" "${argc_target:?}"
-	echo "$argc_target: created"
-}
-
-# @cmd Create a CACHEDIR.TAG file in the target directory.
-# https://bford.info/cachedir/
-# @arg       target=. <DIR>  Target directory.
-create::cachedir-tag() {
-	echo "Signature: 8a477f597d28d172789f06886806bc55" > "${argc_target:?}"/CACHEDIR.TAG
-	echo "${argc_target}/CACHEDIR.TAG: created"
-}
-
-# @cmd Clone a git repository to a predictable location based on its URL.
-# @option    --root <DIR>      Root directory for cloned repositories
-# @flag   -n --dry-run         Print the target location without cloning
-# @arg       url!              Git repository URL
-# @arg       command~          Run this command in the directory
-clone() {
-	# Determine root directory
-	if [ -n "${argc_root:-}" ]; then
-		root="$argc_root"
-	elif [ -d "$HOME/Projects" ]; then
-		root="$HOME/Projects/src"
-	else
-		root="$HOME/src"
-	fi
-
-	url="${argc_url:?}"
-
-	# Remove protocol (http://, https://, git://, ssh://)
-	url_no_protocol="${url#*://}"
-
-	# Handle git@host:path format
-	if [[ "$url_no_protocol" =~ git@([^:]+):(.+) ]]; then
-		host="${BASH_REMATCH[1]}"
-		path="${BASH_REMATCH[2]}"
-		# Remove port number if present (e.g., 2222/path -> path)
-		if [[ "$path" =~ ^[0-9]+/(.+)$ ]]; then
-			path="${BASH_REMATCH[1]}"
-		fi
-	else
-		# Standard URL format: host/path/to/repo
-		host="${url_no_protocol%%/*}"
-		path="${url_no_protocol#*/}"
-	fi
-
-	# Remove .git suffix and trailing slashes
-	path="${path%.git}"
-	path="${path%/}"
-
-	# Construct target directory
-	target="$root/$host/$path"
-
-	# Dry run: just print the target
-	if [ "${argc_dry_run:-}" ]; then
-		echo "$target"
-		return
-	fi
-
-	# Clone if not already present
-	if [ -d "$target" ]; then
-		echo "$target: already exists"
-	else
-		mkdir -p "$(dirname "$target")"
-		git clone "$url" "$target"
-		echo "$target: cloned"
-	fi
-
-	if [ ${argc_command+1} ]; then
-		cmd=$(printf 'cd %q && direnv exec . ' "$target"; printf '%q ' "${argc_command[@]}")
-		"$SHELL" -c "$cmd"
-	fi
-}
-
-# @cmd Commands for working with ruby/rails projects.
-#
-#   And on the pedestal, these words appear:
-#   My name is Ozymandias, King of Kings;
-#   Look on my Works, ye Mighty, and despair!
-#   Nothing beside remains. Round the decay
-#   Of that colossal Wreck, boundless and bare
-#   The lone and level sands stretch far away.
-rails() { :; }
-
-# @cmd Generate offline documentation for all gems in the Gemfile
-# @arg       target=doc <DIR>  Target directory.
-# @flag      --rebuild         Ignore existing documentation
-# @meta require-tools bundle,gem
-rails::rdoc() {
-	if ! gem list rdoc -i >/dev/null; then
-		echo "RDoc is not installed. Installing now."
-		gem install rdoc
-	fi
-	if ! gem list sdoc -i >/dev/null; then
-		echo "SDoc is not installed. Installing now."
-		gem install sdoc
-	fi
-
-	mkdir -p "${argc_target:?}"
-	index_file="${argc_target:?}/index.html"
-
-	echo "<html><head><title>Gems Documentation Index</title></head><body><h1>Gems Documentation Index</h1><ul>" > "$index_file"
-
-	for gem_path in $(bundle list --paths); do
-		gem_name=$(basename "$gem_path")
-		gem_out_dir="${argc_target:?}/$gem_name"
-		if [ -d "$gem_out_dir" ]; then
-			echo "<li><a href='$gem_name/index.html'>$gem_name</a></li>" >> "$index_file"
-		fi
-
-		if [ -d "$gem_out_dir" ] && [ ! "${argc_rebuild:+1}" ]; then
-			echo "Skipping $gem_name"
-			continue
-		fi
-
-		if ! rdoc --output "$gem_out_dir" --format sdoc -T rails "$gem_path"; then
-			echo "Failed to compile rdocs for $gem_name" >&2
-		fi
-	done
-
-	echo "</ul></body></html>" >> "$index_file"
-
-	echo "RDoc generation complete. Open $index_file to browse the documentation."
 }
 
 # @cmd Set a reminder that notifies after a duration.
@@ -212,6 +57,65 @@ reminder() {
 	printf "Timer set for %d:%02d:%02d\n" "$hours" "$minutes" "$seconds"
 	sleep "$total_seconds"
 	@iterm notify "$message"
+}
+
+# @cmd Helper scripts for managing dotfiles
+# @arg args~[?`_choice_dotfiles`]
+dotfiles() {
+	cd "$(dotfiles_root)"
+	argc "$@"
+}
+
+_choice_dotfiles() {
+    if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
+		local args=( "argc" "${argc__positionals[@]}" )
+        args[${#args[@]}-1]="$ARGC_LAST_ARG"
+		argc --argc-compgen generic "$(dotfiles_root)/Argcfile.sh" "${args[@]}"
+    fi
+}
+
+# @cmd Clone a git repository to a predictable location
+# @arg args~[?`_choice_external_subcmds`]
+clone() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+# @cmd Instantiate templates
+# @arg args~[?`_choice_external_subcmds`]
+create() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+# @cmd Scripts for managing the personal knowledge base
+# @arg args~[?`_choice_external_subcmds`]
+notes() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+# @cmd System-level assistant
+# @arg args~[?`_choice_external_subcmds`]
+pi-sys() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+# @cmd Commands for working with ruby/rails projects
+# @arg args~[?`_choice_external_subcmds`]
+rails() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+# @cmd Tools for mirroring YouTube videos
+# @arg args~[?`_choice_external_subcmds`]
+yt-dlp() {
+	"$(dotfiles_root scripts/@argc)/${argc__fn:?}" "$@"
+}
+
+_choice_external_subcmds() {
+    if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
+		local args=( "$(dotfiles_root scripts/@argc)/$argc__cmd_fn" "${argc__positionals[@]}" )
+        args[${#args[@]}-1]="$ARGC_LAST_ARG"
+		argc --argc-compgen generic "$(dotfiles_root scripts/@argc)/$argc__cmd_fn" "${args[@]}"
+    fi
 }
 
 eval "$(argc --argc-eval "$0" "$@")"

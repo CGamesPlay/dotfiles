@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# @describe Instantiate templates
+set -eu
+
+# @cmd Copy the devcontainer workspace root template to the named directory
+# @arg       target!        Location of the new workspace
+devcontainer() {
+    template_dir="$(dotfiles_root)/share/devcontainer"
+    cp -Rnv "$template_dir/" "${argc_target:?}" | sed 's/.* -> //'
+}
+
+# @cmd Create a sample Argcfile
+# @arg       target=Argcfile.sh            Target filename
+argcfile() {
+    template_file="$(dotfiles_root)/share/Argcfile-template.sh"
+    cp -iv "$template_file" "${argc_target:?}"
+    echo "$argc_target: created"
+}
+
+# @cmd Create a CACHEDIR.TAG file in the target directory
+# https://bford.info/cachedir/
+# @arg       target=. <DIR>  Target directory
+cachedir-tag() {
+    echo "Signature: 8a477f597d28d172789f06886806bc55" > "${argc_target:?}"/CACHEDIR.TAG
+    echo "${argc_target}/CACHEDIR.TAG: created"
+}
+
+eval "$(argc --argc-eval "$0" "$@")"

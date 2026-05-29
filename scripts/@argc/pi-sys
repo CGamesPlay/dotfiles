@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# @describe System-level assistant helper
+# @describe System-level assistant
 #
 # This runs the pi coding agent with a configuration designed for system administration tasks:
 # - Interactive permissions instead of sandboxing
@@ -13,7 +13,7 @@
 
 set -eu
 
-DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../.." && pwd)
+DFM_DIR=$(realpath -m "${BASH_SOURCE[0]}/../../..")
 
 main() {
 	if [[ ${argc_pi_help+1} ]] || [[ ${argc_pi_version+1} ]]; then
