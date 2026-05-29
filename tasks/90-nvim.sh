@@ -23,15 +23,23 @@ install_neovim() {
 	else
 		tag="arm64"
 	fi
-	cd "${TMPDIR:-/tmp}"
-	mkdir nvim
-	cd nvim
+	dir="${TMPDIR:-/tmp}/nvim"
+	mkdir -p "$dir"
+	cd "$dir"
 	~/.local/bin/eget neovim/neovim -a "tar.gz" -a "$tag" -d --to=nvim.tar.gz
 	sudo tar xzf nvim.tar.gz --strip-components=1 -C /usr/local
 	export PATH="/usr/local/bin:$PATH"
+	cd -
 }
 
 sync_plugins() {
+	# The lazy lockfile includes lazy itself, but if it isn't already installed
+	# then it will install the latest version instead of what's locked here. As
+	# a result, we snapshot the lockfile, then run twice to cause lazy to
+	# downgrade itself if necessary.
+	orig_lock="$(cat files/.config/nvim/lazy-lock.json)"
+	nvim --headless "+Lazy restore" +qa
+	echo "$orig_lock" > files/.config/nvim/lazy-lock.json
 	nvim --headless "+Lazy restore" +qa
 }
 

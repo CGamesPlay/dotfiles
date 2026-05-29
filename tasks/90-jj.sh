@@ -3,6 +3,8 @@
 set -e
 . "$(dirname "$0")/helpers"
 
+export PATH="$HOME/.local/bin:$PATH"
+
 if [[ ! -d .jj ]]; then
 	jj git init
 	jj bookmark track master --remote=origin

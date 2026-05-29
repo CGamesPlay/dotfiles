@@ -2,16 +2,31 @@
   "default": "mid",
   "presets": {
     "small": {
+      "provider": "claude-agent-sdk",
+      "model": "claude-haiku-4-5",
+      "thinkingLevel": "off"
+    },
+    "mid": {
+      "provider": "claude-agent-sdk",
+      "model": "claude-sonnet-4-6",
+      "thinkingLevel": "low"
+    },
+    "large": {
+      "provider": "claude-agent-sdk",
+      "model": "claude-opus-4-7",
+      "thinkingLevel": "low"
+    },
+    "zai-small": {
       "provider": "zai",
       "model": "glm-4.5-air",
       "thinkingLevel": "off"
     },
-    "mid": {
+    "zai-mid": {
       "provider": "zai",
       "model": "glm-4.7",
       "thinkingLevel": "low"
     },
-    "large": {
+    "zai-large": {
       "provider": "zai",
       "model": "glm-5.1",
       "thinkingLevel": "low"
