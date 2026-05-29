@@ -22,8 +22,11 @@ main() {
 			${argc_pi_version+--pi-version}
 	fi
 
+	local session_dir="${XDG_DATA_HOME:-$HOME/.local/share}/pi/sessions/system-assistant"
+	mkdir -p "$session_dir"
+
 	local args=(
-		--session-dir "$HOME/.pi/agent/sessions/system-assistant"
+		--session-dir "$session_dir"
 		--append-system-prompt "$HOME/.pi/agent/system-assistant.md"
 		--no-extensions
 		--extension "$DFM_DIR/share/pi"
