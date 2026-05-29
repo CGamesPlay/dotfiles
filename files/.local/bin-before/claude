@@ -90,6 +90,13 @@ EOF
 		export CLAUDE_CODE_OAUTH_TOKEN
 	fi
 
+	# Merge shared settings (e.g. hooks) into ~/.claude/settings.json each run.
+	local shared_settings=~/.claude/settings-shared.json
+	local settings_file=~/.claude/settings.json
+	[[ -f "$settings_file" ]] || echo '{}' > "$settings_file"
+	jq -s '.[0] * .[1]' "$settings_file" "$shared_settings" > "$settings_file~" \
+		&& mv "$settings_file~" "$settings_file"
+
 	local args
 	args=(
 		"$claude_bin"
