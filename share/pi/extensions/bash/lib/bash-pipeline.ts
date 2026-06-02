@@ -338,6 +338,21 @@ function classifyGrep(tokens: Token[]): "mutatable" | "other" {
   return "mutatable";
 }
 
+// Head flags: -N (e.g. -5), -n N, -c N, --lines=N, --bytes=N
+function classifyHead(tokens: Token[]): "mutatable" | "other" {
+  let i = 1;
+  while (i < tokens.length) {
+    const arg = tokens[i].value;
+    if (/^-\d+$/.test(arg)) { i++; continue; }
+    if (arg === "-n" || arg === "-c") { i += 2; continue; }
+    if (/^-[nc]\d+$/.test(arg)) { i++; continue; }
+    if (/^--lines=\d+$/.test(arg)) { i++; continue; }
+    if (/^--bytes=\d+$/.test(arg)) { i++; continue; }
+    return "other";
+  }
+  return "mutatable";
+}
+
 // Tail flags: -N (e.g. -5), -n N, -n +N, --lines=N, --lines=+N
 function classifyTail(tokens: Token[]): "mutatable" | "other" {
   let i = 1;
@@ -405,7 +420,7 @@ export function classifySegment(
   const baseName = cmd.includes("/") ? cmd.split("/").pop()! : cmd;
 
   if (baseName === "tee") return "abort";
-  if (baseName === "head") return "abort";
+  if (baseName === "head") return classifyHead(tokens);
 
   if (baseName === "grep" || baseName === "egrep" || baseName === "fgrep") {
     return classifyGrep(tokens);

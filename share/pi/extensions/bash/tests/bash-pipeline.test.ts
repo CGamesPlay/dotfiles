@@ -141,7 +141,14 @@ describe("classifySegment", () => {
     "tail with filename": ["tail -5 file.log", "other"],
     // abort
     tee: ["tee output.log", "abort"],
-    head: ["head -5", "abort"],
+    // head — mutatable (stdin source, acts as eager truncation)
+    "head -5": ["head -5", "mutatable"],
+    "head -n 20": ["head -n 20", "mutatable"],
+    "head -c 1024": ["head -c 1024", "mutatable"],
+    "head --lines=10": ["head --lines=10", "mutatable"],
+    "head --bytes=512": ["head --bytes=512", "mutatable"],
+    "head with filename": ["head -5 file.log", "other"],
+    "head with -q flag": ["head -q -5", "other"],
     "> redirect": ["grep foo > out.txt", "abort"],
     ">> redirect": ["grep foo >> out.txt", "abort"],
     "> inside quotes": ["grep '>'", "mutatable"],
@@ -205,10 +212,18 @@ describe("injectTee", () => {
     );
   });
 
-  // Test case 5: head → abort
-  it("case 5: head in pipeline → not modified", () => {
-    assertNotModified(
+  // Test case 5: head → mutatable, tee injected before grep
+  it("case 5: head in pipeline → injects tee", () => {
+    assertTeeInjected(
       "marimo tutorial fileformat 2>&1 | grep -v '^\\[' | head -5",
+      /2>&1 \| tee \/.*pi-bash-tee-.*\.log \| grep/,
+    );
+  });
+
+  it("curl | head → injects tee (eager truncation)", () => {
+    assertTeeInjected(
+      "curl -fsSL https://raw.githubusercontent.com/systemd/systemd/refs/heads/main/docs/CONTAINER_INTERFACE.md 2>&1 | head -300",
+      /2>&1 \| tee \/.*pi-bash-tee-.*\.log \| head/,
     );
   });
 
