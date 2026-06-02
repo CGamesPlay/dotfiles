@@ -97,6 +97,7 @@ sync-shares() {
 
 # @cmd Install syncthing and set the default folder path.
 # @option    --default-path $NOTES_DIR  Default path for newly-added folders.
+# @flag      --systemd               Install systemd user unit for syncthing.
 install() {
 	@get syncthing
 	# `cli config` talks over the REST API and requires a running daemon, so
@@ -113,6 +114,27 @@ install() {
 		escaped=${escaped//|/\\|}
 		sed -i "s|\\(<folder [^>]* \\)path=\"\"|\\1path=\"$escaped\"|" "$state_dir/config.xml"
 	fi
+
+	if [[ ${argc_systemd+1} ]]; then
+		local unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+		local unit_file="$unit_dir/syncthing.service"
+		mkdir -p "$unit_dir"
+		tee "$unit_file" >/dev/null <<EOF
+[Unit]
+Description=Syncthing - Open Source Continuous File Synchronization
+After=network.target
+
+[Service]
+ExecStart=$HOME/.local/bin/syncthing --no-browser --gui-address=0.0.0.0:8384
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+		systemctl --user daemon-reload
+		systemctl --user enable syncthing.service
+		echo "Installed systemd user unit: $unit_file"
+	fi
 }
 
 # @cmd Start the syncthing daemon, add a pending device, and show folders.
@@ -127,14 +149,20 @@ start() {
 	if syncthing_is_running; then
 		echo "syncthing: already running"
 	else
-		echo "syncthing: starting daemon, logs at $log_file"
-		# setsid + nohup detaches from the controlling terminal so the daemon
-		# survives shell exit; redirect all fds so it doesn't hold the tty.
-		setsid nohup syncthing \
-			--no-browser \
-			--gui-address="$SYNCTHING_GUI_ADDRESS" \
-			</dev/null >"$log_file" 2>&1 &
-		disown || true
+		if systemctl --user list-unit-files syncthing.service &>/dev/null && systemctl --user is-enabled syncthing.service &>/dev/null; then
+			echo "syncthing: starting daemon via systemd"
+			systemctl --user start syncthing.service
+		else
+			echo "syncthing: starting daemon, logs at $log_file"
+			# setsid + nohup detaches from the controlling terminal so the
+			# daemon survives shell exit; redirect all fds so it doesn't hold
+			# the tty.
+			setsid nohup syncthing \
+				--no-browser \
+				--gui-address="$SYNCTHING_GUI_ADDRESS" \
+				</dev/null >"$log_file" 2>&1 &
+			disown || true
+		fi
 		syncthing_wait_running
 	fi
 
