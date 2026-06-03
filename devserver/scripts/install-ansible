@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import subprocess
+import sys
+import textwrap
+
+REQUIREMENTS = textwrap.dedent("""\
+    ansible==6.3.0
+    ansible-core==2.13.3
+    cffi==1.17.1
+    cryptography==37.0.4
+    Jinja2==3.1.2
+    MarkupSafe==2.1.1
+    packaging==21.3
+    pycparser==2.21
+    pyparsing==3.0.9
+    PyYAML==6.0.2
+    resolvelib==0.8.1
+""")
+
+def main():
+    parser = argparse.ArgumentParser(description="Bootstrap ansible for devserver self-management.")
+    parser.add_argument("--tags", metavar="TAGS", help="ansible-pull --tags value (e.g. 'untagged' for minimal mode)")
+    args = parser.parse_args()
+
+    subprocess.run([sys.executable, "-m", "venv", "/opt/ansible/.venv"], check=True)
+
+    with open("/opt/ansible/requirements.txt", "w") as f:
+        f.write(REQUIREMENTS)
+
+    subprocess.run(["/opt/ansible/.venv/bin/pip3", "install", "-r", "/opt/ansible/requirements.txt"], check=True)
+
+    cmd = [
+        "/opt/ansible/.venv/bin/ansible-pull",
+        "-U", "https://gitlab.com/CGamesPlay/dotfiles",
+        "-d", "/opt/ansible/dotfiles",
+        "-i", "localhost,",
+        "devserver/ansible-site.yml",
+    ]
+    if args.tags:
+        cmd += ["--tags", args.tags, "-e", f"ansible_pull_tags={args.tags}"]
+
+    subprocess.run(cmd, check=True)
+
+if __name__ == "__main__":
+    main()

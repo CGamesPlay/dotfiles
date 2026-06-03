@@ -5,9 +5,11 @@
     tasks:
 
       - name: check for hbv-self-destruct.env
+        tags: hbv
         stat: path=/etc/hbv-self-destruct.env
         register: self_destruct_env
       - name: install self-destruct service
+        tags: hbv
         when: self_destruct_env.stat.exists
         copy:
           dest: /etc/systemd/system/hbv-self-destruct.service
@@ -36,12 +38,14 @@
           src: scripts/hbv-self-destruct
           dest: /usr/local/sbin/hbv-self-destruct
           mode: 0755
+        tags: hbv
         when: self_destruct_env.stat.exists
       - systemd:
           daemon_reload: yes
           name: hbv-self-destruct
           enabled: true
           state: started
+        tags: hbv
         when: self_destruct_env.stat.exists
 
       - name: install ansible systemd service
@@ -52,12 +56,12 @@
             Description="Ansible - run ansible-pull on boot"
             Documentation=https://www.ansible.com/
             DefaultDependencies=no
-            Wants=cloud-final.target systemd-networkd-wait-online.service
-            After=cloud-final.target systemd-networkd-wait-online.service
+            Wants=network-online.target cloud-final.target
+            After=network-online.target cloud-final.target
 
             [Service]
             Type=oneshot
-            ExecStart=/opt/ansible/.venv/bin/ansible-pull -U https://gitlab.com/CGamesPlay/dotfiles -d /opt/ansible/dotfiles -i localhost, devserver/ansible-site.yml
+            ExecStart=/opt/ansible/.venv/bin/ansible-pull -U https://gitlab.com/CGamesPlay/dotfiles -d /opt/ansible/dotfiles -i localhost, devserver/ansible-site.yml{{ ' --tags ' + ansible_pull_tags if ansible_pull_tags is defined and ansible_pull_tags else '' }}
 
             [Install]
             WantedBy=cloud-init.target
@@ -78,6 +82,7 @@
             value: "true"
 
       - name: install auto-shutdown service
+        tags: hbv
         when: self_destruct_env.stat.exists
         copy:
           src: scripts/hbv-auto-shutdown
@@ -102,17 +107,20 @@
 
             [Install]
             WantedBy=multi-user.target
+        tags: hbv
         when: self_destruct_env.stat.exists
       - systemd:
           daemon_reload: yes
           name: hbv-auto-shutdown
           enabled: true
           state: started
+        tags: hbv
         when: self_destruct_env.stat.exists
         register: auto_shutdown_unit
       - systemd:
           name: hbv-auto-shutdown
           state: restarted
+        tags: hbv
         when: self_destruct_env.stat.exists and not auto_shutdown_unit.changed and auto_shutdown_bin.changed
 
       - name: configure restic user
@@ -194,22 +202,26 @@
         when: restic_backup_timer_unit.changed or restic_backup_service_unit.changed
 
       - name: configure motd blocks
+        tags: hbv
         lineinfile:
           path: /etc/default/motd-news
           regexp: '^ENABLED='
           line: 'ENABLED=0'
           create: no
       - name: disable help text motd
+        tags: hbv
         file:
           path: /etc/update-motd.d/10-help-text
           mode: '0644'
       - name: install devserver motd script
+        tags: hbv
         copy:
           src: scripts/60-devserver
           dest: /etc/update-motd.d/60-devserver
           mode: '0755'
 
       - name: configure dotfiles
+        tags: dotfiles
         become: yes
         become_user: ubuntu
         ignore_errors: true

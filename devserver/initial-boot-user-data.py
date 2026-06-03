@@ -87,6 +87,6 @@ user_data = {
 
 msg = MIMEMultipart()
 msg.attach(MIMEText(yaml.dump(user_data), "cloud-config"))
-msg.attach(MIMEText(file("scripts/install-ansible.sh"), "x-shellscript"))
+msg.attach(MIMEText(file("scripts/install-ansible"), "x-shellscript"))
 msg.attach(MIMEText(file("scripts/enable-raid1.sh"), "x-shellscript"))
 print(msg.as_string())
