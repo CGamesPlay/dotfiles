@@ -55,16 +55,14 @@ function prompt_part_async --description 'Write out the async part of the prompt
 end
 
 function prompt_part_sync --description 'Write out the sync part of the prompt'
-  # If an atrium name is given, print that as the hostname
+  # If a container name is given, print that as the hostname
   if not set -q fish_color_host_remote
     set -g fish_color_host_remote normal
   end
   if set -q CODER
     set -f host (set_color $fish_color_host_remote)"$CODER_WORKSPACE_AGENT_NAME.$CODER_WORKSPACE_NAME"
-  else if set -q ATRIUM_WORKSPACE
-    set -f host (set_color $fish_color_host_remote)$ATRIUM_WORKSPACE
-  else if set -q ATRIUM_MACHINE
-    set -f host (set_color $fish_color_host_remote)machine:$ATRIUM_MACHINE
+  else if set -q SANDSHELL
+    set -f host (set_color $fish_color_host_remote)$SANDSHELL
   else
     set -f host (set_color $fish_color_host)(prompt_hostname)
   end

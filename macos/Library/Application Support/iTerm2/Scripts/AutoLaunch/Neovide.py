@@ -46,6 +46,8 @@ async def monitor(app, connection, session_id):
 
                 if coder := await session.async_get_variable("user.coder"):
                     run_with_coder(coder, directory, filename)
+                elif sandshell := await session.async_get_variable("user.sandshell"):
+                    run_with_sandshell(sandshell, directory, filename)
 
             except Exception:
                 traceback.print_tb(sys.exc_info()[2])
@@ -64,6 +66,14 @@ async def monitor_termination(connection):
 
 def run_with_coder(name, directory, filename):
     cmd = ["neovide-ssh", f"{name}.coder", f"--chdir={directory}"]
+    if filename:
+        cmd += ["--", filename]
+    print(cmd)
+    subprocess.run(cmd, check=True)
+
+
+def run_with_sandshell(name, directory, filename):
+    cmd = ["neovide-sandsh", name, f"--chdir={directory}"]
     if filename:
         cmd += ["--", filename]
     print(cmd)

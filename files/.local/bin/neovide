@@ -29,6 +29,12 @@ main() {
 		exec nvim --headless --server "$argc_socket" --remote-send "$cmd"
 	fi
 
+	if ! [[ "$(uname -s)" == "Darwin" ]] || [[ -n ${SANDSHELL+1} ]]; then
+		launch_remote
+	else
+		launch_local
+	fi
+
 	# Otherwise we need to create a new session by starting Neovide
 	if command -v neovide-remote >/dev/null; then
 		launch_local

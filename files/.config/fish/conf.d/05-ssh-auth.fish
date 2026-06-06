@@ -1,7 +1,7 @@
 # When running on my Macbook with Secretive, use that by default.
 # https://github.com/maxgoedjen/secretive
 if test -S $HOME/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
-  set -x SSH_AUTH_SOCK $HOME/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+    set -x SSH_AUTH_SOCK (readlink -f $HOME/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh)
 end
 
 # When inside of an SSH connection, establish a well-known location for

@@ -10,11 +10,11 @@ email = "cgamesplay@cgamesplay.com"
 # Default command. Shows commits that aren't in the main branch yet.
 default-command = ["util", "exec", "--", "sh", "-c", 'jj default-log "$@" && jj default-status --ignore-working-copy "$@"', ""]
 log-synthetic-elided-nodes = true
+# NOTE: jj exits on ^C even when the pager is active; this is not related to
+# using delta.
 pager = ["delta", "--pager=less -FR"]
 # We have to run delta separately to actually generate the diffs, to handle
 # jj's graph display.
-# NOTE: jj exits on ^C even when the pager is active; this is not related to
-# using delta.
 diff-formatter = "delta"
 diff-editor = "hunk"
 

@@ -1,12 +1,4 @@
 # These need to be set up before 50-direnv, or else they will get lost.
-if command -q nvim
-  set -x EDITOR nvim
-else
-  set -x EDITOR vim
-end
-set -x LESS "-RSF"
-set -x BAT_THEME ansi
-
 if ! set -q XDG_CACHE_HOME
   if [ (uname -s) = "Darwin" ]
     set -x XDG_CACHE_HOME ~/Library/Caches/org.freedesktop

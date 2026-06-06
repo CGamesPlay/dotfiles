@@ -1,12 +1,10 @@
 #!/bin/bash
-# @describe Launch Neovide connected to nvim over SSH
+# @describe Launch Neovide connected to nvim in a sandshell sandbox
 #
-# This script allows you to launch Neovide and connect to a remote host via
-# SSH, with support for changing to a specific directory and opening files.
+# This script allows you to launch Neovide with nvim running safely in a sandbox, with support for changing to a specific directory and opening files.
 #
-# @option --ssh-args  SSH arguments to pass (e.g., "-l ubuntu")
-# @option --chdir     Directory to change to on the remote host
-# @arg host!          Hostname or IP address to SSH into
+# @option --chdir     Directory to change to in the sandbox
+# @arg sandbox!       Sandshell sandbox name
 # @arg files*         Files to open in nvim
 
 set -ue
@@ -45,12 +43,12 @@ main() {
 	if [[ ${argc_chdir+1} ]]; then
 		remote_script=$(printf 'cd %q && exec direnv exec . %s' "$argc_chdir" "$remote_script")
 	fi
-	ssh_args=("${argc_host:?}" ${argc_ssh_args+"${args_ssh_args[@]}"} -- exec sh -c "$(shellquote "$remote_script")" neovide-trampoline --listen neovide)
+	sandsh_args=(shell "${argc_sandbox:?}" -- exec sh -c "$(shellquote "$remote_script")" neovide-trampoline --listen neovide)
 	cmd=(
 		neovide-remote --no-tabs
-		--neovim-bin=ssh
+		--neovim-bin=sandsh
 		${argc_files+$(printf -- '--file=%q ' "${argc_files[@]}")} \
-		-- "${ssh_args[@]}"
+		-- "${sandsh_args[@]}"
 	)
 	"${cmd[@]}"
 }

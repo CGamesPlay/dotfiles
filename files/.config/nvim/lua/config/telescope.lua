@@ -86,6 +86,12 @@ return {
         defaults = {
           generic_sorter = require('multi-fzy').sorter,
           file_sorter = require('multi-fzy').sorter,
+          history = {
+            -- Store history in ~/.local/state to not conflict when in
+            -- sandshell sandboxes (and because I don't really care about this
+            -- history file).
+            path = vim.fn.stdpath("state") .. "/telescope_history",
+          },
           mappings = {
             i = {
               ["jk"] = false, -- apparently false means "leave insert mode"

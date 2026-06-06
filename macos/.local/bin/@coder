@@ -125,6 +125,12 @@ _choose_workspace() {
 			--preview-window=right:60%
 }
 
+# @cmd Get the ID of a workspace
+# @arg workspace[?`_workspaces`] Workspace to show
+id() {
+	coder list -o json --search "owner:ry name:${argc_workspace:?}" | jq -r '.[0].id'
+}
+
 # @cmd Preview a workspace (for fzf)
 # @arg workspace! Workspace to preview
 # @meta hidden

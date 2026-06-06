@@ -92,8 +92,8 @@ return {
           -- server configuration above. Useful when disabling certain features
           -- of an LSP (for example, turning off formatting for ts_ls)
           config.capabilities = vim.tbl_deep_extend("force", {}, capabilities, config.capabilities or {})
-          vim.lsp.enable(server_name)
           vim.lsp.config(server_name, config)
+          vim.lsp.enable(server_name)
         end
       end
 
@@ -116,7 +116,7 @@ return {
           end
 
           local builtin = require("telescope.builtin")
-          map("<F5>", "<CMD>LspRestart<CR>", "Restart Servers")
+          map("<F5>", "<CMD>lsp restart<CR>", "Restart Servers")
           map("gd", builtin.lsp_definitions, "[G]oto [D]efinition")
           map("gr", builtin.lsp_references, "[G]oto [R]eferences")
           map("gI", builtin.lsp_implementations, "[G]oto [I]mplementation")

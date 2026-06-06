@@ -13,6 +13,9 @@ end
 if [ -d /opt/homebrew/bin ]
   fish_add_path -g /opt/homebrew/bin
 end
+if [ -d /opt/local/bin ]
+  fish_add_path -g /opt/local/bin
+end
 if [ -d ~/.local/bin-after ]
   fish_add_path -maP ~/.local/bin-after
 end
@@ -21,4 +24,8 @@ end
 # wants at any time.
 if [ -d ~/.local/bin-before ]
   fish_add_path -mpg ~/.local/bin-before
+end
+# Sandshell needs this to override some programs to rewrite HOME.
+if [ -d ~/.local/share/sandsh/bin ]
+  fish_add_path -mpg ~/.local/share/sandsh/bin
 end

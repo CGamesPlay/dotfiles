@@ -41,24 +41,36 @@ main() {
 		echo "Warning: $PI_ENV_FILE does not exist." >&2
 	fi
 
-	lock_file=~/.pi/install.lock
-	until (set -o noclobber; echo $$ > "$lock_file") 2>/dev/null; do sleep 0.2; done
-	trap 'rm -f "$lock_file"' EXIT
-
 	PI_BIN="$DFM_DIR/share/pi/node_modules/.bin/pi"
 
-	if [[ "${argc_pi_reinstall+1}" ]] || [[ ! -x "$PI_BIN" ]]; then
-		echo "Pi is not installed. Installing..." >&2
-		pushd "$DFM_DIR/share/pi" >/dev/null
-		rm -rf node_modules/@mariozechner
-		npm --no-update-notifier clean-install --ignore-scripts --omit=dev
-		"$PI_BIN" install "$DFM_DIR/share/pi"
-		popd >/dev/null
+	if [[ "${argc_pi_reinstall+1}" ]]; then
+		pi_update=1
 		argc_pi_version=1
 	fi
+	if [[ ! -x "$PI_BIN" ]]; then
+		argc_pi_reinstall=1
+	fi
 
-	rm -f "$lock_file"
-	trap - EXIT
+	if [[ "${argc_pi_reinstall+1}" ]]; then
+		echo "Pi is not installed. Installing..." >&2
+
+		lock_file=~/.pi/install.lock
+		until (set -o noclobber; echo $$ > "$lock_file") 2>/dev/null; do sleep 0.2; done
+		trap 'rm -f "$lock_file"' EXIT
+
+		pushd "$DFM_DIR/share/pi" >/dev/null
+		rm -rf node_modules/@earendil-works
+		if [[ "${pi_update+1}" ]]; then
+			npm --no-update-notifier install --prefer-online --ignore-scripts --omit=dev
+		else
+			npm --no-update-notifier clean-install --ignore-scripts --omit=dev
+		fi
+		"$PI_BIN" install "$DFM_DIR/share/pi"
+		popd >/dev/null
+
+		rm -f "$lock_file"
+		trap - EXIT
+	fi
 
 	if [[ ${argc_pi_help+1} ]] || [[ ${argc_pi_version+1} ]]; then
 		exec "$PI_BIN" \
@@ -90,7 +102,7 @@ main() {
 		args+=(--resume)
 	fi
 
-	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]]; then
+	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]] && [[ -z "${SANDSHELL+1}" ]]; then
 		if ! command -v safehouse >/dev/null; then
 			echo "Agent Safehouse is not installed. Installing..." >&2
 			@get safehouse

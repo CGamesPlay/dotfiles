@@ -61,11 +61,8 @@ async def main(connection: iterm2.connection.Connection):
 
         if coder := await session.async_get_variable("user.coder"):
             await run_with_coder(window, coder, directory)
-        elif atrium := await session.async_get_variable("user.atrium"):
-            is_machine = atrium.startswith("machine:")
-            if is_machine:
-                atrium = atrium[8:]
-            await run_with_atrium(window, is_machine, atrium, directory)
+        elif sandshell := await session.async_get_variable("user.sandshell"):
+            await run_with_sandsh(window, sandshell, directory)
         else:
             # Not a remote environment, so we use iTerm's default behavior
             await window.async_create_tab()
@@ -80,20 +77,19 @@ async def run_with_coder(window, name, directory):
     await open_tab_with(window, args)
 
 
-async def run_with_atrium(window, is_machine, name, directory):
-    args = ["exec", "atrium"]
-    if is_machine:
-        args += ["machine", "shell", name]
-    else:
-        args += ["shell", name]
+async def run_with_sandsh(window, name, directory):
+    script = f"exec sandsh exec {shellquote(name)}"
     if directory is not None:
-        args += ["--chdir", directory]
-    await open_tab_with(window, args)
+        script = f"cd {shellquote(directory)} && {script} --no-chdir"
+    await open_tab_with_script(window, script)
 
 
 async def open_tab_with(window, args):
-    command = shelljoin([user_shell, "-c", shelljoin(args)])
+    return await open_tab_with_script(window, shelljoin(args))
 
+
+async def open_tab_with_script(window, script):
+    command = shelljoin([user_shell, "-c", script])
     profile = iterm2.profile.LocalWriteOnlyProfile()
     profile.set_use_custom_command("Yes")
     profile.set_command(command)
