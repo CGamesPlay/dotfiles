@@ -54,7 +54,9 @@ pull() {
 	# Get the new commit hash after rebasing
 	after_commit=$(jj log -r @ -GT 'commit_id')
 
-	dfm link
+	if [[ "${DFM_DIR+1}" ]]; then
+		dfm link
+	fi
 
 	if [[ "$before_commit" != "$after_commit" ]]; then
 		jj --no-pager l -r "$before_commit..@" --reversed
