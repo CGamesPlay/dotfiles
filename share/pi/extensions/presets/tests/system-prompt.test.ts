@@ -23,7 +23,7 @@ describe("presets system prompt", () => {
     }
   });
 
-  it("default system prompt contains the # Project Context heading when an AGENTS.md is present", async () => {
+  it("default system prompt contains the <project_context> block when an AGENTS.md is present", async () => {
     tmpDir = mkdtempSync(path.join(tmpdir(), "presets-prompt-"));
     writeFileSync(path.join(tmpDir, "AGENTS.md"), "# Test project\n");
 
@@ -44,8 +44,8 @@ describe("presets system prompt", () => {
       "expected streamFn to be called at least once",
     );
     assert.ok(
-      captured!.includes("# Project Context"),
-      `system prompt missing "# Project Context" anchor:\n${captured}`,
+      captured!.includes("<project_context>"),
+      `system prompt missing "<project_context>" anchor:\n${captured}`,
     );
   });
 });

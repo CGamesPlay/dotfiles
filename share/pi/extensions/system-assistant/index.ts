@@ -64,7 +64,7 @@ export default function (pi: ExtensionAPI) {
     const defaultBash = createBashToolDefinition(cwd);
     const shellBash = createBashToolDefinition(cwd, {
       spawnHook: ({ command, cwd, env }) => ({
-        command: `exec ${process.env.SHELL || "/bin/sh"} -c ${JSON.stringify(command)}`,
+        command: `exec ${process.env.SHELL || "/bin/sh"} -c ${shellSingleQuote(command)}`,
         cwd,
         env,
       }),
@@ -202,7 +202,7 @@ export default function (pi: ExtensionAPI) {
       operations: {
         exec(command: string, cwd: string, options: any) {
           return local.exec(
-            `exec ${shell} -c ${JSON.stringify(command)}`,
+            `exec ${shell} -c ${shellSingleQuote(command)}`,
             cwd,
             options,
           );
@@ -231,6 +231,11 @@ export default function (pi: ExtensionAPI) {
 
     return { systemPrompt: prompt };
   });
+}
+
+function shellSingleQuote(s: string): string {
+  return "'" + s.replace(/'/g, "'\\''")
+    + "'";
 }
 
 function gateSummary(event: any): string {

@@ -13,7 +13,7 @@ import {
   getCachedAgents,
 } from "./tools/subagent.js";
 
-const PROJECT_CONTEXT_HEADING = "# Project Context";
+const PROJECT_CONTEXT_HEADING = "<project_context>";
 
 function buildSubagentBlock(
   agents: ReadonlyArray<{ name: string; description: string }>,

@@ -1,13 +1,13 @@
 exports[`finish_plan renderCall > no plan, isPartial — title + path only (no plan to expand) 1`] = `
-[39m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
+[38;2;212;212;212m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
 `;
 
 exports[`finish_plan renderCall > no plan, not partial, not expanded — title + path only 1`] = `
-[39m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
+[38;2;212;212;212m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
 `;
 
 exports[`finish_plan renderCall > plan present, expanded — title + path + plan markdown 1`] = `
-[39m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
+[38;2;212;212;212m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
 [38;2;240;198;116m[1m[4mMy Plan[24m[22m[39m                                                                         
                                                                                 
 [38;2;138;190;183m1. [39mStep one                                                                     
@@ -16,7 +16,7 @@ exports[`finish_plan renderCall > plan present, expanded — title + path + plan
 `;
 
 exports[`finish_plan renderCall > plan present, isPartial — title + path + plan markdown 1`] = `
-[39m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
+[38;2;212;212;212m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
 [38;2;240;198;116m[1m[4mMy Plan[24m[22m[39m                                                                         
                                                                                 
 [38;2;138;190;183m1. [39mStep one                                                                     
@@ -25,7 +25,7 @@ exports[`finish_plan renderCall > plan present, isPartial — title + path + pla
 `;
 
 exports[`finish_plan renderCall > plan present, not partial, not expanded — title + path only 1`] = `
-[39m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
+[38;2;212;212;212m[1mfinish_plan[22m[39m [38;2;138;190;183m/tmp/planning-snapshot-test/PLAN.md[39m                                 
 [38;2;102;102;102m(ctrl+o to show plan)[39m                                                           
 `;
 

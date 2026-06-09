@@ -2,7 +2,6 @@ import { before, describe, it, snapshot } from "node:test";
 import chalk from "chalk";
 import {
   getMarkdownTheme,
-  initTheme,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { type MarkdownTheme } from "@earendil-works/pi-tui";
@@ -22,22 +21,26 @@ snapshot.setDefaultSnapshotSerializers([
   (value) => (typeof value === "string" ? value : undefined),
 ]);
 
-// Pin to the built-in dark theme so ANSI codes are deterministic across environments.
-initTheme("dark");
-
-// The `theme` proxy is not re-exported from the package index, so we access
-// it via the file URL to bypass the exports field restriction.
+// Use a pinned test theme (test-harness/test-dark.json) loaded in truecolor mode
+// so ANSI codes are deterministic regardless of the active terminal or future
+// changes to built-in themes.
 let theme!: Theme;
 let mdTheme!: MarkdownTheme;
 before(async () => {
   // Force chalk to TrueColor level so bold/italic/etc. are always emitted,
   // regardless of whether stdout is a TTY in this test environment.
   chalk.level = 3;
-  const p = new URL(
+  const themeModUrl = new URL(
     "../../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
     import.meta.url,
   );
-  ({ theme } = (await import(p.href)) as { theme: Theme });
+  const { loadThemeFromPath, setThemeInstance } = (await import(themeModUrl.href)) as {
+    loadThemeFromPath: (path: string, mode?: string) => Theme;
+    setThemeInstance: (t: Theme) => void;
+  };
+  const testThemePath = new URL("../../../test-harness/test-dark.json", import.meta.url).pathname;
+  theme = loadThemeFromPath(testThemePath, "truecolor");
+  setThemeInstance(theme);
   mdTheme = getMarkdownTheme();
 });
 

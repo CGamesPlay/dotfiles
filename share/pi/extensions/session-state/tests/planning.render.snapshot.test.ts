@@ -2,15 +2,15 @@
  * Planning Tool — Render Snapshot Tests
  *
  * Covers renderCall and renderResult for the finish_plan tool across all
- * meaningful render states. Uses the real dark theme so ANSI output is
- * deterministic and human-readable in the snapshot file.
+ * meaningful render states. Uses a pinned test theme (test-harness/test-dark.json)
+ * loaded in truecolor mode so ANSI output is deterministic regardless of the
+ * active terminal or future changes to built-in themes.
  */
 
 import { before, describe, it, snapshot } from "node:test";
 import chalk from "chalk";
 import {
   getMarkdownTheme,
-  initTheme,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { MarkdownTheme } from "@earendil-works/pi-tui";
@@ -28,17 +28,21 @@ snapshot.setDefaultSnapshotSerializers([
   (value) => (typeof value === "string" ? value : undefined),
 ]);
 
-initTheme("dark");
-
 let theme!: Theme;
 let _mdTheme!: MarkdownTheme;
 before(async () => {
   chalk.level = 3;
-  const p = new URL(
+  const themeModUrl = new URL(
     "../../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
     import.meta.url,
   );
-  ({ theme } = (await import(p.href)) as { theme: Theme });
+  const { loadThemeFromPath, setThemeInstance } = (await import(themeModUrl.href)) as {
+    loadThemeFromPath: (path: string, mode?: string) => Theme;
+    setThemeInstance: (t: Theme) => void;
+  };
+  const testThemePath = new URL("../../../test-harness/test-dark.json", import.meta.url).pathname;
+  theme = loadThemeFromPath(testThemePath, "truecolor");
+  setThemeInstance(theme);
   _mdTheme = getMarkdownTheme();
 });
 
