@@ -10,6 +10,7 @@
 # @flag   --no-session       Don't save this session
 # @flag   --skip-safehouse   Don't run in agent-safehouse
 # @flag   --debug-safehouse  Run a shell in safehouse instead of running pi
+# @flag   --no-project       Don't load per-project files
 # @flag   --pi-help          Show help for Pi
 # @flag   --pi-version       Show version for Pi
 # @flag   --pi-reinstall     Reinstall/Upgrade Pi even if already installed
@@ -44,27 +45,22 @@ main() {
 	PI_BIN="$DFM_DIR/share/pi/node_modules/.bin/pi"
 
 	if [[ "${argc_pi_reinstall+1}" ]]; then
-		pi_update=1
+		echo "Reinstalling pi..." >&2
 		argc_pi_version=1
 	fi
 	if [[ ! -x "$PI_BIN" ]]; then
+		echo "Pi is not installed. Installing..." >&2
 		argc_pi_reinstall=1
 	fi
 
 	if [[ "${argc_pi_reinstall+1}" ]]; then
-		echo "Pi is not installed. Installing..." >&2
-
 		lock_file=~/.pi/install.lock
 		until (set -o noclobber; echo $$ > "$lock_file") 2>/dev/null; do sleep 0.2; done
 		trap 'rm -f "$lock_file"' EXIT
 
 		pushd "$DFM_DIR/share/pi" >/dev/null
 		rm -rf node_modules/@earendil-works
-		if [[ "${pi_update+1}" ]]; then
-			npm --no-update-notifier install --prefer-online --ignore-scripts --omit=dev
-		else
-			npm --no-update-notifier clean-install --ignore-scripts --omit=dev
-		fi
+		npm --no-update-notifier clean-install --ignore-scripts --omit=dev
 		"$PI_BIN" install "$DFM_DIR/share/pi"
 		popd >/dev/null
 
@@ -100,6 +96,12 @@ main() {
 		args+=(--session "$argc_resume")
 	elif [[ ${argc_resume+1} ]]; then
 		args+=(--resume)
+	fi
+
+	if [[ ${argc_no_project+1} ]]; then
+		args+=(--no-approve)
+	else
+		args+=(--approve)
 	fi
 
 	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]] && [[ -z "${SANDSHELL+1}" ]]; then

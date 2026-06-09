@@ -28,14 +28,10 @@ main() {
 	local args=(
 		--session-dir "$session_dir"
 		--append-system-prompt "$HOME/.pi/agent/system-assistant.md"
-		--no-extensions
-		--extension "$DFM_DIR/share/pi"
-		--no-skills
-		--skill "$HOME/.agents/skills"
 		--system-assistant
 	)
 
-	exec pi --skip-safehouse -- "${args[@]}" ${argc_args+"${argc_args[@]}"}
+	exec pi --skip-safehouse --no-project -- "${args[@]}" ${argc_args+"${argc_args[@]}"}
 }
 
 # @cmd Generate a command

@@ -211,7 +211,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerProvider(PROVIDER_ID, {
     baseUrl: "claude-agent-sdk",
-    apiKey: "ANTHROPIC_API_KEY",
+    apiKey: "$CLAUDE_CODE_OAUTH_TOKEN",
     api: "claude-agent-sdk",
     models: MODELS,
     streamSimple: streamClaudeAgentSdk,
