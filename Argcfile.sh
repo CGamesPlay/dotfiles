@@ -22,7 +22,8 @@ pull() {
 	# Update git remote
 	jj git fetch --quiet
 	# Check signature on new leaf
-	local sig=$(jj log -r master@origin -GT 'signature.status()')
+	local sig
+	sig=$(jj log -r master@origin -GT 'signature.status()')
 	if [[ "$sig" != "good" ]]; then
 		jj show --no-pager --no-patch master@origin
 		echo "$sig signature on master@origin" >&2

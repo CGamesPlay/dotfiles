@@ -194,6 +194,9 @@ keys:set("n", "#", '?\\C\\<<C-R>=expand("<cword>")<CR>\\><CR>', { silent = true 
 -- Use %% in command mode to get the directory of the current buffer.
 keys:set("c", "%%", '<C-R>=expand("%:h")<CR>/')
 
+-- Debug syntax highlighting
+keys:set("n", "zS", vim.show_pos)
+
 -- Select the just-pasted text, works with whole and partial lines.
 keys:set("n", "gp", [['`[' . strpart(getregtype(), 0, 1) . '`]']], { expr = true, desc = "Select last pasted text" })
 

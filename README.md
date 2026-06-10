@@ -2,7 +2,7 @@
 
 Feel free to use anything here. This repository is designed to be managed with [dfm](https://github.com/CGamesPlay/dfm).
 
-```
+```bash
 # Install on a new machine
 ./bootstrap.sh
 # Add a new config file to the repo
