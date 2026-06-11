@@ -175,6 +175,14 @@ function getFinalOutput(messages: Message[]): string {
   return "";
 }
 
+function getTrustArg(): string | undefined {
+  for (const arg of process.argv) {
+    if (arg === "--approve" || arg === "-a") return "--approve";
+    if (arg === "--no-approve" || arg === "-na") return "--no-approve";
+  }
+  return undefined;
+}
+
 function getPiInvocation(args: string[]): {
   command: string;
   args: string[];
@@ -272,7 +280,9 @@ async function runSingleAgent(
     };
   }
 
+  const trustArg = getTrustArg();
   const args: string[] = ["--mode", "json", "-p", "--no-session"];
+  if (trustArg) args.push(trustArg);
   if (agent.model) args.push("--model", agent.model);
   if (agent.thinkingLevel) args.push("--thinking", agent.thinkingLevel);
   if (agent.tools && agent.tools.length > 0) {
@@ -678,7 +688,7 @@ export function registerSubagentTool(pi: ExtensionAPI) {
           task: r.task,
           exitCode: r.exitCode,
           stopReason: r.stopReason,
-          errorMessage: r.errorMessage,
+          errorMessage: r.errorMessage || r.stderr || undefined,
           usage: r.usage,
           startedAt: r.startedAt,
           endedAt: r.endedAt,

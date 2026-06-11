@@ -9,7 +9,7 @@ function __pi_completion -d "Fill in the command using an LLM"
 
   set -l original (commandline -b)
 
-  set -l result (@pi completion $original $pi_completion_options 100>&1 >/dev/tty)
+  set -l result (@argc pi-sys completion $original $pi_completion_options 100>&1 >/dev/tty)
 
   if test -n "$result"
     commandline -r $result
