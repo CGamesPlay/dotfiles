@@ -1,5 +1,6 @@
 [aliases]
 prepare = ["util", "exec", "--", "sh", "-c", 'exec "$HOME/.config/jj/Argcfile.sh" prepare "$@"', ""]
+web = ["util", "exec", "--", "sh", "-c", 'exec "$HOME/.config/jj/Argcfile.sh" web "$@"', ""]
 gh-pr = ["util", "exec", "--", "sh", "-c", 'exec "$HOME/.config/jj/Argcfile.sh" gh-pr "$@"', ""]
 bisect-conflict = ["util", "exec", "--", "sh", "-c", 'exec "$HOME/.config/jj/Argcfile.sh" bisect-conflict "$@"', ""]
 mkdir = ["util", "exec", "--", "sh", "-c", 'exec "$HOME/.config/jj/Argcfile.sh" mkdir "$@"', ""]

@@ -391,6 +391,28 @@ test::bisect-conflict() {
 	esac
 }
 
+# @cmd Open the web repo associated with this repository
+# @arg remote[?`_choice_remote`]  Remote to open (default: upstream or origin)
+web() {
+	cd "$JJ_WORKSPACE_ROOT"
+	if [[ ${argc_remote+1} ]]; then
+		remote="$argc_remote"
+	elif git remote get-url upstream >/dev/null 2>&1; then
+		remote="upstream"
+	else
+		remote="origin"
+	fi
+	git remote get-url "$remote" | sed -r \
+		-e 's$git@gitlab.com:$https://gitlab.com/$' \
+		-e 's$git@github.com:$https://github.com/$' \
+		-e 's$ssh://(git@)?([^:]+)(:[0-9]+)?/$https://\2/$' \
+		| xargs $(which open || which xdg-open)
+}
+
+_choice_remote() {
+	git -C "${ARGC_PWD:-$PWD}" remote
+}
+
 # @cmd Check out a Github PR
 # @option --remote  Name of remote [default: origin or upstream]
 # @arg id!     Pull request ID
