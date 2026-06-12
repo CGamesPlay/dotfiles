@@ -308,6 +308,89 @@ test::prepare() {
 	EOF
 }
 
+# @cmd Test the bisect-conflict command
+test::bisect-conflict() {
+	print_header "Finds the destination commit that introduces a conflict"
+	mkrepo
+	printf 'a\nb\nc\n' > shared.txt
+	jj --quiet commit -m mbase
+	echo d1 > d1.txt; jj --quiet commit -m d1
+	echo d2 > d2.txt; jj --quiet commit -m d2
+	printf 'a\nDEST\nc\n' > shared.txt; jj --quiet commit -m d3
+	echo d4 > d4.txt; jj --quiet commit -m d4
+	jj --quiet bookmark set dest -r @-
+	jj --quiet new 'description(substring:"mbase")' -m src
+	printf 'a\nSRC\nc\n' > shared.txt
+	jj --quiet bookmark set src -r @
+	# Leave @ as a descendant of the source so the rebase rewrites the
+	# working-copy commit (regression: must not leave a stale working copy).
+	jj --quiet new -m src2
+	echo wc > wc.txt
+
+	output=$(jj bisect-conflict -s src -o dest)
+	case "$(echo "$output" | tail -n1)" in
+		"The first bad revision is: "*" d3") ;;
+		*)
+			echo "Failure: expected first bad revision d3" >&2
+			echo "$output" >&2
+			exit 1
+			;;
+	esac
+	if [[ -n "$(jj log --ignore-working-copy --no-graph -r 'conflicts()' -T 'change_id')" ]]; then
+		echo "Failure: bisect-conflict left conflicts behind" >&2
+		exit 1
+	fi
+
+	print_header "Reports when the rebase introduces no conflict"
+	mkrepo
+	echo d1 > d1.txt; jj --quiet commit -m d1
+	jj --quiet bookmark set dest -r @-
+	jj --quiet new 'trunk()' -m src
+	echo s > s.txt
+	jj --quiet bookmark set src -r @
+	jj --quiet new dest
+	output=$(jj bisect-conflict -s src -o dest)
+	if [[ "$output" != "The rebase introduces no conflict." ]]; then
+		echo "Failure: expected no-conflict message, got: $output" >&2
+		exit 1
+	fi
+
+	print_header "Ignores a conflict that already exists in the source"
+	mkrepo
+	printf 'a\nb\nc\n' > shared.txt
+	jj --quiet commit -m mbase
+	echo d1 > d1.txt; jj --quiet commit -m d1
+	jj --quiet commit -m d2
+	printf 'a\nDEST\nc\n' > shared.txt; jj --quiet commit -m d3
+	echo d4 > d4.txt; jj --quiet commit -m d4
+	jj --quiet bookmark set dest -r @-
+	# Source touches shared.txt (so d3 introduces a real conflict) but also
+	# carries its own pre-existing conflict from a merge of divergent edits. The
+	# pre-existing conflict must not mask the real culprit (regression: it made
+	# every bisect candidate look bad).
+	jj --quiet new 'description(substring:"mbase")' -m src
+	printf 'a\nSRC\nc\n' > shared.txt
+	jj --quiet bookmark set src -r @
+	jj --quiet new src -m srcA
+	printf 'A\n' > confl.txt
+	jj --quiet new src -m srcB
+	printf 'B\n' > confl.txt
+	jj --quiet new 'description(substring:"srcA")' 'description(substring:"srcB")' -m srcmerge
+	if [[ -z "$(jj log --ignore-working-copy --no-graph -r 'conflicts()' -T 'change_id')" ]]; then
+		echo "Failure: test setup did not create a pre-existing conflict" >&2
+		exit 1
+	fi
+	output=$(jj bisect-conflict -s src -o dest)
+	case "$(echo "$output" | tail -n1)" in
+		"The first bad revision is: "*" d3") ;;
+		*)
+			echo "Failure: expected first bad revision d3 despite pre-existing conflict" >&2
+			echo "$output" >&2
+			exit 1
+			;;
+	esac
+}
+
 # @cmd Check out a Github PR
 # @option --remote  Name of remote [default: origin or upstream]
 # @arg id!     Pull request ID
@@ -323,6 +406,152 @@ gh-pr() {
 	git fetch "$remote" "+refs/pull/${argc_id:?}/head:pr-$argc_id"
 	jj new "pr-$argc_id"
 	jj l -r "trunk()..pr-$argc_id"
+}
+
+# @cmd Bisect a rebase to find the commit that introduces a conflict
+#
+# Takes the same arguments as `jj rebase`. It runs the rebase once to discover
+# which commits move and where they land, then binary-searches the destination's
+# history (merge-base..destination) for the first commit that makes the rebase
+# conflict. The output matches `jj bisect run`. The repository is left unchanged.
+# @arg rebase_args~  Arguments to pass to `jj rebase` (e.g. -s foo -o bar)
+bisect-conflict() {
+	cd "$JJ_WORKSPACE_ROOT"
+
+	# Every jj call below uses --ignore-working-copy so the on-disk working copy
+	# is never touched, even when @ is part of the rebased set. Its recorded
+	# operation therefore stays put, so restoring to before_op leaves no stale
+	# working copy.
+	before_op=$(jj op log --ignore-working-copy --no-graph -T 'id' -n 1)
+	trap 'jj --quiet op restore --ignore-working-copy "$before_op"' EXIT
+
+	# A commit is "moved" iff its commit_id changes as a direct result of the
+	# rebase. jj rebase can only rewrite mutable commits, so snapshotting
+	# mutable() before and after is an exhaustive scan; unchanged commits are
+	# filtered out by the id comparison. The conflict flag is recorded too so we
+	# can tell apart conflicts the rebase introduces from ones already present.
+	snapshot() {
+		jj log --ignore-working-copy --no-graph -r 'mutable()' \
+			-T 'change_id ++ "=" ++ commit_id ++ "=" ++ if(conflict, "C", "") ++ "\n"' | sort
+	}
+	before=$(snapshot)
+	if ! rebase_out=$(jj rebase --ignore-working-copy "${argc_rebase_args[@]}" 2>&1); then
+		echo "$rebase_out" >&2
+		exit 1
+	fi
+	after=$(snapshot)
+
+	# Intersecting the changed lines' change_ids with those present before
+	# excludes any brand-new commits, leaving only the rewritten ones.
+	moved=$(comm -13 <(echo "$before") <(echo "$after") | sed 's/=.*//' | sort -u \
+		| comm -12 - <(echo "$before" | sed 's/=.*//' | sort -u))
+	if [[ -z "$moved" ]]; then
+		echo "Nothing was rebased." >&2
+		exit 1
+	fi
+	moved_revset=$(echo "$moved" | paste -sd'|' -)
+
+	# Conflicts already present before the rebase (e.g. a conflicted merge inside
+	# the source) propagate to every rebase landing spot, so counting them would
+	# make every candidate look bad. Subtract that baseline to detect only the
+	# conflicts the rebase itself introduces.
+	#
+	# Each change_id is wrapped in present() because a commit may not survive
+	# every candidate's rebase (e.g. an empty commit abandoned onto some
+	# destinations); without present() the revset would error on the missing id
+	# and the candidate would be wrongly judged.
+	moved_present=$(echo "$moved" | sed 's/^/present(/; s/$/)/' | paste -sd'|' -)
+	conflict_check="conflicts() & ($moved_present)"
+	baseline=$(echo "$before" | awk -F= '$3 == "C" { print $1 }' \
+		| sed 's/^/present(/; s/$/)/' | paste -sd'|' -)
+	if [[ -n "$baseline" ]]; then
+		conflict_check="($conflict_check) ~ ($baseline)"
+	fi
+
+	if [[ -z "$(jj log --ignore-working-copy --no-graph -r "$conflict_check" -T 'change_id')" ]]; then
+		echo "The rebase introduces no conflict."
+		exit 0
+	fi
+
+	# Where the source landed. Computed before restoring so it reflects the
+	# post-rebase positions; restoring then returns the source to its original
+	# location so the merge-base below is correct.
+	dest=$(jj log --ignore-working-copy --no-graph \
+		-r "parents(roots($moved_revset)) ~ ($moved_revset)" \
+		-T 'change_id ++ "\n"' | paste -sd'|' -)
+	jj --quiet op restore --ignore-working-copy "$before_op"
+
+	# Computed after restoring so the source roots sit at their original location
+	# and the merge-base against dest below is correct.
+	roots=$(jj log --ignore-working-copy --no-graph -r "roots($moved_revset)" \
+		-T 'change_id ++ "\n"' | paste -sd'|' -)
+
+	range="heads(::($roots) & ::($dest))..($dest)"
+
+	# Each candidate is tested by replaying the user's exact rebase with only the
+	# destination swapped for the candidate. Reconstructing the move ourselves
+	# (e.g. with -r or -s on the discovered roots) can rebase a different set of
+	# commits than the original did, leaving conflict_check referencing change_ids
+	# that no longer exist. Substituting the destination keeps the replay
+	# identical to discovery, so the same commits move every time.
+	rebase_template_args=()
+	expect_dest=0
+	for arg in "${argc_rebase_args[@]}"; do
+		if (( expect_dest )); then
+			rebase_template_args+=("__BISECT_TARGET__")
+			expect_dest=0
+			continue
+		fi
+		case "$arg" in
+		-o | --onto | -A | --insert-after | -B | --insert-before)
+			rebase_template_args+=("$arg")
+			expect_dest=1 ;;
+		--onto=* | --insert-after=* | --insert-before=*)
+			rebase_template_args+=("${arg%%=*}=__BISECT_TARGET__") ;;
+		-o* | -A* | -B*)
+			rebase_template_args+=("${arg:0:2}__BISECT_TARGET__") ;;
+		*)
+			rebase_template_args+=("$arg") ;;
+		esac
+	done
+
+	# Set BISECT_CONFLICT_DEBUG=1 to trace the discovered move and each
+	# candidate's verdict, distinguishing skipped (unrebaseable) candidates from
+	# ones that genuinely conflict.
+	if [[ -n "${BISECT_CONFLICT_DEBUG:-}" ]]; then
+		{
+			echo "DEBUG moved=$moved_revset"
+			echo "DEBUG roots=$roots"
+			echo "DEBUG dest=$dest"
+			echo "DEBUG range=$range"
+			echo "DEBUG conflict_check=$conflict_check"
+			echo "DEBUG rebase_template=${rebase_template_args[*]}"
+		} >&2
+	fi
+
+	jj bisect run --ignore-working-copy --range "$range" -- bash -c '
+		set -e
+		conflict_check=$1
+		debug=$2
+		shift 2
+		args=()
+		for a in "$@"; do
+			[ "$a" = "__BISECT_TARGET__" ] && a=$JJ_BISECT_TARGET
+			args+=("$a")
+		done
+		op=$(jj op log --ignore-working-copy --no-graph -T id -n 1)
+		# A candidate the source cannot be rebased onto is inconclusive, not bad:
+		# exit 125 so jj bisect skips it instead of blaming it for the conflict.
+		if ! out=$(jj rebase --ignore-working-copy "${args[@]}" 2>&1); then
+			[ -n "$debug" ] && echo "DEBUG skip $JJ_BISECT_TARGET: $out" >&2
+			jj op restore --ignore-working-copy "$op" >/dev/null 2>&1
+			exit 125
+		fi
+		conflicted=$(jj log --ignore-working-copy --no-graph -r "$conflict_check" -T change_id)
+		[ -n "$debug" ] && echo "DEBUG $JJ_BISECT_TARGET conflicted=[$conflicted]" >&2
+		jj op restore --ignore-working-copy "$op" >/dev/null 2>&1
+		test -z "$conflicted"
+	' bash "$conflict_check" "${BISECT_CONFLICT_DEBUG:-}" "${rebase_template_args[@]}"
 }
 
 # @cmd Make a directory
