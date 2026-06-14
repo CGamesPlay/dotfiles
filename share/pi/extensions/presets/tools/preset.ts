@@ -4,7 +4,10 @@
  * Provides:
  *   - --preset CLI flag (set model at startup)
  *   - /preset command (mid-session selector)
- *   - Ctrl+Shift+U shortcut (cycle through presets)
+ *   - alt+p shortcut (cycle through presets)
+ *
+ * References are strict `<group>/<model>` (e.g. "zai/mid"); bare names like
+ * "mid" resolve against the config default group.
  */
 
 import type {
@@ -13,12 +16,13 @@ import type {
   ExtensionCommandContext,
 } from "@earendil-works/pi-coding-agent";
 import type { AppState } from "../state.js";
-import type { Preset } from "../lib/presets.js";
+import type { ResolvedPreset } from "../lib/presets.js";
 import {
   clearPresetsCache,
-  getDefaultPresetName,
-  loadPresets,
+  getAllRefs,
+  getDefaultPresetRef,
   nextPreset,
+  prevPreset,
   resolvePreset,
 } from "../lib/presets.js";
 
@@ -27,7 +31,7 @@ import {
 export function registerPresetFlags(pi: ExtensionAPI) {
   pi.registerFlag("preset", {
     description:
-      "Start with a model preset (e.g., --preset small|mid|large). Must be defined in ~/.pi/agent/presets.json",
+      "Start with a model preset (group/model, e.g. --preset zai/mid; bare name uses the default group). Must be defined in ~/.pi/agent/presets.json",
     type: "string",
     default: undefined,
   });
@@ -36,39 +40,54 @@ export function registerPresetFlags(pi: ExtensionAPI) {
 // ─── Detect Current Preset ───────────────────────────────────────────────────
 
 /**
- * Detect if current model and thinking level match an existing preset.
- * If found, sets that preset as active in the state.
+ * Detect if the current model matches an existing preset and, if so, mark it
+ * active in the state.
+ *
+ * Primary match is by the current model's provider + id (read from ctx.model).
+ * Falls back to thinking-level matching when the model can't be identified or
+ * isn't in any preset.
  */
 async function detectAndSetCurrentPreset(
   state: AppState,
   pi: ExtensionAPI,
+  ctx: ExtensionContext,
 ): Promise<void> {
   try {
-    let currentThinkingLevel = pi.getThinkingLevel?.();
-    const presets = await loadPresets();
+    const refs = await getAllRefs();
+    if (refs.length === 0) return;
 
-    // Find a preset that matches current thinking level
-    // Note: We can't reliably detect the current model from the registry
-    // because the Model object doesn't expose its model/provider properties
-    // Instead, we only match based on thinking level when possible
+    const currentModel = ctx.model;
+    const currentThinkingLevel = pi.getThinkingLevel?.();
 
-    for (const [name, preset] of Object.entries(presets)) {
-      let thinkingMatch = true; // Default to true if no thinking level specified
-
-      // Check thinking level match
-      if (preset.thinkingLevel && currentThinkingLevel) {
-        thinkingMatch = currentThinkingLevel === preset.thinkingLevel;
-      } else if (!preset.thinkingLevel) {
-        // Preset doesn't specify thinking level - it matches any thinking level
-        thinkingMatch = true;
-      }
-
-      if (thinkingMatch) {
-        state.preset.activePresetName = name;
-        break;
+    // Primary: match by provider + model id.
+    if (currentModel) {
+      for (const candidate of refs) {
+        const resolved = await resolvePreset(candidate);
+        if (
+          resolved &&
+          resolved.provider === currentModel.provider &&
+          resolved.model === currentModel.id
+        ) {
+          state.preset.activePresetName = candidate;
+          return;
+        }
       }
     }
-  } catch (error) {
+
+    // Fallback: match by thinking level only.
+    for (const candidate of refs) {
+      const resolved = await resolvePreset(candidate);
+      if (!resolved) continue;
+      let thinkingMatch = true;
+      if (resolved.thinkingLevel && currentThinkingLevel) {
+        thinkingMatch = currentThinkingLevel === resolved.thinkingLevel;
+      }
+      if (thinkingMatch) {
+        state.preset.activePresetName = candidate;
+        return;
+      }
+    }
+  } catch (_error) {
     // Silently fail if detection doesn't work
   }
 }
@@ -94,28 +113,28 @@ export async function applyPresetOnStartup(
   //   - initial program startup (pi) with no existing model settings
   //   - new sessions (/new)
   // Never on resume/fork/reload to avoid overwriting stored session state.
-  const presetName = flagPreset
+  const presetRef = flagPreset
     ? flagPreset
     : event.reason === "new"
-      ? await getDefaultPresetName()
+      ? await getDefaultPresetRef()
       : event.reason === "startup" && !hasModelSettings
-        ? await getDefaultPresetName()
+        ? await getDefaultPresetRef()
         : undefined;
 
-  if (presetName) {
+  if (presetRef) {
     // Explicit preset was requested or configured as default
-    const preset = await resolvePreset(presetName);
+    const preset = await resolvePreset(presetRef);
     if (!preset) {
       ctx.ui.notify(
-        `Preset not found: ${presetName}. Check ~/.pi/agent/presets.json`,
+        `Preset not found: ${presetRef}. Check ~/.pi/agent/presets.json`,
         "warning",
       );
       return;
     }
-    await applyPreset(state, pi, ctx, preset, presetName);
+    await applyPreset(state, pi, ctx, preset);
   } else {
     // No explicit preset - try to detect if current settings match an existing preset
-    await detectAndSetCurrentPreset(state, pi);
+    await detectAndSetCurrentPreset(state, pi, ctx);
   }
 }
 
@@ -125,8 +144,7 @@ async function applyPreset(
   state: AppState,
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  preset: Preset,
-  presetName: string,
+  preset: ResolvedPreset,
 ): Promise<void> {
   // Find the model via model registry
   const model = ctx.modelRegistry.find(preset.provider, preset.model);
@@ -154,9 +172,9 @@ async function applyPreset(
   }
 
   // Update state
-  state.preset.activePresetName = presetName;
+  state.preset.activePresetName = preset.ref;
 
-  ctx.ui.notify(`Preset activated: ${presetName}`, "info");
+  ctx.ui.notify(`Preset activated: ${preset.ref}`, "info");
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -164,45 +182,44 @@ async function applyPreset(
 export function registerPresetCommands(state: AppState, pi: ExtensionAPI) {
   pi.registerCommand("preset", {
     description:
-      "Activate a model preset: /preset [name] or /preset for selector",
+      "Activate a model preset: /preset [group/model] or /preset for selector",
     handler: async (args, ctx: ExtensionCommandContext) => {
-      const presetName = args.trim();
+      const input = args.trim();
 
-      if (!presetName) {
+      if (!input) {
         // Interactive selector
         if (!ctx.hasUI) {
           ctx.ui.notify("/preset requires interactive mode", "error");
           return;
         }
 
-        const presets = await loadPresets();
-        const presetNames = Object.keys(presets).sort();
+        const refs = await getAllRefs();
 
-        if (presetNames.length === 0) {
+        if (refs.length === 0) {
           ctx.ui.notify("No presets found in ~/.pi/agent/presets.json", "info");
           return;
         }
 
-        const selected = await ctx.ui.select("Select preset:", presetNames);
+        const selected = await ctx.ui.select("Select preset:", refs);
 
         if (!selected) return;
 
-        const preset = presets[selected];
+        const preset = await resolvePreset(selected);
         if (preset) {
-          await applyPreset(state, pi, ctx, preset, selected);
+          await applyPreset(state, pi, ctx, preset);
         }
       } else {
-        // Named preset
-        const preset = await resolvePreset(presetName);
+        // Named preset (bare or qualified)
+        const preset = await resolvePreset(input);
         if (!preset) {
           ctx.ui.notify(
-            `Preset not found: ${presetName}. Check ~/.pi/agent/presets.json`,
+            `Preset not found: ${input}. Check ~/.pi/agent/presets.json`,
             "warning",
           );
           return;
         }
 
-        await applyPreset(state, pi, ctx, preset, presetName);
+        await applyPreset(state, pi, ctx, preset);
       }
     },
   });
@@ -226,7 +243,26 @@ export function registerPresetShortcuts(state: AppState, pi: ExtensionAPI) {
         return;
       }
 
-      await applyPreset(state, pi, ctx, preset, next);
+      await applyPreset(state, pi, ctx, preset);
+    },
+  });
+
+  pi.registerShortcut("alt+shift+p", {
+    description: "Cycle backward through model presets",
+    handler: async (ctx) => {
+      const prev = await prevPreset(state.preset.activePresetName);
+      if (!prev) {
+        ctx.ui.notify("No presets configured", "info");
+        return;
+      }
+
+      const preset = await resolvePreset(prev);
+      if (!preset) {
+        ctx.ui.notify(`Preset not found: ${prev}`, "warning");
+        return;
+      }
+
+      await applyPreset(state, pi, ctx, preset);
     },
   });
 }

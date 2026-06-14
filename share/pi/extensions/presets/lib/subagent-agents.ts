@@ -1,24 +1,30 @@
 /**
- * Agent Discovery — User-only agents with preset resolution
+ * Agent Discovery — User-only agents
  *
  * Loads agent definitions from ~/.pi/agent/agents/ (user agents only).
- * Resolves preset names to model/thinkingLevel via presets.json.
+ *
+ * Preset resolution is **not** done here. Each agent stores the raw `preset`
+ * frontmatter value (bare like "small" or qualified like "claude/small"). The
+ * subagent tool resolves it at invocation time against the main session's
+ * current group, so a bare preset follows whatever provider the session is on.
+ *
+ * Discovery performs structural validation only and warns about presets that
+ * can never resolve (missing field, unknown qualified group/preset, or a bare
+ * name that exists in no group at all).
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
-import { resolvePreset } from "./presets.js";
+import { getAllRefs } from "./presets.js";
 
 export interface AgentConfig {
   name: string;
   description: string;
   tools?: string[];
-  presetName?: string; // preset name from frontmatter (if resolved)
-  provider?: string; // resolved from preset
-  model?: string; // resolved from preset
-  thinkingLevel?: string; // resolved from preset
+  /** Raw preset value from frontmatter (bare or qualified). */
+  presetName?: string;
   systemPrompt: string;
   source: "user";
   filePath: string;
@@ -30,17 +36,13 @@ export interface AgentWarning {
   reason: string;
 }
 
-interface RawAgent extends AgentConfig {
-  presetName?: string;
-}
-
 /**
  * Load agents from a directory. Each .md file is parsed for:
  * - frontmatter: name, description, tools (comma-separated), preset
  * - body: systemPrompt
  */
-function loadAgentsFromDir(dir: string): RawAgent[] {
-  const agents: RawAgent[] = [];
+function loadAgentsFromDir(dir: string): AgentConfig[] {
+  const agents: AgentConfig[] = [];
 
   if (!fs.existsSync(dir)) {
     return agents;
@@ -81,8 +83,6 @@ function loadAgentsFromDir(dir: string): RawAgent[] {
       name: frontmatter.name,
       description: frontmatter.description,
       tools: tools && tools.length > 0 ? tools : undefined,
-      model: undefined,
-      thinkingLevel: undefined,
       presetName: frontmatter.preset,
       systemPrompt: body,
       source: "user",
@@ -94,21 +94,46 @@ function loadAgentsFromDir(dir: string): RawAgent[] {
 }
 
 /**
- * Discover user agents from ~/.pi/agent/agents/.
- * Resolves preset names and filters out agents with unresolvable presets.
+ * Structurally validate a raw preset ref against the known references.
+ *
+ * - Qualified `group/model` (2 tokens, group first): valid iff it appears
+ *   verbatim in refs.
+ * - Bare `model` (1 token): valid iff some ref ends with `/<token>.`... iff
+ *   some ref is `<group>/<token>` for some group.
+ * - Anything else (0 or 3+ tokens): invalid.
+ *
+ * Returns undefined when valid, or a human-readable reason when not.
  */
+function validateRawPreset(raw: string, refs: string[]): string | undefined {
+  const parts = raw.split("/");
+  if (parts.length === 2) {
+    return refs.includes(raw) ? undefined : `Unknown preset "${raw}"`;
+  }
+  if (parts.length === 1) {
+    const suffix = `/${raw}`;
+    return refs.some((r) => r.endsWith(suffix))
+      ? undefined
+      : `Unknown preset "${raw}"`;
+  }
+  return `Invalid preset "${raw}" (use "group/model", e.g. "claude/small")`;
+}
+
 export interface AgentDiscoveryResult {
   agents: AgentConfig[];
   warnings: AgentWarning[];
 }
 
+/**
+ * Discover user agents from ~/.pi/agent/agents/.
+ * Validates preset references and warns about agents whose preset can never
+ * resolve. Preset resolution itself happens lazily at invocation.
+ */
 export async function discoverAgents(): Promise<AgentDiscoveryResult> {
   const agentDir = path.join(os.homedir(), ".pi", "agent", "agents");
 
-  // Load raw agents (single pass — no re-reading files)
   const rawAgents = loadAgentsFromDir(agentDir);
+  const refs = await getAllRefs();
 
-  // Resolve presets
   const resolved: AgentConfig[] = [];
   const warnings: AgentWarning[] = [];
   for (const agent of rawAgents) {
@@ -121,28 +146,17 @@ export async function discoverAgents(): Promise<AgentDiscoveryResult> {
       continue;
     }
 
-    const preset = await resolvePreset(agent.presetName);
-    if (!preset) {
+    const reason = validateRawPreset(agent.presetName, refs);
+    if (reason) {
       warnings.push({
         agentName: agent.name,
         filePath: agent.filePath,
-        reason: `Unknown preset "${agent.presetName}"`,
+        reason,
       });
       continue;
     }
 
-    resolved.push({
-      name: agent.name,
-      description: agent.description,
-      tools: agent.tools,
-      presetName: agent.presetName,
-      provider: preset.provider,
-      model: preset.model,
-      thinkingLevel: preset.thinkingLevel,
-      systemPrompt: agent.systemPrompt,
-      source: "user",
-      filePath: agent.filePath,
-    });
+    resolved.push(agent);
   }
 
   return { agents: resolved, warnings };

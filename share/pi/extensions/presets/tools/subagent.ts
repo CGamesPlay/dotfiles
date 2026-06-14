@@ -39,6 +39,12 @@ import {
   type AgentWarning,
 } from "../lib/subagent-agents.js";
 import {
+  type ResolvedPreset,
+  findGroupForModel,
+  getDefaultGroup,
+  resolvePreset,
+} from "../lib/presets.js";
+import {
   COLLAPSED,
   EXPANDED,
   filterDisplayItems,
@@ -242,12 +248,48 @@ async function mapWithConcurrencyLimit<TIn, TOut>(
 }
 
 /**
+ * Build an error result for a task whose preset couldn't be resolved against
+ * the main session's group (e.g. a bare name not present in that group).
+ */
+function makePresetErrorResult(
+  agentName: string,
+  task: string,
+  rawPreset: string | undefined,
+  mainGroup: string | undefined,
+): SingleResult {
+  const nowMs = Date.now();
+  const groupHint = mainGroup ? ` (session group "${mainGroup}")` : "";
+  return {
+    agent: agentName,
+    task,
+    exitCode: 1,
+    messages: [],
+    stderr:
+      rawPreset === undefined
+        ? `Agent "${agentName}" has no preset configured.`
+        : `Could not resolve preset "${rawPreset}" for agent "${agentName}"${groupHint}.`,
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      cost: 0,
+      contextTokens: 0,
+      turns: 0,
+    },
+    startedAt: nowMs,
+    endedAt: nowMs,
+  };
+}
+
+/**
  * Run a single agent in a subprocess.
  * Tracks elapsed time and returns result with exitCode, messages, and usage.
  */
 async function runSingleAgent(
   defaultCwd: string,
   agents: Map<string, AgentConfig>,
+  resolved: ResolvedPreset,
   agentName: string,
   task: string,
   cwd: string | undefined,
@@ -283,8 +325,8 @@ async function runSingleAgent(
   const trustArg = getTrustArg();
   const args: string[] = ["--mode", "json", "-p", "--no-session"];
   if (trustArg) args.push(trustArg);
-  if (agent.model) args.push("--model", agent.model);
-  if (agent.thinkingLevel) args.push("--thinking", agent.thinkingLevel);
+  if (resolved.model) args.push("--model", resolved.model);
+  if (resolved.thinkingLevel) args.push("--thinking", resolved.thinkingLevel);
   if (agent.tools && agent.tools.length > 0) {
     args.push("--tools", agent.tools.join(","));
   }
@@ -306,10 +348,10 @@ async function runSingleAgent(
       contextTokens: 0,
       turns: 0,
     },
-    presetName: agent.presetName,
-    provider: agent.provider,
-    model: agent.model,
-    thinkingLevel: agent.thinkingLevel,
+    presetName: resolved.ref,
+    provider: resolved.provider,
+    model: resolved.model,
+    thinkingLevel: resolved.thinkingLevel,
     startedAt: Date.now(),
   };
 
@@ -510,12 +552,35 @@ export function registerSubagentTool(pi: ExtensionAPI) {
         results,
       });
 
+      // Determine the main session's group from its current model, so bare
+      // agent presets follow whatever provider the session is running.
+      const currentModel = ctx.model;
+      const mainGroup =
+        (currentModel
+          ? await findGroupForModel(currentModel.provider, currentModel.id)
+          : undefined) ?? (await getDefaultGroup());
+
+      // Resolve each task's agent preset against the main session's group.
+      const resolvedPresets = new Map<string, ResolvedPreset | undefined>();
+      for (const t of tasks) {
+        if (resolvedPresets.has(t.agent)) continue;
+        const agent = agentsMap.get(t.agent);
+        if (!agent?.presetName) {
+          resolvedPresets.set(t.agent, undefined);
+          continue;
+        }
+        resolvedPresets.set(
+          t.agent,
+          await resolvePreset(agent.presetName, mainGroup),
+        );
+      }
+
       // Track all results for streaming updates
       const allResults: SingleResult[] = new Array(tasks.length);
 
       // Initialize placeholder results
       for (let i = 0; i < tasks.length; i++) {
-        const agent = agentsMap.get(tasks[i].agent);
+        const resolved = resolvedPresets.get(tasks[i].agent);
         allResults[i] = {
           agent: tasks[i].agent,
           task: tasks[i].task,
@@ -531,10 +596,10 @@ export function registerSubagentTool(pi: ExtensionAPI) {
             contextTokens: 0,
             turns: 0,
           },
-          presetName: agent?.presetName,
-          provider: agent?.provider,
-          model: agent?.model,
-          thinkingLevel: agent?.thinkingLevel,
+          presetName: resolved?.ref,
+          provider: resolved?.provider,
+          model: resolved?.model,
+          thinkingLevel: resolved?.thinkingLevel,
         };
       }
 
@@ -560,22 +625,31 @@ export function registerSubagentTool(pi: ExtensionAPI) {
         tasks,
         MAX_CONCURRENCY,
         async (t, index) => {
-          const result = await runSingleAgent(
-            ctx.cwd,
-            agentsMap,
-            t.agent,
-            t.task,
-            t.cwd,
-            signal,
-            // Per-task update callback
-            (partial) => {
-              if (partial.details?.results[0]) {
-                allResults[index] = partial.details.results[0];
-                emitParallelUpdate();
-              }
-            },
-            makeDetails,
-          );
+          const resolved = resolvedPresets.get(t.agent);
+          const result = resolved
+            ? await runSingleAgent(
+                ctx.cwd,
+                agentsMap,
+                resolved,
+                t.agent,
+                t.task,
+                t.cwd,
+                signal,
+                // Per-task update callback
+                (partial) => {
+                  if (partial.details?.results[0]) {
+                    allResults[index] = partial.details.results[0];
+                    emitParallelUpdate();
+                  }
+                },
+                makeDetails,
+              )
+            : makePresetErrorResult(
+                t.agent,
+                t.task,
+                agentsMap.get(t.agent)?.presetName,
+                mainGroup,
+              );
           allResults[index] = result;
           emitParallelUpdate();
           return result;

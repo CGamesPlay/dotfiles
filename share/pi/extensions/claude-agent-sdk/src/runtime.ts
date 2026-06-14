@@ -250,6 +250,7 @@ function createRuntime(args: {
       excludeDynamicSections: true,
     },
     pathToClaudeCodeExecutable: resolveClaudeCodeExecutable(),
+    settings: { autoMemoryEnabled: false },
     ...(args.staticPrefix.settingSources
       ? { settingSources: args.staticPrefix.settingSources }
       : {}),

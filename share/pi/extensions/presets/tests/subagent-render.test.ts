@@ -5,7 +5,7 @@ import {
   initTheme,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { type MarkdownTheme } from "@earendil-works/pi-tui";
+import { setCapabilities, type MarkdownTheme } from "@earendil-works/pi-tui";
 import {
   COLLAPSED,
   EXPANDED,
@@ -22,17 +22,23 @@ snapshot.setDefaultSnapshotSerializers([
   (value) => (typeof value === "string" ? value : undefined),
 ]);
 
-// Pin to the built-in dark theme so ANSI codes are deterministic across environments.
-initTheme("dark");
-
 // The `theme` proxy is not re-exported from the package index, so we access
 // it via the file URL to bypass the exports field restriction.
 let theme!: Theme;
 let mdTheme!: MarkdownTheme;
 before(async () => {
+  // Pin terminal capabilities so the theme's color mode is deterministic,
+  // regardless of $COLORTERM in the environment. Without this, a shell with
+  // COLORTERM=truecolor renders true-color ANSI (38;2;...) while one without
+  // renders 256-color (38;5;...), making snapshots environment-dependent.
+  // Must run before initTheme(), which bakes the mode into the theme.
+  setCapabilities({ images: null, trueColor: true, hyperlinks: false });
+  initTheme("dark");
+
   // Force chalk to TrueColor level so bold/italic/etc. are always emitted,
   // regardless of whether stdout is a TTY in this test environment.
   chalk.level = 3;
+
   const p = new URL(
     "../../../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js",
     import.meta.url,
@@ -61,7 +67,7 @@ function makeTask(overrides: Partial<RenderTaskResult> = {}): RenderTaskResult {
     },
     startedAt: T0,
     endedAt: T_LATER,
-    presetName: "mid",
+    presetName: "gpt/mid",
     displayItems: [],
     finalOutput:
       "Output line 1\nOutput line 2\nOutput line 3\nOutput line 4\nOutput line 5\nOutput line 6",

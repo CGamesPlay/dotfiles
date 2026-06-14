@@ -64,7 +64,7 @@ function makeTask(overrides: Partial<RenderTaskResult> = {}): RenderTaskResult {
     },
     startedAt: T0,
     endedAt: T_LATER,
-    presetName: "mid",
+    presetName: "gpt/mid",
     displayItems: [],
     finalOutput: "1\n2\n3",
     ...overrides,
