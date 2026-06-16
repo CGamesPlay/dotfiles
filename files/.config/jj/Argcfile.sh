@@ -341,6 +341,33 @@ test::bisect-conflict() {
 		exit 1
 	fi
 
+	print_header "Finds the destination commit with the default source (-b @)"
+	# Without an explicit source selector, the rebase defaults to -b @. jj bisect
+	# run relocates @ to each candidate, so the replay must freeze @ to its
+	# original commit instead of following it (regression: every candidate looked
+	# good and the head was wrongly blamed).
+	mkrepo
+	printf 'a\nb\nc\n' > shared.txt
+	jj --quiet commit -m mbase
+	echo d1 > d1.txt; jj --quiet commit -m d1
+	echo d2 > d2.txt; jj --quiet commit -m d2
+	printf 'a\nDEST\nc\n' > shared.txt; jj --quiet commit -m d3
+	echo d4 > d4.txt; jj --quiet commit -m d4
+	jj --quiet bookmark set dest -r @-
+	jj --quiet new 'description(substring:"mbase")' -m src
+	printf 'a\nSRC\nc\n' > shared.txt
+	jj --quiet new -m src2
+	echo wc > wc.txt
+	output=$(jj bisect-conflict -o dest)
+	case "$(echo "$output" | tail -n1)" in
+		"The first bad revision is: "*" d3") ;;
+		*)
+			echo "Failure: expected first bad revision d3 with default source" >&2
+			echo "$output" >&2
+			exit 1
+			;;
+	esac
+
 	print_header "Reports when the rebase introduces no conflict"
 	mkrepo
 	echo d1 > d1.txt; jj --quiet commit -m d1
@@ -385,6 +412,36 @@ test::bisect-conflict() {
 		"The first bad revision is: "*" d3") ;;
 		*)
 			echo "Failure: expected first bad revision d3 despite pre-existing conflict" >&2
+			echo "$output" >&2
+			exit 1
+			;;
+	esac
+
+	print_header "Blames the merge instead of descending into an off-path branch"
+	mkrepo
+	printf 'a\nb\nc\n' > shared.txt
+	jj --quiet commit -m preb
+	echo m > m.txt; jj --quiet commit -m mbase
+	# A branch that forks before mbase and edits shared.txt. It is merged into
+	# trunk after mbase, so its commits are ancestors of the destination but not
+	# on any path from the merge-base. Rebasing the source onto those commits
+	# conflicts too, but blaming them moves "backwards"; the merge that pulls the
+	# branch in is the meaningful culprit. The merge resolves cleanly because
+	# shared.txt already exists at preb, the common ancestor.
+	jj --quiet new 'description(substring:"preb")' -m sidebr
+	printf 'a\nSIDE\nc\n' > shared.txt
+	jj --quiet new 'description(substring:"mbase")' 'description(substring:"sidebr")' -m merge
+	jj --quiet new -m dest
+	echo d > d.txt
+	jj --quiet bookmark set dest -r @
+	jj --quiet new 'description(substring:"mbase")' -m src
+	printf 'a\nSRC\nc\n' > shared.txt
+	jj --quiet bookmark set src -r @
+	output=$(jj bisect-conflict -s src -o dest)
+	case "$(echo "$output" | tail -n1)" in
+		"The first bad revision is: "*" merge") ;;
+		*)
+			echo "Failure: expected first bad revision to be the merge commit" >&2
 			echo "$output" >&2
 			exit 1
 			;;
@@ -436,7 +493,7 @@ gh-pr() {
 # which commits move and where they land, then binary-searches the destination's
 # history (merge-base..destination) for the first commit that makes the rebase
 # conflict. The output matches `jj bisect run`. The repository is left unchanged.
-# @arg rebase_args~  Arguments to pass to `jj rebase` (e.g. -s foo -o bar)
+# @arg rebase_args~[?`_choice_rebase_args`]  Arguments to pass to `jj rebase` (e.g. -s foo -o bar)
 bisect-conflict() {
 	cd "$JJ_WORKSPACE_ROOT"
 
@@ -445,7 +502,7 @@ bisect-conflict() {
 	# operation therefore stays put, so restoring to before_op leaves no stale
 	# working copy.
 	before_op=$(jj op log --ignore-working-copy --no-graph -T 'id' -n 1)
-	trap 'jj --quiet op restore --ignore-working-copy "$before_op"' EXIT
+	trap 'jj --quiet op restore --ignore-working-copy "$before_op"; jj --quiet op abandon "$before_op..@-"' EXIT
 
 	# A commit is "moved" iff its commit_id changes as a direct result of the
 	# rebase. jj rebase can only rewrite mutable commits, so snapshotting
@@ -508,7 +565,17 @@ bisect-conflict() {
 	roots=$(jj log --ignore-working-copy --no-graph -r "roots($moved_revset)" \
 		-T 'change_id ++ "\n"' | paste -sd'|' -)
 
-	range="heads(::($roots) & ::($dest))..($dest)"
+	# Bisect only commits on a directed path from the merge-base to the
+	# destination (the DAG range), not every ancestor of the destination. A
+	# branch that forks before the merge-base and merges into the destination's
+	# history afterwards is an ancestor of the destination but not on any path
+	# from the merge-base; rebasing onto such a commit moves "backwards" and
+	# breaks bisect's monotonicity assumption. Restricting to the DAG range keeps
+	# the merge that pulls the branch in (it is on the path) as a candidate, so it
+	# can be reported as the first bad revision, while excluding the off-path
+	# commits. The merge-base itself is the good baseline, so subtract it.
+	mergebase="heads(::($roots) & ::($dest))"
+	range="(($mergebase)::($dest)) ~ ($mergebase)"
 
 	# Each candidate is tested by replaying the user's exact rebase with only the
 	# destination swapped for the candidate. Reconstructing the move ourselves
@@ -516,12 +583,27 @@ bisect-conflict() {
 	# commits than the original did, leaving conflict_check referencing change_ids
 	# that no longer exist. Substituting the destination keeps the replay
 	# identical to discovery, so the same commits move every time.
+	#
+	# jj bisect run relocates @ to each candidate before invoking the command, so
+	# any source selector that resolves @ (including the default -b @) would no
+	# longer name the original source during the replay. Freeze @ to the source's
+	# original commit_id, captured here while @ still sits at its real position,
+	# and inject an explicit -b when the user relied on the default.
+	original_wc=$(jj log --ignore-working-copy --no-graph -r '@' -T 'commit_id')
 	rebase_template_args=()
 	expect_dest=0
+	expect_source=0
+	saw_source=0
 	for arg in "${argc_rebase_args[@]}"; do
 		if (( expect_dest )); then
 			rebase_template_args+=("__BISECT_TARGET__")
 			expect_dest=0
+			continue
+		fi
+		if (( expect_source )); then
+			[[ "$arg" == "@" ]] && arg=$original_wc
+			rebase_template_args+=("$arg")
+			expect_source=0
 			continue
 		fi
 		case "$arg" in
@@ -532,10 +614,27 @@ bisect-conflict() {
 			rebase_template_args+=("${arg%%=*}=__BISECT_TARGET__") ;;
 		-o* | -A* | -B*)
 			rebase_template_args+=("${arg:0:2}__BISECT_TARGET__") ;;
+		-s | --source | -b | --branch | -r | --revisions)
+			saw_source=1
+			rebase_template_args+=("$arg")
+			expect_source=1 ;;
+		--source=* | --branch=* | --revisions=*)
+			saw_source=1
+			val=${arg#*=}
+			[[ "$val" == "@" ]] && val=$original_wc
+			rebase_template_args+=("${arg%%=*}=$val") ;;
+		-s* | -b* | -r*)
+			saw_source=1
+			val=${arg:2}
+			[[ "$val" == "@" ]] && val=$original_wc
+			rebase_template_args+=("${arg:0:2}$val") ;;
 		*)
 			rebase_template_args+=("$arg") ;;
 		esac
 	done
+	if (( ! saw_source )); then
+		rebase_template_args=(-b "$original_wc" "${rebase_template_args[@]}")
+	fi
 
 	# Set BISECT_CONFLICT_DEBUG=1 to trace the discovered move and each
 	# candidate's verdict, distinguishing skipped (unrebaseable) candidates from
@@ -574,6 +673,17 @@ bisect-conflict() {
 		jj op restore --ignore-working-copy "$op" >/dev/null 2>&1
 		test -z "$conflicted"
 	' bash "$conflict_check" "${BISECT_CONFLICT_DEBUG:-}" "${rebase_template_args[@]}"
+}
+
+# Complete rebase_args by deferring to jj's own rebase completion. argc runs
+# this function from the Argcfile's directory (~/.config/jj, which is not a jj
+# repo), so cd back to $ARGC_PWD (the directory the user ran jj from) first.
+# jj's completion parser expects the leading "jj" program name, and
+# argc_rebase_args already ends with the token currently being completed (empty
+# if a space was just typed), so this reproduces exactly what `jj rebase
+# <args><Tab>` shows.
+_choice_rebase_args() {
+	( cd "${ARGC_PWD:-$PWD}" && COMPLETE=fish jj -- jj rebase "${argc_rebase_args[@]}" )
 }
 
 # @cmd Make a directory
