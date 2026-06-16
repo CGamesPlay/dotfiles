@@ -59,6 +59,12 @@ reminder() {
 	@iterm notify "$message"
 }
 
+# @cmd Show status of maintained forks
+forks() {
+	cd "$(dotfiles_root)"
+	uv run scripts/forks.py CGamesPlay/pi CGamesPlay/jj CGamesPlay/neovim CGamesPlay/neovide
+}
+
 # @cmd Helper scripts for managing dotfiles
 # @arg args~[?`_choice_dotfiles`]
 dotfiles() {
@@ -67,11 +73,11 @@ dotfiles() {
 }
 
 _choice_dotfiles() {
-    if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
+	if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
 		local args=( "argc" "${argc__positionals[@]}" )
-        args[${#args[@]}-1]="$ARGC_LAST_ARG"
+		args[${#args[@]}-1]="$ARGC_LAST_ARG"
 		argc --argc-compgen generic "$(dotfiles_root)/Argcfile.sh" "${args[@]}"
-    fi
+	fi
 }
 
 # @cmd Clone a git repository to a predictable location
@@ -111,11 +117,12 @@ yt-dlp() {
 }
 
 _choice_external_subcmds() {
-    if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
+	if [[ "$ARGC_COMPGEN" -eq 1 ]]; then
 		local args=( "$(dotfiles_root scripts/@argc)/$argc__cmd_fn" "${argc__positionals[@]}" )
-        args[${#args[@]}-1]="$ARGC_LAST_ARG"
+		args[${#args[@]}-1]="$ARGC_LAST_ARG"
 		argc --argc-compgen generic "$(dotfiles_root scripts/@argc)/$argc__cmd_fn" "${args[@]}"
-    fi
+	fi
 }
 
 eval "$(argc --argc-eval "$0" "$@")"
+# vim:ts=4

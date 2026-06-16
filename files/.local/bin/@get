@@ -210,7 +210,7 @@ install_hl() {
 
 # Jujutsu - git alternative
 install_jj() {
-	# XXX - Using my own fork
+	# XXX: Using my own fork
 	eget CGamesPlay/jj --to="$BINDIR" --pre-release
 
 	mkdir -p ~/.local/share/man
@@ -371,7 +371,7 @@ install_zoxide() {
 
 main() {
 	cd "$TMPDIR"
-	argc_target="${argc_target/#\~\//$HOME\/}"
+	argc_target="${argc_target/#\~\//$HOME/}"
 	BINDIR="$argc_target/bin"
 	MANDIR="$argc_target/share/man"
 	mkdir -p "$BINDIR" "$MANDIR/man1" "$MANDIR/man5"
