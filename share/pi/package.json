@@ -16,7 +16,7 @@
 		"@anthropic-ai/claude-agent-sdk": "0.2.117",
 		"@anthropic-ai/sdk": "^0.73.0",
 		"@earendil-works/pi-ai": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-ai.tgz#sha512-sIdaixRtb4z5vPUkOWNp1YbaAOtFJ4lNs4D21bp97640qFKmwgDkJ7ybZHZEwkoTJSy4UoFZjJGTCJ/0f4Ig8Q==",
-		"@earendil-works/pi-coding-agent": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-coding-agent.tgz#sha512-yWkRCcDgU2lZvKZFJ7/YqaALrN5/mWzyMy+39o//uX+QIAXO9FWJQIRalkb10KNOAAsbIg3YOAfZ+rQ5nGjHVg==",
+		"@earendil-works/pi-coding-agent": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-coding-agent.tgz#sha512-w6QJRnBSGMA9QE36BzcwEAqi3eSl86bobsnWs7bZ7KUpuWlTYu7SlJuJU8eN37OdEUjX9x+tFZCQSzvUv5J2HA==",
 		"@earendil-works/pi-tui": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-tui.tgz#sha512-qAQWMruW7YKbk2hPcTD4INtXfvIySXifbPQ+mFY5j3J8yf2tfElkh+gGPuBvgPKPT0z9WiAkd7iySCuQq0txuQ==",
 		"@sinclair/typebox": "^0.34.33",
 		"change-case": "^5.4.4",
