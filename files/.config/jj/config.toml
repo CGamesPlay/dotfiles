@@ -5,6 +5,7 @@
 [user]
 name = "Ryan Patterson"
 email = "cgamesplay@cgamesplay.com"
+timezone = "UTC"
 
 [ui]
 # Default command. Shows commits that aren't in the main branch yet.
@@ -108,8 +109,9 @@ default-status = ["log", "--no-pager", "-r", "@", "-GT", '''
       label("conflict", indent("  ", conflicted_files.map(|f|
         f.path().display() ++
         if(f.conflict_side_count() > 2,
-          label("conflict_description difficult", " [" ++ f.conflict_side_count() ++ "-way]"))
-      ).join("\n"))))
+          label("conflict_description difficult", " [" ++ f.conflict_side_count() ++ "-way]")) ++
+        "\n"
+      ).join(""))))
   ))
 ''']
 
