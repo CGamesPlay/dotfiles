@@ -1,7 +1,7 @@
 #!/usr/bin/env uv run --script --quiet
 # /// script
 # dependencies = [
-#   "click",
+#   "click<8.4",  # https://github.com/pallets/click/issues/3502, fixed in 8.4.2
 #   "requests",
 #   "feedparser",
 # ]
@@ -25,7 +25,10 @@ import requests
 def cli():
     """Podcast management CLI tool"""
     global db
-    db_path = os.environ.get("PODCAST_DATABASE", str(Path.home() / "Documents" / "Podcasts.md"))
+    db_path = os.environ.get(
+        "PODCAST_DATABASE",
+        str(Path.home() / "Notes" / "Personal" / "Hobbies" / "Podcasts.md"),
+    )
     db = Database(db_path)
     db.load()
 
@@ -113,6 +116,15 @@ def download(output_dir):
     print("Download complete")
     db.mark_watched(guid)
     db.save()
+
+
+@cli.command()
+def episode_list():
+    """Open the podcast database file in the default application"""
+    if not os.path.exists(db.filename):
+        print(f"Database file not found: {db.filename}")
+        sys.exit(1)
+    subprocess.run(["open", db.filename])
 
 
 def fetch_episodes(rss_url):
