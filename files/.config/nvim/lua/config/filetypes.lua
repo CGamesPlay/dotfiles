@@ -1,6 +1,24 @@
--- These are all of the various syntax plugins that require no configuration.
+local augroup = vim.api.nvim_create_augroup("config.filetypes", { clear = true })
+
+vim.api.nvim_create_autocmd('FileType', {
+  desc = "Use treesitter when available",
+  group = augroup,
+  callback = function(ev)
+    local lang = vim.treesitter.language.get_lang(vim.bo[ev.buf].filetype)
+    if lang and vim.treesitter.language.add(lang) then
+      vim.treesitter.start(ev.buf, lang)
+      vim.b[ev.buf].undo_ftplugin = (vim.b[ev.buf].undo_ftplugin or '') .. '\n call v:lua.vim.treesitter.stop()'
+      vim.wo.foldmethod = 'expr'
+      vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+    end
+  end,
+})
+
+-- These are my custom filetype definitions
 vim.filetype.add({
-  extension = { base = 'yaml' }
+  extension = {
+    base = 'yaml' -- obsidian base
+  }
 })
 
 -- These are the mappings between ftdetect and the tree sitter parser.
@@ -74,6 +92,7 @@ for lang, ft in pairs(filetypes) do
   vim.treesitter.language.register(lang, ft)
 end
 
+-- These are all of the various syntax plugins that require no configuration.
 return {
   "jvirtanen/vim-hcl",
   "nathangrigg/vim-beancount",
