@@ -87,6 +87,11 @@ main() {
 		${argc_preset+--preset "$argc_preset"}
 		${argc_append_system_prompt+--append-system-prompt "$argc_append_system_prompt"}
 	)
+	# --model without --preset means the user explicitly chose a model; suppress the
+	# default preset so it doesn't silently override that choice.
+	if [[ ${argc_model+1} ]] && [[ ! ${argc_preset+1} ]]; then
+		args+=(--no-preset)
+	fi
 
 	if [[ ${argc_no_session+1} ]]; then
 		args+=(--no-session)
@@ -104,7 +109,17 @@ main() {
 		args+=(--approve)
 	fi
 
-	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$(uname -s)" = "Darwin" ]] && [[ -z "${SANDSHELL+1}" ]]; then
+	os="$(uname -s)"
+	if [[ "$os" = "Darwin" ]]; then
+		status=0
+		sandbox-exec -p '(version 1)(allow default)' true 2>/dev/null || status=$?
+		if [[ "$status" -eq 71 ]]; then
+			# Already in an external sandbox
+			argc_skip_safehouse=1
+		fi
+	fi
+
+	if [[ ! ${argc_skip_safehouse+1} ]] && [[ "$os" = "Darwin" ]]; then
 		if ! command -v safehouse >/dev/null; then
 			echo "Agent Safehouse is not installed. Installing..." >&2
 			@get safehouse

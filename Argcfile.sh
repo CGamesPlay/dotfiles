@@ -34,7 +34,7 @@ pull() {
 	before_commit=$(jj log -r @ -GT 'commit_id')
 
 	# Rebase current commits on top
-	jj rebase -d master --quiet
+	jj rebase -d master@origin --quiet
 
 	# If the previous rebase resulted in a merge conflict on a jj config
 	# file, it will prevent jj from starting, so we won't be able to undo the

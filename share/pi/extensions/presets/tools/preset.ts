@@ -35,6 +35,12 @@ export function registerPresetFlags(pi: ExtensionAPI) {
     type: "string",
     default: undefined,
   });
+  pi.registerFlag("no-preset", {
+    description:
+      "Do not apply the default preset at startup (used automatically when --model is given without --preset)",
+    type: "boolean",
+    default: false,
+  });
 }
 
 // ─── Detect Current Preset ───────────────────────────────────────────────────
@@ -101,6 +107,7 @@ export async function applyPresetOnStartup(
   event: any,
 ): Promise<void> {
   const flagPreset = pi.getFlag("preset") as string | undefined;
+  const noPreset = pi.getFlag("no-preset") as boolean | undefined;
 
   // Check if session has stored model/thinking settings
   const entries = ctx.sessionManager.getEntries();
@@ -113,11 +120,12 @@ export async function applyPresetOnStartup(
   //   - initial program startup (pi) with no existing model settings
   //   - new sessions (/new)
   // Never on resume/fork/reload to avoid overwriting stored session state.
+  // --no-preset suppresses the default on startup when --model was given explicitly.
   const presetRef = flagPreset
     ? flagPreset
     : event.reason === "new"
       ? await getDefaultPresetRef()
-      : event.reason === "startup" && !hasModelSettings
+      : event.reason === "startup" && !hasModelSettings && !noPreset
         ? await getDefaultPresetRef()
         : undefined;
 

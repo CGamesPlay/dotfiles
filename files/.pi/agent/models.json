@@ -26,6 +26,30 @@
           "maxTokens": 131072
         }
       ]
+    },
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "models": [
+        {
+          "id": "qwen3.5:27b",
+          "name": "Qwen 3.5 27B",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "low": null,
+            "medium": "medium",
+            "high": null,
+            "xhigh": null
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 65536
+        }
+      ]
     }
   }
 }
