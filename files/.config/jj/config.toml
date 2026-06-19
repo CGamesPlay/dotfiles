@@ -94,6 +94,8 @@ blame = ["file", "annotate"]
 move = ["rebase"]
 # Diff with side-by-side view
 diff-sbs = ["util", "exec", "--", "sh", "-c", 'DELTA_FEATURES=+side-by-side exec jj diff "$@"', ""]
+# Git muscle memory
+ls-files = ["file", "list"]
 
 # These two commands, back-to-back, are the default command for jj.
 default-log = ["log", "-T", "log_oneline", "--no-pager", "--reversed", "-r", "default_log()"]

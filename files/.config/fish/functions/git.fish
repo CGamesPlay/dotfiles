@@ -8,7 +8,8 @@ function git
   if command -q jj;
       and jj workspace root >/dev/null 2>&1;
       and ! set -q allow_git_in_jj;
-      and ! contains $argv[1] config help log grep remote fetch push pull
+      and ! contains -- $argv[1] config help log grep remote fetch push pull rev-parse
+      and ! contains -- --help $argv
     echo "This is a `jj` managed repository." >&2
     echo "" >&2
     echo "- Use `jj` instead" >&2

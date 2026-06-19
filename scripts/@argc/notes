@@ -15,19 +15,30 @@ sync-skills() {
 	local settings_file="$HOME/.pi/agent/settings.json"
 	local existing='{}'
 	[[ -f "$settings_file" ]] && existing=$(cat "$settings_file")
-	# shellcheck disable=SC2088
-	jq --arg g '~/Notes/*/skills' \
-		'if ((.skills // []) | index($g)) != null then . else .skills = ((.skills // []) + [$g]) end' \
-		<<<"$existing" > "$settings_file"
+	for skill_glob in ~/Notes/*/Agents/skills; do
+		[[ -d "$skill_glob" ]] || continue
+		# shellcheck disable=SC2088
+		skill_path="~/${skill_glob#"$HOME"/}"
+		existing=$(jq --arg g "$skill_path" \
+			'if ((.skills // []) | index($g)) != null then . else .skills = ((.skills // []) + [$g]) end' \
+			<<<"$existing")
+	done
+	for prompt_glob in ~/Notes/*/Agents/prompts; do
+		[[ -d "$prompt_glob" ]] || continue
+		# shellcheck disable=SC2088
+		skill_path="~/${prompt_glob#"$HOME"/}"
+		existing=$(jq --arg g "$skill_path" \
+			'if ((.prompts // []) | index($g)) != null then . else .prompts = ((.prompts // []) + [$g]) end' \
+			<<<"$existing")
+	done
+	echo "$existing" > "$settings_file"
 
-	mkdir -p ~/.agents/skills
 	mkdir -p ~/.claude/skills
 	while read -r skill_repo; do
 		while read -r skill_dir; do
 			skill_name=$(basename "$skill_dir")
-			ln -sf "$skill_dir" "$HOME/.agents/skills/$skill_name"
-			ln -sf "$skill_dir" "$HOME/.claude/skills/$skill_name"
-		done < <(find "$skill_repo" -mindepth 1 -maxdepth 1)
+			ln -sfn "$skill_dir" "$HOME/.claude/skills/$skill_name"
+		done < <(find "$skill_repo" -mindepth 1 -maxdepth 1 -type d)
 	done < <(find "$NOTES_DIR" -mindepth 2 -maxdepth 2 -name 'skills')
 }
 

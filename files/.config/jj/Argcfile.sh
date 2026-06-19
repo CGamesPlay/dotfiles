@@ -650,6 +650,7 @@ bisect-conflict() {
 		} >&2
 	fi
 
+	# shellcheck disable=SC2016
 	jj bisect run --ignore-working-copy --range "$range" -- bash -c '
 		set -e
 		conflict_check=$1
