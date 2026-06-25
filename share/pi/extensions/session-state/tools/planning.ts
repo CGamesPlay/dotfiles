@@ -241,28 +241,25 @@ export function registerPlanningTools(state: AppState, pi: ExtensionAPI) {
         };
       }
 
-      const planContents = tracked.content;
-
-      // If no UI, return immediately and tell user to use /finish-plan
+      // If no UI, auto-approve and begin implementing immediately
       if (!ctx.hasUI) {
         return {
           content: [
-            { type: "text", text: "Plan ready. Run /finish-plan to review." },
+            { type: "text", text: planFinishedPrompt() },
           ],
-          details: { planContents },
+          details: {},
         };
       }
 
       // Notify any listening extensions (e.g. tui) that we're about to block
       // on user input so they can arm a delayed notification for users who've
       // switched focus away from the terminal.
-      const planTitle = extractPlanTitle(planContents) ?? "Untitled plan";
+      const planTitle = extractPlanTitle(tracked.content) ?? "Untitled plan";
       pi.events.emit("tui:waiting-for-user", {
         title: `pi: ${pi.getSessionName() ?? path.basename(ctx.cwd)}`,
         message: `Plan ready for review: ${planTitle}`,
       });
 
-      // Ask the user what to do
       const choice = await ctx.ui.select("What would you like to do?", [
         "1. Begin implementing immediately",
         "2. Approve and reset context",
@@ -270,7 +267,7 @@ export function registerPlanningTools(state: AppState, pi: ExtensionAPI) {
       ]);
 
       if (choice?.startsWith("2.")) {
-        scheduleApproveAndReset(state, pi, planContents);
+        scheduleApproveAndReset(state, pi, tracked.content);
         return {
           content: [
             {
@@ -292,7 +289,7 @@ export function registerPlanningTools(state: AppState, pi: ExtensionAPI) {
           content: [
             {
               type: "text",
-              text: "The user dismissed the review dialog. Wait for their next message before continuing.",
+              text: `The user reviewed ${planFile} and dismissed the review dialog. Wait for their next message before continuing.`,
             },
           ],
           details: {},
@@ -300,7 +297,6 @@ export function registerPlanningTools(state: AppState, pi: ExtensionAPI) {
         };
       }
 
-      // Choice 1: Begin implementing
       return {
         content: [
           {

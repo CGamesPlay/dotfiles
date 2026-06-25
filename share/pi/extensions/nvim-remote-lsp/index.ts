@@ -32,7 +32,7 @@ const SETTINGS_NAMESPACE = "nvim-remote-lsp";
 const STATUS_KEY = "90-nvim";
 const HINT_CUSTOM_TYPE = "nvim-remote-lsp-hint";
 const HINT_MESSAGE =
-  "LSP servers are available for this project; use the nvim-remote-lsp skill to begin.";
+  "LSP servers are available for this project; use the nvim-remote-lsp skill to begin. (Automatically generated message; disregard if not relevant)";
 const DIAGNOSTICS_MAX_LINES = 10;
 const DEFAULT_SOCKET_PATTERNS = ["$TMPDIR/nvim.*"];
 
