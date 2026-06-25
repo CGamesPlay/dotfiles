@@ -15,9 +15,9 @@
 	"dependencies": {
 		"@anthropic-ai/claude-agent-sdk": "0.2.117",
 		"@anthropic-ai/sdk": "^0.73.0",
-		"@earendil-works/pi-ai": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-ai.tgz#sha512-sIdaixRtb4z5vPUkOWNp1YbaAOtFJ4lNs4D21bp97640qFKmwgDkJ7ybZHZEwkoTJSy4UoFZjJGTCJ/0f4Ig8Q==",
-		"@earendil-works/pi-coding-agent": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-coding-agent.tgz#sha512-w6QJRnBSGMA9QE36BzcwEAqi3eSl86bobsnWs7bZ7KUpuWlTYu7SlJuJU8eN37OdEUjX9x+tFZCQSzvUv5J2HA==",
-		"@earendil-works/pi-tui": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-tui.tgz#sha512-qAQWMruW7YKbk2hPcTD4INtXfvIySXifbPQ+mFY5j3J8yf2tfElkh+gGPuBvgPKPT0z9WiAkd7iySCuQq0txuQ==",
+		"@earendil-works/pi-ai": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-ai.tgz#sha512-mYMB8QfWaXtPD8NZjJzoXRdkJL7e6E2oqxd2y+LmwgtOHwiNoO/SSdfDzF7vvtrbTouqMJIsu+bBZWmL5gciXQ==",
+		"@earendil-works/pi-coding-agent": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-coding-agent.tgz#sha512-e/CB7LBx7/BaO5QsXjL7zHXTiDEHq+6El2+c5nAmrHM3+ROCHvECPCugdgJplA/evLMX4P67AUxkaE1yfC78QA==",
+		"@earendil-works/pi-tui": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-tui.tgz#sha512-OvOAMIbXiC9OSse17YMiXIsI9AS5XM/ZV8N/k+UzdlRpPILDQYmLElevgGW92kkXR8qHBClIdzhCjuzlBGvphA==",
 		"@sinclair/typebox": "^0.34.33",
 		"change-case": "^5.4.4",
 		"diff": "^8.0.2",
@@ -27,7 +27,7 @@
 		"@earendil-works/pi-coding-agent": "$@earendil-works/pi-coding-agent",
 		"@earendil-works/pi-ai": "$@earendil-works/pi-ai",
 		"@earendil-works/pi-tui": "$@earendil-works/pi-tui",
-		"@earendil-works/pi-agent-core": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-agent-core.tgz#sha512-jQOtYjRGZ7+XC/olw9euLd2V03vkAPO8u0sSnQoLbyOQZz66dEBZrklTESk34Sf3AaeBSua28wjZR48ch1aXJQ=="
+		"@earendil-works/pi-agent-core": "https://github.com/CGamesPlay/pi/releases/download/latest/earendil-works-pi-agent-core.tgz#sha512-BF9WPhixIFjT6Kp3Iz3H6ugkU+4AWotM8py96XE5pIK0arJbQKMWbR+dXSWWDEmR5yc/aFQODnuyowOEzMGO7Q=="
 	},
 	"pi": {
 		"extensions": [
