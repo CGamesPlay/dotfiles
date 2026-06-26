@@ -72,8 +72,6 @@ describe("planning e2e", () => {
    */
   async function boot(opts: { onStreamFnCall?: (ctx: any) => void } = {}) {
     tmpDir = mkdtempSync(path.join(tmpdir(), "planning-e2e-"));
-    storageDir = path.join(tmpDir, ".session-storage");
-    process.env.PI_SESSION_STORAGE = storageDir;
     selectQueue = [];
     t = await createTestSession({
       extensions: [EXTENSION],
@@ -90,6 +88,14 @@ describe("planning e2e", () => {
       },
       onStreamFnCall: opts.onStreamFnCall,
     });
+    // In-memory session resolves storage to <cwd>/.pi/session/<id>;
+    // session_start publishes that path to PI_SESSION_STORAGE.
+    storageDir = path.join(
+      tmpDir,
+      ".pi",
+      "session",
+      t.sessionManager.getSessionId(),
+    );
   }
 
   function planPath(): string {

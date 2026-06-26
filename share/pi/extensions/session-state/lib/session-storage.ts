@@ -63,16 +63,13 @@ interface ExternalModData {
 // ─── Path Resolution ───────────────────────────────────────────────────────────
 
 /**
- * Returns the absolute path to the session storage directory.
- * Defaults to `<session log dir>/<session id>`, overridable via `$PI_SESSION_STORAGE`.
+ * Absolute path to the session storage directory.
  */
 export function resolveSessionStorageDir(ctx: ExtensionContext): string {
-  const env = process.env.PI_SESSION_STORAGE;
-  if (env && path.isAbsolute(env)) return env;
-  const sessionDir = ctx.sessionManager.getSessionDir();
   const sessionId = ctx.sessionManager.getSessionId();
-  const base = sessionDir || path.join(ctx.cwd, ".pi", "session");
-  return path.join(base, sessionId);
+  const sessionDir = ctx.sessionManager.getSessionDir();
+  if (sessionDir) return path.join(sessionDir, sessionId);
+  return path.join(ctx.cwd, ".pi", "session", sessionId);
 }
 
 /** Checks if an absolute path falls inside the session storage directory */

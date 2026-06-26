@@ -6,7 +6,7 @@ A pi extension that mirrors per-session state into a directory kept in sync with
 
 A per-session directory whose contents are kept in lockstep with the active conversation branch.
 
-- **Location**: `$PI_SESSION_STORAGE` if set and absolute; otherwise `<session log dir>/<session id>/`, falling back to `<cwd>/.pi/session/<session id>/`. The resolved path is exported as `PI_SESSION_STORAGE` for child processes.
+- **Location**: derived from the session manager as `<session log dir>/<session id>` for persisted sessions (real pi runs), or `<cwd>/.pi/session/<id>` when the session has no log dir (e.g. in-memory tests). The resolved path is published to `PI_SESSION_STORAGE` for child processes, the system prompt, and the plan/todo tools.
 - **Sync model**: on every `session_start`, `session_tree`, and fork, the directory is wiped and rebuilt by replaying every successful `write`/`edit` tool call from the current branch that targets a path inside the directory. Branch summaries are transparently resolved (`resolveEffectiveBranch`) so collapsing a branch doesn't lose mirrored files.
 - **External edits**: at `before_agent_start` and `turn_end`, the directory is scanned. Any new/modified/deleted file (compared against the in-memory `trackedFiles` snapshot of `{content, ino, mtimeMs}`) is recorded as a `session-storage-external-mod` custom session entry, so the change survives the next replay.
 - **Limits**: external-mod tracking skips files larger than 64 KiB (the agent is notified). Files round-trip as utf-8, with a base64 fallback when the content isn't clean utf-8.

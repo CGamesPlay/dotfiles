@@ -12,7 +12,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { computeSessionStorageState } from "../lib/session-storage.js";
+import {
+  computeSessionStorageState,
+  resyncSessionStorage,
+} from "../lib/session-storage.js";
+import { createAppState } from "../state.js";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type {
   SessionEntry,
@@ -814,18 +818,22 @@ describe("session-storage integration", () => {
     }
   });
 
-  /** Build a fresh temp dir, point PI_SESSION_STORAGE into it, and boot the
-   *  harness. session_start fires during createTestSession, so the env var
-   *  must be set first. */
+  /** Boot the harness in a fresh temp dir. The in-memory session has no
+   *  log dir, so session_start resolves storage to <cwd>/.pi/session/<id>
+   *  and publishes it to PI_SESSION_STORAGE. */
   async function boot(): Promise<{ storageDir: string }> {
     tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-test-"));
-    const storageDir = path.join(tmpDir, ".session-storage");
-    process.env.PI_SESSION_STORAGE = storageDir;
     t = await createTestSession({
       extensions: [EXTENSION_PATH],
       cwd: tmpDir,
       mockTools: MOCKS,
     });
+    const storageDir = path.join(
+      tmpDir,
+      ".pi",
+      "session",
+      t.sessionManager.getSessionId(),
+    );
     return { storageDir };
   }
 
@@ -842,6 +850,54 @@ describe("session-storage integration", () => {
 
     const content = await readFile(path.join(storageDir, "plan.md"), "utf-8");
     assert.equal(content, "# My Plan");
+  });
+
+  it("writes a restored session's files into its own dir (cross-session)", async () => {
+    // Regression: resyncSessionStorage sets PI_SESSION_STORAGE each run.
+    // Restoring a different session in-process must write its files to its
+    // own dir, not the previous (stale-env) dir. A's resync poisons env;
+    // B must still land in B's dir.
+    tmpDir = await mkdtemp(path.join(tmpdir(), "session-storage-restore-"));
+    const state = createAppState();
+    const ctx = (id: string, file: string, content: string) => {
+      const branch: SessionEntry[] = [];
+      appendWrite(branch, null, path.join(tmpDir, id, file), content);
+      return {
+        cwd: tmpDir,
+        sessionManager: {
+          getSessionDir: () => tmpDir,
+          getSessionId: () => id,
+          getBranch: () => branch,
+        },
+      } as unknown as ExtensionContext;
+    };
+
+    await resyncSessionStorage(state, ctx("A", "a.txt", "A-content"));
+    assert.equal(
+      await readFile(path.join(tmpDir, "A", "a.txt"), "utf-8"),
+      "A-content",
+    );
+    await resyncSessionStorage(state, ctx("B", "b.txt", "B-content"));
+    assert.equal(
+      await readFile(path.join(tmpDir, "B", "b.txt"), "utf-8"),
+      "B-content",
+    );
+  });
+
+  it("re-materializes files to disk after a session restore (reload)", async () => {
+    // Reload fires session_shutdown (clears dir) then session_start (resyncs).
+    const { storageDir } = await boot();
+    const planPath = path.join(storageDir, "plan.md");
+
+    await t!.turn("write plan.md", [
+      calls("write", { path: planPath, content: "# My Plan" }),
+      says("done"),
+    ]);
+
+    await t!.session.reload();
+    await t!.waitForIdle();
+
+    assert.equal(await readFile(planPath, "utf-8"), "# My Plan");
   });
 
   it("resync replays writes and edits in order", async () => {
