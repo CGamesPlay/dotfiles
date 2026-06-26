@@ -159,6 +159,12 @@ export default class DotfilesPlugin extends Plugin {
       this.app.metadataCache.on("changed", (file) => {
         this.refreshInlineTitleForFile(file.path);
         this.syncArchivedClass(file.path);
+        // If this file is a folder's index file, the folder's archived
+        // styling/sort depends on it too.
+        const folder = file.parent;
+        if (folder && file.basename === folder.name) {
+          this.syncArchivedClass(folder.path);
+        }
         for (const leaf of this.app.workspace.getLeavesOfType("file-explorer")) {
           (leaf.view as FileExplorerView).requestSort?.();
         }
@@ -259,18 +265,14 @@ export default class DotfilesPlugin extends Plugin {
     const normal: FileTreeItem[] = [];
     const archived: FileTreeItem[] = [];
 
+    const indexFile = folder.isRoot() ? null : this.getFolderIndexFile(folder);
+
     for (const item of items) {
-      const file = item.file;
-      if (
-        file instanceof TFile &&
-        file.extension === "md" &&
-        file.basename === folder.name &&
-        !folder.isRoot()
-      ) {
+      if (indexFile && item.file === indexFile) {
         index.push(item);
         continue;
       }
-      const status = this.getStatus(file);
+      const status = this.getStatus(item.file);
       if (status === ACTIVE_VALUE) active.push(item);
       else if (status === ARCHIVED_VALUE) archived.push(item);
       else normal.push(item);
@@ -279,7 +281,20 @@ export default class DotfilesPlugin extends Plugin {
     return [...index, ...active, ...normal, ...archived];
   }
 
+  private getFolderIndexFile(folder: TFolder): TFile | null {
+    return (
+      folder.children.find(
+        (f): f is TFile => f instanceof TFile && f.basename === folder.name,
+      ) ?? null
+    );
+  }
+
   private getStatus(file: TAbstractFile): string | null {
+    if (file instanceof TFolder) {
+      // A folder inherits its status from its index file (e.g. foo/foo.md).
+      const indexFile = this.getFolderIndexFile(file);
+      return indexFile ? this.getStatus(indexFile) : null;
+    }
     if (!(file instanceof TFile) || file.extension !== "md") return null;
     const fm = this.app.metadataCache.getCache(file.path)?.frontmatter;
     const v: unknown = fm?.[STATUS_FIELD];
@@ -319,9 +334,7 @@ export default class DotfilesPlugin extends Plugin {
       const folder = this.app.vault.getAbstractFileByPath(folderPath);
       if (!(folder instanceof TFolder)) return;
 
-      const indexFile = folder.children.find(
-        (f): f is TFile => f instanceof TFile && f.basename === folder.name,
-      );
+      const indexFile = this.getFolderIndexFile(folder);
       if (!indexFile) return;
 
       e.stopImmediatePropagation();

@@ -1,5 +1,7 @@
 .nav-file-title.dotfiles-archived,
-.nav-file-title.dotfiles-archived .nav-file-title-content {
+.nav-file-title.dotfiles-archived .nav-file-title-content,
+.nav-folder-title.dotfiles-archived,
+.nav-folder-title.dotfiles-archived .nav-folder-title-content {
   color: var(--text-muted);
   opacity: 0.65;
 }
