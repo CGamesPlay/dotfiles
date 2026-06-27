@@ -57,6 +57,7 @@ import {
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
+const MAX_OUTPUT_BYTES = 16 * 1024;
 
 // ─── Cached agent discovery ────────────────────────────────────────────────
 
@@ -167,6 +168,31 @@ function getDisplayItems(messages: Message[]): DisplayItem[] {
     }
   }
   return items;
+}
+
+/**
+ * Cap an agent's final output. Anything over MAX_OUTPUT_BYTES is written to a
+ * temp file in full and replaced inline with a head slice plus the file path,
+ * so the model can read the remainder on demand instead of flooding context.
+ */
+async function capAgentOutput(
+  agentName: string,
+  output: string,
+): Promise<string> {
+  if (Buffer.byteLength(output, "utf-8") <= MAX_OUTPUT_BYTES) return output;
+  const tmpDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "pi-subagent-output-"),
+  );
+  const safeName = agentName.replace(/[^\w.-]+/g, "_");
+  const filePath = path.join(tmpDir, `output-${safeName}.md`);
+  await fs.promises.writeFile(filePath, output, {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
+  // Slice is character-based; for the ASCII markdown reports agents produce
+  // this is byte-exact, and a few extra bytes on multibyte input is harmless.
+  const head = output.slice(0, MAX_OUTPUT_BYTES);
+  return `${head}\n\n[Output truncated (${Buffer.byteLength(output, "utf-8")} bytes total). Full output: ${filePath}]`;
 }
 
 function getFinalOutput(messages: Message[]): string {
@@ -283,6 +309,40 @@ function makePresetErrorResult(
 }
 
 /**
+ * Build the CLI args for a subagent subprocess.
+ *
+ * Passes the resolved preset via `--preset` (the qualified `group/model` ref)
+ * rather than expanding to `--model`/`--thinking`. This is essential: the
+ * subprocess loads this same extension, whose startup hook would otherwise apply
+ * the *default* preset over a bare `--model`. A `--preset` flag makes the hook
+ * apply this preset instead, and routes through the model registry so the
+ * provider is pinned exactly (bare model ids are ambiguous across providers).
+ *
+ * The ref must be the already-qualified `resolved.ref`, not the agent's raw
+ * frontmatter name: the parent resolved any bare name against the session's
+ * group, but the subprocess's own default group differs.
+ */
+export function buildSubagentArgs(
+  resolved: ResolvedPreset,
+  agent: Pick<AgentConfig, "tools">,
+  trustArg: string | undefined,
+): string[] {
+  const args: string[] = [
+    "--mode",
+    "json",
+    "-p",
+    "--no-session",
+    "--preset",
+    resolved.ref,
+  ];
+  if (trustArg) args.push(trustArg);
+  if (agent.tools && agent.tools.length > 0) {
+    args.push("--tools", agent.tools.join(","));
+  }
+  return args;
+}
+
+/**
  * Run a single agent in a subprocess.
  * Tracks elapsed time and returns result with exitCode, messages, and usage.
  */
@@ -323,13 +383,7 @@ async function runSingleAgent(
   }
 
   const trustArg = getTrustArg();
-  const args: string[] = ["--mode", "json", "-p", "--no-session"];
-  if (trustArg) args.push(trustArg);
-  if (resolved.model) args.push("--model", resolved.model);
-  if (resolved.thinkingLevel) args.push("--thinking", resolved.thinkingLevel);
-  if (agent.tools && agent.tools.length > 0) {
-    args.push("--tools", agent.tools.join(","));
-  }
+  const args = buildSubagentArgs(resolved, agent, trustArg);
 
   let tmpPromptDir: string | null = null;
 
@@ -663,14 +717,20 @@ export function registerSubagentTool(pi: ExtensionAPI) {
       // Format final output
       let finalText = "";
       if (results.length === 1) {
-        finalText = getFinalOutput(results[0].messages) || "(no output)";
+        finalText =
+          (await capAgentOutput(
+            results[0].agent,
+            getFinalOutput(results[0].messages),
+          )) || "(no output)";
       } else {
-        const summaries = results.map((r) => {
-          const output = getFinalOutput(r.messages);
-          const preview =
-            output.slice(0, 100) + (output.length > 100 ? "..." : "");
-          return `[${r.agent}] ${r.exitCode === 0 ? "completed" : "failed"}: ${preview || "(no output)"}`;
-        });
+        const summaries = await Promise.all(
+          results.map(async (r) => {
+            const output =
+              (await capAgentOutput(r.agent, getFinalOutput(r.messages))) ||
+              "(no output)";
+            return `[${r.agent}] ${r.exitCode === 0 ? "completed" : "failed"}:\n${output}`;
+          }),
+        );
         finalText = `Parallel: ${successCount}/${results.length} succeeded\n\n${summaries.join("\n\n")}`;
       }
 
