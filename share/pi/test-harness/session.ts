@@ -10,7 +10,7 @@ import {
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { getModel } from "@earendil-works/pi-ai";
+import { getModel } from "@earendil-works/pi-ai/compat";
 import {
   createTurnStreamFn,
   formatRemainingActions,

@@ -1,4 +1,4 @@
-import { getModels } from "@earendil-works/pi-ai";
+import { getModels } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import {
