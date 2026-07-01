@@ -3,6 +3,14 @@
 
 set -eu
 
+_workspace_notes() {
+	case "${1:?}" in
+		bdbq-pulse) echo "BigData Boutique" ;;
+		hunt-regs) echo "Hunt Regs" ;;
+		taho) echo "TAHO" ;;
+	esac
+}
+
 main() { :; }
 
 _dotfiles_root() {
@@ -118,6 +126,17 @@ _get_workspace_root() {
 		| head -1
 }
 
+# When --start was passed, start+wait for the workspace before resolving it, so
+# connecting to a stopped workspace brings it up instead of failing. Takes any
+# shorthand accepted by the start subcommand.
+_maybe_start() {
+	if [[ "${argc_start:-0}" -eq 1 ]]; then
+		@coder start "${1:?}" || exit 1
+		@iterm play-sound WW_Textbox_Close
+		@iterm notify "Coder workspace ${1} is running"
+	fi
+}
+
 # Resolve a possibly-stopped workspace to "WS_NAME OWNER". Unlike
 # _resolve_workspace, this does not require a running agent, since it is used to
 # start stopped workspaces. Accepts ws, agent.ws, or agent.ws.owner.
@@ -168,7 +187,7 @@ _agents_ready_state() {
 			| .latest_build.resources[]?.agents[]? | select(.name != "sysbox") ] as $agents |
 		["start_timeout", "start_error", "shutdown_timeout", "shutdown_error", "off"] as $bad |
 		($agents | map(select(
-			(.lifecycle_state as $l | $bad | index($l)) or .status == "timeout"
+			.lifecycle_state as $l | $bad | index($l)
 		))) as $failed |
 		if ($agents | length) == 0 then "waiting"
 		elif ($failed | length) > 0 then
@@ -266,6 +285,7 @@ preview() {
 # Equivalent to ssh WORKSPACE.coder, with better tab completion and a default
 # picker TUI. Supports shorthand: workspace, agent.workspace, or
 # agent.workspace.owner.
+# @flag --start                  Start the workspace first if it is stopped
 # @arg workspace[?`_workspaces`] Workspace to open
 # @arg rest~                     Arguments passed to ssh
 ssh() {
@@ -273,6 +293,7 @@ ssh() {
 		argc_workspace=$(_choose_workspace) || exit 0
 		echo "$ @coder ssh $argc_workspace"
 	fi
+	_maybe_start "$argc_workspace"
 	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
 	local host="${argc_workspace}.coder"
 	if [[ ! "${argc_rest+1}" ]]; then
@@ -291,6 +312,7 @@ ssh() {
 # automatically on connection failure; press any key to reconnect, or ^C to
 # quit.
 # @option --dir                     Directory to create session in
+# @flag   --start                   Start the workspace first if it is stopped
 # @arg    workspace[?`_workspaces`] Workspace to open
 # @arg    cmd                       Command to run in the shpool session
 # @meta default-subcommand
@@ -299,6 +321,7 @@ shpool() {
 		argc_workspace=$(_choose_workspace) || exit 0
 		echo "$ @coder shpool $argc_workspace"
 	fi
+	_maybe_start "$argc_workspace"
 	argc_workspace=$(_resolve_workspace "$argc_workspace") || exit 1
 	local host="${argc_workspace}.coder"
 
@@ -362,10 +385,12 @@ shpool() {
 }
 
 # @cmd Open Neovide in a Coder workspace
+# @flag --start                   Start the workspace first if it is stopped
 # @arg workspace![?`_workspaces`] Workspace to open
 # @arg directory                  Directory to change to
 # @arg rest~                      Arguments passed to nvim
 neovide() {
+	_maybe_start "${argc_workspace:?}"
 	argc_workspace=$(_resolve_workspace "${argc_workspace:?}") || exit 1
 	exec neovide-ssh "${argc_workspace}.coder" \
 		${argc_directory+--chdir="$argc_directory"} \
@@ -609,6 +634,8 @@ selftest() {
 		"$(_agent_json foo ry main connected start_error)" foo ry
 	_assert_state "state: sysbox ignored, no main yet" "waiting" \
 		"$(_agent_json foo ry sysbox connected ready)" foo ry
+	_assert_state "state: startup connection timeout is transient" "waiting" \
+		"$(_agent_json foo ry main timeout created)" foo ry
 
 	echo ""
 	echo "$pass passed, $fail failed"
