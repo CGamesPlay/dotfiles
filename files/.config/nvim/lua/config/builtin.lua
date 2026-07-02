@@ -39,7 +39,7 @@ opt.shell = "sh"
 -- of the line, but show a continuation marker.
 opt.linebreak = true
 opt.breakindent = true
-opt.breakindentopt = { shift = 0 }
+opt.breakindentopt = "shift:0"
 opt.showbreak = "↳ "
 
 -- Search case-sensitive, only if the search includes a capital letter. Use \C

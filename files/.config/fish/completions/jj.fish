@@ -6,7 +6,7 @@ function __fish_jj_complete_custom_aliases
     # If the command name is already finalized, skip generating completions if the command is not a jj alias.
     if test (count $_argc_completer_words) -gt 2
         # If the command isn't a jj alias, don't attempt custom completions
-        if not contains $_argc_completer_words[2] $jj_aliases
+        if not contains -- $_argc_completer_words[2] $jj_aliases
             return 0
         end
         # We are completing arguments for a custom alias

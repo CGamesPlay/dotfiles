@@ -29,14 +29,14 @@ return {
       lsp_format = "prefer",
     },
     formatters_by_ft = {
-      astro = { "prettier" },
+      astro = { "biome", "prettier", stop_after_first = true },
       beancount = { "bh_format" },
-      css = { "prettier" },
+      css = { "biome", "prettier", stop_after_first = true },
       go = { "gofmt", "goimports" },
       hcl = { "terraform_fmt" },
-      javascript = { "prettier" },
-      json = { "prettier" },
-      jsonc = { "prettier" },
+      javascript = { "biome", "prettier", stop_after_first = true },
+      json = { "biome", "prettier", stop_after_first = true },
+      jsonc = { "biome", "prettier", stop_after_first = true },
       jsonnet = { "jsonnetfmt" },
       lua = { "stylua" },
       -- Organize imports automatically.
@@ -45,10 +45,15 @@ return {
       rust = { "rustfmt" },
       eruby = { "erb_format", lsp_format = "fallback" },
       terraform = { "terraform_fmt" },
-      typescript = { "prettier", lsp_format = "fallback" },
-      typescriptreact = { "prettier" },
+      typescript = { "biome", "prettier", stop_after_first = true, lsp_format = "fallback" },
+      typescriptreact = { "biome", "prettier", stop_after_first = true },
     },
     formatters = {
+      biome = {
+        condition = function(_, ctx)
+          return vim.fs.find({ "biome.json", "biome.jsonc" }, { path = ctx.dirname, upward = true })[1] ~= nil
+        end,
+      },
       bh_format = {
         command = "bh",
         args = { "format", "$FILENAME" },
