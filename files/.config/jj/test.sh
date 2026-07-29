@@ -317,6 +317,35 @@ test::bisect-conflict() {
 	esac
 }
 
+# @cmd Test the pull command
+test::pull() {
+	print_header "Fetches trunk's remote and rebases onto it"
+	mkremote
+	jj --quiet new 'trunk()' -m "my work"
+	echo change > work.txt
+	advance_remote "upstream advance"
+	jj pull
+	check_graph <<-EOF
+	◆  (root)
+	◆  (empty) base
+	◆  (empty) [master@origin] upstream advance
+	@  my work
+	EOF
+
+	print_header "Accepts an explicit name@remote target"
+	mkremote
+	jj --quiet new 'trunk()' -m "my work"
+	echo change > work.txt
+	advance_remote "upstream advance"
+	jj pull master@origin
+	check_graph <<-EOF
+	◆  (root)
+	◆  (empty) base
+	◆  (empty) [master@origin] upstream advance
+	@  my work
+	EOF
+}
+
 print_header() {
 	printf "\n# %s\n\n" "$1"
 }
@@ -345,6 +374,43 @@ mkrepo() {
 do_change() {
 	sleep 1
 	echo "$(date) $RANDOM" > "$1"
+}
+
+# Create a git remote seeded with a "base" commit on master, then a jj clone
+# that tracks it (so trunk() resolves to master@origin). Leaves the shell in
+# the jj clone and records $remote_dir for advance_remote.
+mkremote() {
+	if [[ ! ${root+1} ]]; then
+		root=$(mktemp -d)
+		if [[ ! ${JJ_NO_CLEANUP+1} ]]; then
+			trap 'rm -rf "$root"' EXIT
+		fi
+	fi
+	remote_dir=$(mktemp -d -p "$root")
+	git init -q --bare "$remote_dir/remote.git"
+	git init -q "$remote_dir/seed"
+	(
+		cd "$remote_dir/seed"
+		git -c user.email=test@example.com -c user.name=test commit -q --allow-empty -m base
+		git branch -M master
+		git remote add origin "$remote_dir/remote.git"
+		git push -q origin master
+	)
+	dir=$(mktemp -d -p "$root")
+	if [[ ${JJ_NO_CLEANUP+1} ]]; then
+		echo "Creating test repository: $dir" >&2
+	fi
+	jj --quiet git clone "$remote_dir/remote.git" "$dir/work"
+	cd "$dir/work"
+}
+
+# Add an empty commit with the given message to the remote's master and push it.
+advance_remote() {
+	(
+		cd "$remote_dir/seed"
+		git -c user.email=test@example.com -c user.name=test commit -q --allow-empty -m "$1"
+		git push -q origin master
+	)
 }
 
 check_graph() {

@@ -140,6 +140,31 @@ prepare() {
 	fi
 }
 
+# @cmd Fetch a ref's remote and rebase the current branch onto it
+#
+# Fetches from the remote that holds the target ref, then rebases the branch
+# containing @ onto it (jj rebase's default `-b @`). The target defaults to
+# trunk() but may be any ref, e.g. `master` or `master@upstream`. When the ref
+# names a remote explicitly (name@remote) that remote is fetched; otherwise the
+# remote is read from the ref's remote-tracking bookmarks.
+# @arg target="trunk()"  Ref to rebase onto (default: trunk())
+pull() {
+	cd "$JJ_WORKSPACE_ROOT"
+	target="${argc_target:?}"
+	if [[ "$target" =~ ^[^@()[:space:]]+@([^@()[:space:]]+)$ ]]; then
+		remote="${BASH_REMATCH[1]}"
+	else
+		remote=$(jj log --ignore-working-copy --no-graph -r "$target" \
+			-T 'remote_bookmarks.map(|b| b.remote()).join("\n")' | grep -vFx git | head -n1)
+	fi
+	if [[ -z "$remote" ]]; then
+		echo "Error: could not determine a remote for '$target'" >&2
+		exit 1
+	fi
+	jj git fetch --remote "$remote"
+	jj rebase -o "$target"
+}
+
 # @cmd Open the web repo associated with this repository
 # @arg remote[?`_choice_remote`]  Remote to open (default: upstream or origin)
 web() {
