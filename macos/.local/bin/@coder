@@ -118,6 +118,71 @@ _get_workspace_root() {
 		| head -1
 }
 
+# Resolve a possibly-stopped workspace to "WS_NAME OWNER". Unlike
+# _resolve_workspace, this does not require a running agent, since it is used to
+# start stopped workspaces. Accepts ws, agent.ws, or agent.ws.owner.
+_resolve_ws_owner() {
+	local input="${1:?}"
+
+	local dots="${input//[^.]/}"
+	local dot_count="${#dots}"
+
+	local ws_name owner=""
+	if [[ "$dot_count" -ge 2 ]]; then
+		local rest="${input#*.}"   # ws.owner
+		ws_name="${rest%%.*}"
+		owner="${rest#*.}"
+	elif [[ "$dot_count" -eq 1 ]]; then
+		ws_name="${input#*.}"      # drop agent prefix
+	else
+		ws_name="$input"
+	fi
+
+	if [[ -z "$owner" ]]; then
+		local json owners owner_count
+		json=$(_coder_list_json)
+		owners=$(echo "$json" | jq -r --arg ws "$ws_name" \
+			'[.[] | select(.name == $ws) | .owner_name] | unique | .[]')
+		owner_count=$(echo "$owners" | grep -c . || true)
+		if [[ "$owner_count" -eq 0 ]]; then
+			echo "error: unknown workspace: $ws_name" >&2
+			return 1
+		elif [[ "$owner_count" -gt 1 ]]; then
+			echo "error: ambiguous workspace, specify owner: $ws_name" >&2
+			echo "  owners: $(echo "$owners" | paste -sd, -)" >&2
+			return 1
+		fi
+		owner=$(echo "$owners" | head -1)
+	fi
+
+	echo "$ws_name $owner"
+}
+
+# Classify readiness of a workspace's non-sysbox agents. Prints one of:
+# "ready", "waiting", or "failed:<message>". Takes the `coder list` JSON as its
+# first argument so it can be exercised against fixtures.
+_agents_ready_state() {
+	local json="${1:?}" ws="${2:?}" owner="${3:?}"
+	echo "$json" | jq -r --arg ws "$ws" --arg own "$owner" '
+		[ .[] | select(.name == $ws and .owner_name == $own)
+			| .latest_build.resources[]?.agents[]? | select(.name != "sysbox") ] as $agents |
+		["start_timeout", "start_error", "shutdown_timeout", "shutdown_error", "off"] as $bad |
+		($agents | map(select(
+			(.lifecycle_state as $l | $bad | index($l)) or .status == "timeout"
+		))) as $failed |
+		if ($agents | length) == 0 then "waiting"
+		elif ($failed | length) > 0 then
+			($failed[0] | "failed:agent \(.name) is \(.lifecycle_state // "?") (connection \(.status))")
+		elif ($agents | all(.lifecycle_state == "ready" and .status == "connected")) then "ready"
+		else "waiting"
+		end
+	'
+}
+
+_startable_workspaces() {
+	_coder_list_json | jq -r '.[].name' | sort -u
+}
+
 _choose_workspace() {
 	_workspaces | \
 		fzf --height "50%" --layout reverse \
@@ -129,6 +194,57 @@ _choose_workspace() {
 # @arg workspace[?`_workspaces`] Workspace to show
 id() {
 	coder list -o json --search "owner:ry name:${argc_workspace:?}" | jq -r '.[0].id'
+}
+
+# @cmd Start a workspace and wait for its agents to be ready
+#
+# Runs `coder start`, then polls until every non-sysbox agent has connected and
+# finished its startup script (lifecycle_state "ready"). Plain `coder start`
+# returns once provisioning finishes, which is before the pod's agent has
+# registered; this waits for the agent to actually come up.
+# @option --timeout=300           Seconds to wait for agents before giving up
+# @arg    workspace![?`_startable_workspaces`] Workspace to start
+start() {
+	local resolved ws_name owner
+	resolved=$(_resolve_ws_owner "${argc_workspace:?}") || exit 1
+	ws_name="${resolved%% *}"
+	owner="${resolved##* }"
+
+	local bstatus
+	bstatus=$(_coder_list_json | jq -r --arg ws "$ws_name" --arg own "$owner" \
+		'.[] | select(.name == $ws and .owner_name == $own) | .latest_build.status' | head -1)
+	if [[ "$bstatus" != "running" && "$bstatus" != "starting" && "$bstatus" != "pending" ]]; then
+		coder start "${owner}/${ws_name}"
+	fi
+
+	local deadline=$(( $(date +%s) + argc_timeout ))
+	local state waiting=false
+	while true; do
+		state=$(_agents_ready_state "$(_coder_list_json)" "$ws_name" "$owner")
+		case "$state" in
+			ready)
+				$waiting && printf '\n'
+				echo "Ready to connect."
+				return 0
+				;;
+			failed:*)
+				$waiting && printf '\n'
+				echo "error: ${state#failed:}" >&2
+				return 1
+				;;
+		esac
+		if (( $(date +%s) >= deadline )); then
+			$waiting && printf '\n'
+			echo "error: timed out waiting for ${ws_name} agents to become ready" >&2
+			return 1
+		fi
+		if ! $waiting; then
+			printf 'Waiting for %s agents to connect' "$ws_name"
+			waiting=true
+		fi
+		printf '.'
+		sleep 5
+	done
 }
 
 # @cmd Preview a workspace (for fzf)
@@ -367,6 +483,55 @@ selftest() {
 		fi
 	}
 
+	_assert_ws_owner() {
+		local label="$1" expected="$2" input="$3"
+		local actual
+		if ! actual=$(_resolve_ws_owner "$input" 2>/dev/null); then
+			echo "FAIL: $label"
+			echo "  expected: $expected"
+			echo "  got error: $(_resolve_ws_owner "$input" 2>&1 || true)"
+			fail=$((fail + 1))
+			return
+		fi
+		if [[ "$expected" == "$actual" ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected: $expected"
+			echo "  actual:   $actual"
+			fail=$((fail + 1))
+		fi
+	}
+
+	_assert_state() {
+		local label="$1" expected="$2" json="$3" ws="$4" owner="$5"
+		local actual
+		actual=$(_agents_ready_state "$json" "$ws" "$owner")
+		if [[ "$expected" == "$actual" ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected: $expected"
+			echo "  actual:   $actual"
+			fail=$((fail + 1))
+		fi
+	}
+
+	_agent_json() {
+		# args: ws owner name status lifecycle [name status lifecycle ...]
+		local ws="$1" owner="$2"; shift 2
+		local agents=""
+		while [[ $# -ge 3 ]]; do
+			[[ -n "$agents" ]] && agents+=","
+			agents+="{\"name\":\"$1\",\"status\":\"$2\",\"lifecycle_state\":\"$3\"}"
+			shift 3
+		done
+		printf '[{"name":"%s","owner_name":"%s","latest_build":{"resources":[{"agents":[%s]}]}}]' \
+			"$ws" "$owner" "$agents"
+	}
+
 	# Resolution tests
 	_assert_resolve "workspace shorthand" \
 		"main.dev.ry" "dev"
@@ -405,6 +570,45 @@ selftest() {
 		"main.multi-agent" \
 		"main.shared.alex" \
 		"main.shared.ry"
+
+	# _resolve_ws_owner tests (must also work on stopped workspaces)
+	_assert_ws_owner "ws owner: running" "dev ry" "dev"
+	_assert_ws_owner "ws owner: stopped" "stopped ry" "stopped"
+	_assert_ws_owner "ws owner: agent.ws" "dev ry" "main.dev"
+	_assert_ws_owner "ws owner: full form" "shared ry" "main.shared.ry"
+
+	_assert_fail_ws_owner() {
+		local label="$1" expected_err="$2" input="$3"
+		local output
+		if output=$(_resolve_ws_owner "$input" 2>&1); then
+			echo "FAIL: $label (expected failure, got: $output)"
+			fail=$((fail + 1))
+		elif [[ "$output" == *"$expected_err"* ]]; then
+			echo "PASS: $label"
+			pass=$((pass + 1))
+		else
+			echo "FAIL: $label"
+			echo "  expected error containing: $expected_err"
+			echo "  actual: $output"
+			fail=$((fail + 1))
+		fi
+	}
+	_assert_fail_ws_owner "ws owner: ambiguous" "ambiguous workspace" "shared"
+	_assert_fail_ws_owner "ws owner: unknown" "unknown workspace" "nonexistent"
+
+	# _agents_ready_state tests
+	_assert_state "state: ready" "ready" \
+		"$(_agent_json foo ry main connected ready)" foo ry
+	_assert_state "state: connecting" "waiting" \
+		"$(_agent_json foo ry main connecting created)" foo ry
+	_assert_state "state: partial" "waiting" \
+		"$(_agent_json foo ry main connected ready gpu connecting created)" foo ry
+	_assert_state "state: all ready" "ready" \
+		"$(_agent_json foo ry main connected ready gpu connected ready)" foo ry
+	_assert_state "state: failed" "failed:agent main is start_error (connection connected)" \
+		"$(_agent_json foo ry main connected start_error)" foo ry
+	_assert_state "state: sysbox ignored, no main yet" "waiting" \
+		"$(_agent_json foo ry sysbox connected ready)" foo ry
 
 	echo ""
 	echo "$pass passed, $fail failed"
