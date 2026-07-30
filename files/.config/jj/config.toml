@@ -50,8 +50,8 @@ diff-expected-exit-codes = [0, 1]
 program = "sh"
 # Delta ordinarily tries to query the terminal to determine light/dark mode,
 # but it can't do that when it isn't the pager. This combines with the light
-# feature (in my git config) to implement COLORFGBG, which arguably Delta
-# should support natively (but doesn't).
+# feature (in my git config) to implement COLORFGBG (which arguably Delta
+# should support natively but doesn't).
 diff-args = ["-c", """
 if [ "${COLORFGBG:-0;15}" = "0;15" ]; then
   export DELTA_FEATURES="${DELTA_FEATURES+$DELTA_FEATURES }+light"
@@ -93,7 +93,7 @@ blame = ["file", "annotate"]
 # The official name for "rebase" feels like historical baggage.
 move = ["rebase"]
 # Diff with side-by-side view
-diff-sbs = ["util", "exec", "--", "sh", "-c", 'DELTA_FEATURES=+side-by-side exec jj diff "$@"', ""]
+diff-sbs = ["diff", "--config", "ui.pager=['delta', '--features=side-by-side', '--pager=less -FR']", "--config", "ui.diff-formatter=:git"]
 # Git muscle memory
 ls-files = ["file", "list"]
 
