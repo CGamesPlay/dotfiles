@@ -155,7 +155,7 @@ pull() {
 		remote="${BASH_REMATCH[1]}"
 	else
 		remote=$(jj log --ignore-working-copy --no-graph -r "$target" \
-			-T 'remote_bookmarks.map(|b| b.remote()).join("\n")' | grep -vFx git | head -n1)
+			-T 'remote_bookmarks.map(|b| b.remote()).join("\n") ++ "\n"' | grep -vFx git | head -n1)
 	fi
 	if [[ -z "$remote" ]]; then
 		echo "Error: could not determine a remote for '$target'" >&2

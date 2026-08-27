@@ -229,7 +229,7 @@ install_kapp() {
 
 # local-first issue tracker for agents
 install_kata() {
-	eget kenn-io/kata -a 'tar.gz' -a '^homebrew' --to="$BINDIR"
+	eget kenn-io/kata -a 'tar.gz' -a '^homebrew' -a '^\.json' --to="$BINDIR"
 }
 
 # Image building and pushing for k8s

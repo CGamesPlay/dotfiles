@@ -121,9 +121,8 @@ return {
     end,
   },
   {
-    "https://gitlab.com/CGamesPlay/telescope-git-grep.nvim.git",
-    -- "https://gitlab.com/davvid/telescope-git-grep.nvim.git",
-    -- version = "1.3.0",
+    "https://gitlab.com/davvid/telescope-git-grep.nvim.git",
+    version = "1.4.0",
     lazy = true,
   },
 }
