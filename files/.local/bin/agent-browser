@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Wrapper for agent-browser.
+#
+# Auto-installs agent-browser (pinned in the dotfiles share/agent-browser
+# package) on first use and prefers the system Chrome so the browser launches
+# sandboxed rather than downloading and running a bundled Chromium. Works on
+# macOS and Linux. All arguments pass through to agent-browser unchanged, so
+# this is a drop-in replacement on PATH.
+#
+# `--help` prints this wrapper's help; `--agent-browser-help` forwards to
+# `agent-browser --help`.
+#
+# To upgrade, run `npm install` in share/agent-browser (bumps the lockfile).
+# Force a reinstall with AGENT_BROWSER_WRAPPER_REINSTALL=1.
+# Override browser detection by setting AGENT_BROWSER_EXECUTABLE_PATH yourself.
+
+set -eu
+
+DFM_DIR=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../.." && pwd)
+AB_HOME="$DFM_DIR/share/agent-browser"
+AB_BIN="$AB_HOME/node_modules/.bin/agent-browser"
+
+usage() {
+	cat <<'EOF'
+agent-browser — dotfiles wrapper
+
+Drop-in wrapper for the agent-browser CLI. Installs a pinned agent-browser on
+first use and prefers the system Chrome so the browser runs sandboxed. All
+arguments are passed through to agent-browser unchanged.
+
+Usage:
+  agent-browser <command> [args...]    Run any agent-browser command
+  agent-browser --help                 Show this wrapper help
+  agent-browser --agent-browser-help   Show agent-browser's own help
+
+Environment:
+  AGENT_BROWSER_EXECUTABLE_PATH     Browser to launch (overrides auto-detection)
+  AGENT_BROWSER_WRAPPER_REINSTALL   Set to reinstall/upgrade the pinned agent-browser
+
+Run `agent-browser --agent-browser-help` for the full agent-browser command list.
+EOF
+}
+
+case "${1:-}" in
+--help)
+	usage
+	exit 0
+	;;
+--agent-browser-help)
+	shift
+	set -- --help "$@"
+	;;
+esac
+
+# Select a Node via nvm, matching the pi wrapper.
+set +u
+# shellcheck source=/dev/null
+. "${NVM_DIR:?NVM_DIR is not set}/nvm.sh"
+nvm use --lts >/dev/null
+set -u
+
+# Install (or reinstall) agent-browser from the pinned lockfile.
+if [[ ${AGENT_BROWSER_WRAPPER_REINSTALL+1} ]] || [[ ! -x "$AB_BIN" ]]; then
+	echo "Installing agent-browser..." >&2
+	lock_file="$AB_HOME/.install.lock"
+	until (set -o noclobber; echo $$ >"$lock_file") 2>/dev/null; do sleep 0.2; done
+	trap 'rm -f "$lock_file"' EXIT
+
+	pushd "$AB_HOME" >/dev/null
+	npm --no-update-notifier clean-install --ignore-scripts --omit=dev
+	popd >/dev/null
+
+	rm -f "$lock_file"
+	trap - EXIT
+fi
+
+# Prefer a system Chrome so the browser runs sandboxed and we skip the bundled
+# Chromium download. An explicit AGENT_BROWSER_EXECUTABLE_PATH always wins.
+if [[ -z ${AGENT_BROWSER_EXECUTABLE_PATH:-} ]]; then
+	system_chrome=""
+	case "$(uname -s)" in
+	Darwin)
+		for candidate in \
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+			"$HOME/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+			"/Applications/Chromium.app/Contents/MacOS/Chromium"; do
+			if [[ -x "$candidate" ]]; then
+				system_chrome="$candidate"
+				break
+			fi
+		done
+		;;
+	*)
+		for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+			if path=$(command -v "$candidate" 2>/dev/null); then
+				system_chrome="$path"
+				break
+			fi
+		done
+		;;
+	esac
+
+	if [[ -n "$system_chrome" ]]; then
+		export AGENT_BROWSER_EXECUTABLE_PATH="$system_chrome"
+	elif [[ ! -d "$HOME/.agent-browser/browsers" ]]; then
+		# No system Chrome and nothing bundled yet: fetch agent-browser's Chrome.
+		"$AB_BIN" install
+	fi
+fi
+
+exec "$AB_BIN" "$@"

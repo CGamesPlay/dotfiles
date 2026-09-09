@@ -1,0 +1,8 @@
+{
+	"name": "@cgamesplay/agent-browser",
+	"private": true,
+	"description": "Pinned agent-browser install used by the agent-browser wrapper in files/.local/bin.",
+	"dependencies": {
+		"agent-browser": "^0.37.0"
+	}
+}
