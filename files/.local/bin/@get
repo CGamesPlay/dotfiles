@@ -102,6 +102,20 @@ install_cog() {
 	eget -f 'cog' cocogitto/cocogitto --to="$BINDIR"
 }
 
+# Diagramming tool
+install_d2() {
+	mkdir d2
+	cd d2
+	eget d2lang/d2 --download-only --to=d2.tar.gz
+	tar -xf d2.tar.gz --strip-components=1
+
+	cp bin/d2 "$BINDIR/"
+	cp man/d2.1 "$MANDIR/man1/"
+
+	cd ..
+	rm -rf d2
+}
+
 # Git diff output filter
 install_delta() {
 	eget -a "$(musl_tag)" dandavison/delta --to="$BINDIR"
@@ -229,7 +243,7 @@ install_kapp() {
 
 # local-first issue tracker for agents
 install_kata() {
-	eget kenn-io/kata -a 'tar.gz' -a '^homebrew' -a '.json$' --to="$BINDIR"
+	eget kenn-io/kata -a 'tar.gz' -a '^homebrew' -a '^.json' --to="$BINDIR"
 }
 
 # Image building and pushing for k8s
