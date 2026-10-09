@@ -21,3 +21,7 @@ patterns = ["glob:'**/*.py'"]
 [fix.tools.ruff-format]
 command = ["uv", "run", "ruff", "format", "--stdin-filename=$path", "-"]
 patterns = ["glob:'**/*.py'"]
+
+[fix.tools.swiftformat]
+command = ["swiftformat", "stdin", "--quiet", "--stdin-path=$path", "--config", ".swiftformat"]
+patterns = ["glob:'**/*.swift'"]

@@ -90,7 +90,7 @@ launch_local() {
 	script=$(printf 'cd %q && exec direnv exec . nvim "$@"' "$PWD")
 	exec neovide-remote --no-tabs \
 		--neovim-bin=sh \
-		${argc_files+$(printf -- '--file=%q ' "${argc_files[@]}")} \
+		${argc_files+"${argc_files[@]/#/--file=}"} \
 		-- -c "$script" neovide-tramoline --listen neovide
 }
 
