@@ -53,6 +53,7 @@ program = "sh"
 # feature (in my git config) to implement COLORFGBG (which arguably Delta
 # should support natively but doesn't).
 diff-args = ["-c", """
+[ -n "$NO_COLOR" ] && exec diff -Nru "$@"
 if [ "${COLORFGBG:-0;15}" = "0;15" ]; then
   export DELTA_FEATURES="${DELTA_FEATURES+$DELTA_FEATURES }+light"
 fi

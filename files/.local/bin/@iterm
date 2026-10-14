@@ -40,6 +40,38 @@ paste() {
 	echo "$data" | base64 -d
 }
 
+# @cmd Update the program status indicator (OSC 7501)
+# https://www.superlogical.com/rex/docs/build/program-status
+# @arg    state![idle|working|done|blocked|error|clear]  New state (clear removes the record and its children)
+# @arg    message                 Human-readable line describing the state
+# @option --id                    Record id, e.g. build/test (default: root record)
+# @option --app                   Stable program identifier, e.g. terraform
+# @option --title                 Short human-readable label for the record
+# @option --kind[permission|question|auth]  What the user must do (blocked only)
+# @option --progress <PERCENT>    Integer 0 to 100 (working or blocked only)
+# @flag   --wait                  Wait for enter before exiting, so the shell prompt doesn't clear the status
+program-status() {
+	if ! _query $'\033]7501;?\033\\' $'\033]7501;?' >/dev/null; then # tree-sitter bash bug: '
+		echo "Terminal does not support program status" >&2
+		exit 1
+	fi
+
+	local payload="state=${argc_state:?}"
+	[[ ${argc_id+1} ]] && payload="$payload:id=$argc_id"
+	[[ ${argc_app+1} ]] && payload="$payload:app=$argc_app"
+	[[ ${argc_kind+1} ]] && payload="$payload:kind=$argc_kind"
+	[[ ${argc_progress+1} ]] && payload="$payload:progress=$argc_progress"
+	[[ ${argc_title+1} ]] && payload="$payload:title=$(printf '%s' "$argc_title" | base64 | tr -d '\n')"
+	[[ ${argc_message+1} ]] && payload="$payload:msg=$(printf '%s' "$argc_message" | base64 | tr -d '\n')"
+	tty_printf "\033]7501;%s\033\\" "$payload"
+
+	if [[ ${argc_wait+1} ]]; then
+		printf "Press enter to exit." >/dev/tty
+		read -rs </dev/tty
+		printf "\r\033[K" >/dev/tty
+	fi
+}
+
 # @cmd Control a progress bar
 # @flag --clear          Remove the progress bar
 # @flag --warning        Set the progress bar to "warning" state
