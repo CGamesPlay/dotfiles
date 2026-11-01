@@ -1,4 +1,4 @@
-fish_config theme choose "Rose Pine ANSI"
+fish_config theme choose ANSI
 
 # Fish has various heuristics to check for truecolor terminal support, but it
 # doesn't pass the results into the environment.

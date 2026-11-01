@@ -36,6 +36,13 @@ empty = "bright black"
 "status diff added" = "blue"
 "status diff removed" = "blue"
 "description continuation" = "bright black"
+timestamp = "red"
+"working_copy timestamp" = "bright red"
+"operation time" = "red"
+"operation current_operation time" = "bright red"
+"node immutable" = "bright red"
+"node working_copy" = "cyan"
+"node current_operation" = "cyan"
 
 [merge-tools.hunk]
 program = "jj-hunk-editor"
