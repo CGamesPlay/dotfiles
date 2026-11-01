@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # This is a bash script that runs the appropriate iTerm2 python environment.
-''''exec "$(printf "%s\n" ~/.config/iterm2/AppSupport/iterm2env/versions/*/bin/python | sort -t/ -k9 -V | tail -1)" "$0" "$@"
+''''exec "$(printf "%s\n" "$HOME/Library/Application Support/iTerm2/uv/venvs/"*/bin/python | sort -V | tail -1)" "$0" "$@"
 '''  # fmt: skip
 
 import iterm2
