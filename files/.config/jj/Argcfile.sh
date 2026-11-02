@@ -2,8 +2,6 @@
 # @describe Implementations of jj aliases
 #
 # Test by running: ~/.config/jj/test.sh
-#
-# @env JJ_NO_CLEANUP  Set to disable cleanup of intermediates/test repos
 # @meta binname jj
 
 set -eu
@@ -163,6 +161,112 @@ pull() {
 	fi
 	jj git fetch --remote "$remote"
 	jj rebase -o "$target"
+}
+
+# @cmd Count changed lines, grouped by filesets
+#
+# Groups are read from the sloc.groups config, an ordered list of
+# [name, fileset] pairs. Each file is counted in the first group it matches;
+# unmatched files are counted as "other". Groups with no changed files are
+# omitted. With no revision options, counts the entire tree at @. Configure
+# per repo with `jj config edit --repo`:
+#
+#   [sloc]
+#   groups = [["test", 'glob:"tests/**"'], ["docs", 'glob:"**/*.md"']]
+#
+# With --by, counts are additionally split by each directory matching the
+# glob (e.g. 'packages/*'); files outside those directories are reported as
+# "(root)".
+# @option -r --revisions <REVSET>  Show changes in this revision
+# @option -f --from <REVSET>       Show changes from this revision (default: root())
+# @option -t --to <REVSET>         Show changes to this revision (default: @)
+# @option    --by <GLOB>           Split counts by directories matching this glob
+sloc() {
+	cd "$JJ_WORKSPACE_ROOT"
+	if [[ ${argc_revisions+1} ]]; then
+		range=(-r "$argc_revisions")
+	else
+		range=(--from "${argc_from:-root()}" --to "${argc_to:-@}")
+	fi
+	groups=$(jj --quiet config list sloc.groups -T 'json(self)' 2>/dev/null)
+	if [[ -z "$groups" ]]; then
+		echo "Error: sloc.groups is not configured. Example:" >&2
+		echo "  jj config set --repo sloc.groups '[[\"test\", \"glob:\\\"tests/**\\\"\"]]'" >&2
+		exit 1
+	fi
+	names=() filesets=()
+	while IFS=$'\t' read -r name fileset; do
+		names+=("$name") filesets+=("$fileset")
+	done < <(jq -r '.value[] | @tsv' <<<"$groups")
+	names+=(other) filesets+=("all()")
+
+	scope_labels=() scope_filesets=()
+	if [[ ${argc_by+1} ]]; then
+		depth=$(($(tr -cd / <<<"$argc_by" | wc -c) + 1))
+		dirs_fileset="none()"
+		while read -r dir; do
+			scope_labels+=("$dir") scope_filesets+=("\"$dir\"")
+			dirs_fileset="$dirs_fileset | \"$dir\""
+		done < <(
+			jj diff --name-only "${range[@]}" | while IFS=/ read -ra parts; do
+				((${#parts[@]} > depth)) || continue
+				prefix=$(IFS=/; echo "${parts[*]:0:depth}")
+				# shellcheck disable=SC2053 # $argc_by is a glob
+				[[ "$prefix" == $argc_by ]] && echo "$prefix"
+			done | sort -u
+		)
+		scope_labels+=("(root)") scope_filesets+=("~($dirs_fileset)")
+		columns=6
+	else
+		scope_labels+=("") scope_filesets+=("all()")
+		columns=5
+	fi
+
+	for i in "${!scope_labels[@]}"; do
+		seen="none()"
+		prefix=${scope_labels[i]:+${scope_labels[i]}$'\t'}
+		for j in "${!names[@]}"; do
+			fileset="(${scope_filesets[i]}) & (${filesets[j]}) & ~($seen)"
+			seen="$seen | (${filesets[j]})"
+			summary=$(jj diff --stat --color=never "${range[@]}" "$fileset" | tail -n1)
+			if ! [[ "$summary" =~ ^([0-9]+)\ files?\ changed,\ ([0-9]+)\ insertions?\(\+\),\ ([0-9]+)\ deletions? ]]; then
+				echo "Error: unexpected diff summary: $summary" >&2
+				exit 1
+			fi
+			((BASH_REMATCH[1] > 0)) || continue
+			printf '%s%s\t%s\t%s\t%s\n' "$prefix" "${names[j]}" "${BASH_REMATCH[@]:1:3}"
+		done
+	done | sloc_table "$columns"
+}
+
+# Format tab-separated rows of labels followed by files, insertions, and
+# deletions as an aligned table of the given column count (labels plus four
+# counts) with a total row.
+sloc_table() {
+	awk -F'\t' -v n="$1" '
+		function cells(r, files, ins, del) {
+			cell[r, n - 3] = files " files"; cell[r, n - 2] = "+" ins
+			cell[r, n - 1] = "-" del; cell[r, n] = sprintf("%+d", ins - del)
+		}
+		{
+			for (i = 1; i <= NF - 3; i++) cell[NR, i] = $i
+			cells(NR, $(NF - 2), $(NF - 1), $NF)
+			files += $(NF - 2); ins += $(NF - 1); del += $NF
+		}
+		END {
+			rows = NR + 1
+			cell[rows, 1] = "total"
+			cells(rows, files + 0, ins + 0, del + 0)
+			for (r = 1; r <= rows; r++) for (i = 1; i <= n; i++) if (length(cell[r, i]) > w[i]) w[i] = length(cell[r, i])
+			for (r = 1; r <= rows; r++) {
+				line = ""
+				for (i = 1; i <= n; i++) {
+					fmt = (i > n - 4) ? "%" w[i] "s" : "%-" w[i] "s"
+					line = line (i > 1 ? "  " : "") sprintf(fmt, cell[r, i])
+				}
+				print line
+			}
+		}'
 }
 
 # @cmd Open the web repo associated with this repository
