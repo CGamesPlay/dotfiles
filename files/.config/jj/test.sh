@@ -346,6 +346,63 @@ test::pull() {
 	EOF
 }
 
+# @cmd Test the sloc command
+test::sloc() {
+	print_header "No groups configured"
+	mkrepo
+	if jj sloc 2>/dev/null; then
+		echo "Expected failure without sloc.groups"
+		exit 1
+	fi
+
+	print_header "Snapshot, first matching group wins"
+	mkdir -p src tests
+	printf '1\n2\n3\n' > src/a.py
+	printf '1\n2\n' > tests/test_a.py
+	printf '1\n' > README.md
+	jj --quiet commit -m "add files"
+	jj config set --repo sloc.groups \
+		'[["test", "glob:\"tests/**\""], ["docs", "glob:\"**/*.md\""], ["python", "glob:\"**/*.py\""]]'
+	check_output jj sloc <<-EOF
+	test    1 files  +2  -0  +2
+	docs    1 files  +1  -0  +1
+	python  1 files  +3  -0  +3
+	other   2 files  +2  -0  +2
+	total   5 files  +8  -0  +8
+	EOF
+
+	print_header "Single revision, empty groups hidden"
+	printf '1\n' > src/a.py
+	check_output jj sloc -r @ <<-EOF
+	python  1 files  +0  -2  -2
+	total   1 files  +0  -2  -2
+	EOF
+
+	print_header "Split by directory"
+	jj --quiet commit -m "shrink a.py"
+	mkdir -p pkgs/a pkgs/b
+	printf '1\n2\n' > pkgs/a/x.py
+	printf '1\n' > pkgs/b/y.md
+	printf '1\n' > notes.txt
+	check_output jj sloc --by 'pkgs/*' -r @ <<-EOF
+	pkgs/a  python  1 files  +2  -0  +2
+	pkgs/b  docs    1 files  +1  -0  +1
+	(root)  other   1 files  +1  -0  +1
+	total           3 files  +4  -0  +4
+	EOF
+}
+
+# Run a command and compare its stdout to stdin.
+check_output() {
+	actual=$("$@")
+	expected=$(cat)
+	if [[ "$actual" != "$expected" ]]; then
+		echo "Incorrect result!"
+		diff -U0 <(echo "$expected") <(echo "$actual")
+		exit 1
+	fi
+}
+
 print_header() {
 	printf "\n# %s\n\n" "$1"
 }
