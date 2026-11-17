@@ -346,6 +346,24 @@ test::pull() {
 	EOF
 }
 
+# @cmd Test the untrack-merged command
+test::untrack-merged() {
+	print_header "Prunes untracked remote bookmarks deleted on the remote"
+	mkremote
+	(
+		cd "$remote_dir/seed"
+		git push -q origin master:gone master:live
+	)
+	jj --quiet git fetch
+	git --git-dir="$(jj git root)" config remote.origin.fetch '+refs/heads/master:refs/remotes/origin/master'
+	git --git-dir="$remote_dir/remote.git" branch -q -D gone
+	jj untrack-merged
+	check_output jj bookmark list --all-remotes -T 'name ++ "@" ++ remote ++ "\n"' <<-EOF
+	live@origin
+	master@origin
+	EOF
+}
+
 # @cmd Test the sloc command
 test::sloc() {
 	print_header "No groups configured"

@@ -535,18 +535,31 @@ mkdir() {
 	fi
 }
 
-# @cmd Untrack merged bookmarks
-# @flag -n --dry-run  List bookmarks but don't untrack them
+# @cmd Untrack merged bookmarks, then prune untracked remote bookmarks deleted on the remote
+#
+# Pruning fetches each untracked remote bookmark by name, which removes the ones
+# the remote no longer has and updates the rest.
+# @flag -n --dry-run  List bookmarks but don't untrack or fetch them
 untrack-merged() {
 	cd "$ARGC_PWD"
 	bookmarks=($(jj log -G -r '::trunk()- & tracked_remote_bookmarks()' -T 'local_bookmarks.join(" ") ++ " "'))
 	if [[ ! ${bookmarks+1} ]]; then
 		echo "No bookmarks to untrack"
 	elif [[ ${argc_dry_run+1} ]]; then
-		echo "${bookmarks[@]}"
+		echo "Untrack: ${bookmarks[*]}"
 	else
 		jj bookmark untrack "${bookmarks[@]}"
 	fi
+
+	remote_bookmarks=$(jj bookmark list --all-remotes -T 'if(remote && remote != "git" && !tracked, remote ++ " " ++ name ++ "\n")')
+	for remote in $(cut -d' ' -f1 <<<"$remote_bookmarks" | sort -u); do
+		names=($(awk -v r="$remote" '$1 == r { print $2 }' <<<"$remote_bookmarks"))
+		if [[ ${argc_dry_run+1} ]]; then
+			echo "Fetch from $remote: ${names[*]}"
+		else
+			jj git fetch --remote "$remote" "${names[@]/#/--branch=exact:}"
+		fi
+	done
 }
 
 if ! command -v argc >/dev/null; then
