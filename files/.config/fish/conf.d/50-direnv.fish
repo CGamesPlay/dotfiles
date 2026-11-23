@@ -1,6 +1,6 @@
-# Set up direnv if it is installed
+# Set up direnv in interactive shells if it is installed
 
-if ! command -q direnv 2>/dev/null
+if ! status is-interactive; or ! command -q direnv 2>/dev/null
   exit
 end
 
