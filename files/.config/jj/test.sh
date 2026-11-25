@@ -196,7 +196,10 @@ test::bisect-conflict() {
 	jj --quiet new -m src2
 	echo wc > wc.txt
 
-	output=$(jj bisect-conflict -s src -o dest)
+	# Pin the clock so the destination replay produces the same commit IDs as
+	# the discovery rebase (regression: jj rejected the replay as an existing
+	# commit, so the destination was skipped instead of judged bad).
+	output=$(JJ_TIMESTAMP=2026-01-01T00:00:00Z jj bisect-conflict -s src -o dest)
 	case "$(echo "$output" | tail -n1)" in
 		"The first bad revision is: "*" d3") ;;
 		*)
@@ -286,17 +289,15 @@ test::bisect-conflict() {
 			;;
 	esac
 
-	print_header "Blames the merge instead of descending into an off-path branch"
+	print_header "Blames a conflicting branch merged in after the merge-base"
 	mkrepo
 	printf 'a\nb\nc\n' > shared.txt
 	jj --quiet commit -m preb
 	echo m > m.txt; jj --quiet commit -m mbase
-	# A branch that forks before mbase and edits shared.txt. It is merged into
-	# trunk after mbase, so its commits are ancestors of the destination but not
-	# on any path from the merge-base. Rebasing the source onto those commits
-	# conflicts too, but blaming them moves "backwards"; the merge that pulls the
-	# branch in is the meaningful culprit. The merge resolves cleanly because
-	# shared.txt already exists at preb, the common ancestor.
+	# A branch that forks before mbase and edits shared.txt, merged into trunk
+	# after mbase. Its commits are not descendants of the merge-base, but they
+	# introduce the conflict, so they must be bisected rather than assumed good.
+	# The merge resolves cleanly because shared.txt already exists at preb.
 	jj --quiet new 'description(substring:"preb")' -m sidebr
 	printf 'a\nSIDE\nc\n' > shared.txt
 	jj --quiet new 'description(substring:"mbase")' 'description(substring:"sidebr")' -m merge
@@ -308,9 +309,9 @@ test::bisect-conflict() {
 	jj --quiet bookmark set src -r @
 	output=$(jj bisect-conflict -s src -o dest)
 	case "$(echo "$output" | tail -n1)" in
-		"The first bad revision is: "*" merge") ;;
+		"The first bad revision is: "*" sidebr") ;;
 		*)
-			echo "Failure: expected first bad revision to be the merge commit" >&2
+			echo "Failure: expected first bad revision sidebr" >&2
 			echo "$output" >&2
 			exit 1
 			;;

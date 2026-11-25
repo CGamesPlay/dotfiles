@@ -316,6 +316,13 @@ gh-pr() {
 # conflict. The output matches `jj bisect run`. The repository is left unchanged.
 # @arg rebase_args~[?`_choice_rebase_args`]  Arguments to pass to `jj rebase` (e.g. -s foo -o bar)
 bisect-conflict() {
+	# rebase_args swallows every argument, including --help, so argc cannot
+	# handle it.
+	for arg in "${argc_rebase_args[@]}"; do
+		if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+			exec "$0" help bisect-conflict
+		fi
+	done
 	cd "$JJ_WORKSPACE_ROOT"
 
 	# Every jj call below uses --ignore-working-copy so the on-disk working copy
@@ -323,7 +330,7 @@ bisect-conflict() {
 	# operation therefore stays put, so restoring to before_op leaves no stale
 	# working copy.
 	before_op=$(jj op log --ignore-working-copy --no-graph -T 'id' -n 1)
-	trap 'jj --quiet op restore --ignore-working-copy "$before_op"; jj --quiet op abandon "$before_op..@-"' EXIT
+	trap 'jj --quiet op restore --ignore-working-copy "$before_op"; jj --quiet op abandon --ignore-working-copy "$before_op..@-"' EXIT
 
 	# A commit is "moved" iff its commit_id changes as a direct result of the
 	# rebase. jj rebase can only rewrite mutable commits, so snapshotting
@@ -335,7 +342,11 @@ bisect-conflict() {
 			-T 'change_id ++ "=" ++ commit_id ++ "=" ++ if(conflict, "C", "") ++ "\n"' | sort
 	}
 	before=$(snapshot)
-	if ! rebase_out=$(jj rebase --ignore-working-copy "${argc_rebase_args[@]:?}" 2>&1); then
+	# The bisect replays this exact rebase onto the destination. Git timestamps
+	# have one-second resolution, so a replay within the same second would
+	# recreate identical, now-hidden commits, which jj rejects. A fixed timestamp
+	# that no replay can share keeps the commit IDs distinct.
+	if ! rebase_out=$(JJ_TIMESTAMP=1970-01-01T00:00:00Z jj rebase --ignore-working-copy "${argc_rebase_args[@]:?}" 2>&1); then
 		echo "$rebase_out" >&2
 		exit 1
 	fi
@@ -386,17 +397,12 @@ bisect-conflict() {
 	roots=$(jj log --ignore-working-copy --no-graph -r "roots($moved_revset)" \
 		-T 'change_id ++ "\n"' | paste -sd'|' -)
 
-	# Bisect only commits on a directed path from the merge-base to the
-	# destination (the DAG range), not every ancestor of the destination. A
+	# jj bisect requires every parent of the range outside it to be good. A
 	# branch that forks before the merge-base and merges into the destination's
-	# history afterwards is an ancestor of the destination but not on any path
-	# from the merge-base; rebasing onto such a commit moves "backwards" and
-	# breaks bisect's monotonicity assumption. Restricting to the DAG range keeps
-	# the merge that pulls the branch in (it is on the path) as a candidate, so it
-	# can be reported as the first bad revision, while excluding the off-path
-	# commits. The merge-base itself is the good baseline, so subtract it.
+	# history afterwards may itself conflict, so it must be inside the range;
+	# only ancestors of the merge-base are known to be good.
 	mergebase="heads(::($roots) & ::($dest))"
-	range="(($mergebase)::($dest)) ~ ($mergebase)"
+	range="::($dest) ~ ::($mergebase)"
 
 	# Each candidate is tested by replaying the user's exact rebase with only the
 	# destination swapped for the candidate. Reconstructing the move ourselves
